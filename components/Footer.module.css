@@ -1,0 +1,132 @@
+.footer {
+  margin-top: var(--space-8);
+  padding-block: var(--space-8) var(--space-6);
+  background: var(--green-900);
+  color: var(--cream-100);
+}
+
+.top {
+  display: grid;
+  grid-template-columns: 1.2fr 2fr;
+  gap: var(--space-7);
+  padding-bottom: var(--space-7);
+  border-bottom: 1px solid rgba(230, 220, 196, 0.18);
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--cream-100);
+}
+
+.logoMark {
+  color: var(--peach-400);
+}
+
+.tagline {
+  margin-top: var(--space-2);
+  font-family: var(--font-script);
+  font-size: 1.4rem;
+  color: var(--peach-200);
+}
+
+.socials {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.socials a {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(230, 220, 196, 0.3);
+  color: var(--cream-100);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.socials a:hover {
+  background: rgba(230, 220, 196, 0.12);
+  border-color: var(--peach-200);
+}
+
+.cols {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-5);
+}
+
+.colTitle {
+  color: var(--peach-200);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: var(--space-3);
+}
+
+.col ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.col a {
+  color: rgba(230, 220, 196, 0.82);
+  font-size: 0.95rem;
+  transition: color 0.15s ease;
+}
+
+.col a:hover {
+  color: var(--cream-100);
+}
+
+.closing {
+  padding-block: var(--space-7);
+  text-align: center;
+}
+
+.closingLine {
+  max-width: 46ch;
+  margin: 0 auto var(--space-4);
+  font-size: 1.5rem;
+  color: var(--cream-100);
+  line-height: 1.5;
+}
+
+.legal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-5);
+  border-top: 1px solid rgba(230, 220, 196, 0.18);
+  font-size: 0.85rem;
+  color: rgba(230, 220, 196, 0.7);
+}
+
+.legalLinks {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.legalLinks a:hover {
+  color: var(--cream-100);
+}
+
+@media (max-width: 760px) {
+  .top {
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+  }
+  .legal {
+    flex-direction: column;
+    text-align: center;
+  }
+}

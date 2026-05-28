@@ -1,0 +1,103 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(246, 241, 231, 0.72);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid transparent;
+  transition: background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.scrolled {
+  background: rgba(246, 241, 231, 0.92);
+  border-bottom-color: var(--line);
+  box-shadow: var(--shadow-soft);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  height: var(--header-h);
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.logoMark {
+  color: var(--accent);
+}
+
+.logoText {
+  font-family: var(--font-serif);
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--primary);
+  letter-spacing: 0.01em;
+}
+
+.nav {
+  display: flex;
+  gap: var(--space-5);
+}
+
+.navLink {
+  font-weight: 600;
+  font-size: 0.96rem;
+  color: var(--text-soft);
+  transition: color 0.15s ease;
+}
+
+.navLink:hover {
+  color: var(--primary);
+}
+
+.cart {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--primary);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.cart:hover {
+  border-color: var(--sage-500);
+  transform: translateY(-1px);
+}
+
+.cart:focus-visible {
+  outline: 3px solid var(--lavender-400);
+  outline-offset: 2px;
+}
+
+.badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--brown-900);
+  font-size: 0.72rem;
+  font-weight: 800;
+  border: 2px solid var(--paper);
+}
+
+@media (max-width: 860px) {
+  .nav {
+    display: none;
+  }
+}
