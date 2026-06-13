@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { BASE_HEIGHT, BASE_WIDTH } from '../config';
+import { generatePlaceholderTextures } from '../systems/TextureFactory';
 import { SceneKeys } from './SceneKeys';
 
 /**
@@ -20,6 +21,8 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Build placeholder art now that the (empty) load queue is done.
+    generatePlaceholderTextures(this);
     this.scene.start(SceneKeys.World);
   }
 
