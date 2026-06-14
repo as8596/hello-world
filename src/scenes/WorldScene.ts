@@ -186,15 +186,13 @@ export class WorldScene extends Phaser.Scene {
       } else if (obj.type === 'blade') {
         if (woken || worldState.hasFlag('has_blade')) continue;
         const glow = this.makePickupGlint(obj.x, obj.y, [180, 210, 255]); // cool steel glint
-        this.itemPickups.push(
-          new Pickup(this, obj.x, obj.y, TextureKeys.Blade, { glow, onCollect: () => this.onBladeCollected() }),
-        );
+        const tex = this.textures.exists('item-blade') ? 'item-blade' : TextureKeys.Blade;
+        this.itemPickups.push(new Pickup(this, obj.x, obj.y, tex, { glow, onCollect: () => this.onBladeCollected() }));
       } else if (obj.type === 'handbell') {
         if (woken || worldState.hasFlag('has_handbell')) continue;
         const glow = this.makePickupGlint(obj.x, obj.y, [255, 220, 140]); // warm gold glint
-        this.itemPickups.push(
-          new Pickup(this, obj.x, obj.y, TextureKeys.Handbell, { glow, onCollect: () => this.onHandbellCollected() }),
-        );
+        const tex = this.textures.exists('item-handbell') ? 'item-handbell' : TextureKeys.Handbell;
+        this.itemPickups.push(new Pickup(this, obj.x, obj.y, tex, { glow, onCollect: () => this.onHandbellCollected() }));
       } else if (obj.type === 'hearth') {
         this.hearthPositions.push({ x: obj.x, y: obj.y });
         this.interactables.push(

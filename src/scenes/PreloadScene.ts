@@ -44,6 +44,11 @@ export class PreloadScene extends Phaser.Scene {
     // tiles once loaded (tree-walls + vines stay procedural).
     this.load.image('terrain', 'assets/tilesets/terrain.png');
 
+    // Optional real item art (blade + handbell pickups); falls back to the
+    // procedural placeholder if missing.
+    this.load.image('item-blade', 'assets/sprites/items/blade.png');
+    this.load.image('item-handbell', 'assets/sprites/items/handbell.png');
+
     // A missing optional asset must not fail the boot.
     this.load.on('loaderror', () => undefined);
   }
