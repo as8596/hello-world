@@ -5,6 +5,9 @@ import { FLOWER_TILE_INDEX, GRASS_VARIANT_INDICES, TextureKeys } from './Texture
 /** Narrow walkable runs this wide or less become the dirt trail. */
 const MAX_TRAIL_WIDTH = 2;
 
+/** Depth of the tree-canopy overlay — just above the player (10) + slash (11). */
+const OVERHEAD_DEPTH = 12;
+
 /** Pick a grass tile variant (rarely a flower) for organic-looking ground. */
 function pickGrass(): number {
   const r = Math.random();
@@ -116,6 +119,20 @@ export function buildTilemap(scene: Phaser.Scene, def: TileMapDef): BuiltMap {
   });
 
   layer.setCollision(def.blocking);
+
+  // Re-draw the blocking tiles (tree-walls) on a layer ABOVE the player so the
+  // tall character walks *behind* the treeline (the canopy occludes them)
+  // instead of covering it — collision stays on the ground layer below.
+  const overhead = map.createBlankLayer('overhead', tileset, 0, 0);
+  if (overhead) {
+    const blockingSet = new Set<number>(def.blocking);
+    for (let y = 0; y < data.length; y++) {
+      for (let x = 0; x < data[y].length; x++) {
+        if (blockingSet.has(data[y][x])) overhead.putTileAt(data[y][x], x, y);
+      }
+    }
+    overhead.setDepth(OVERHEAD_DEPTH);
+  }
 
   return {
     layer,
