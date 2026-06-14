@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { EnemyDef } from '../data/enemies';
 import { playerConfig } from '../data/playerConfig';
+import { RENDER_SCALE as RS } from '../data/render';
 import { eventBus } from '../systems/EventBus';
 import { addPixelText } from '../systems/PixelFont';
 import { TextureKeys } from '../systems/TextureFactory';
@@ -47,8 +48,8 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
     this.onDeath = opts.onDeath;
 
     const body = this.body as Phaser.Physics.Arcade.Body;
-    body.setSize(10, 10);
-    body.setOffset(3, 4);
+    body.setSize(10 * RS, 10 * RS);
+    body.setOffset(3 * RS, 4 * RS);
     body.setCollideWorldBounds(true);
     this.setDepth(7);
   }
@@ -87,7 +88,7 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
   private showStunVfx(ms: number): void {
     this.endStunVfx();
 
-    this.stunStars = this.scene.add.image(this.x, this.y - 12, TextureKeys.StunStars).setDepth(20);
+    this.stunStars = this.scene.add.image(this.x, this.y - 12 * RS, TextureKeys.StunStars).setDepth(20);
     this.scene.tweens.add({
       targets: this.stunStars,
       alpha: { from: 0.5, to: 1 },
@@ -97,7 +98,7 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
     });
 
     // A visible countdown bar that shrinks over the stun duration.
-    this.stunBar = this.scene.add.rectangle(this.x, this.y - 17, 12, 1, 0xffe066).setDepth(20);
+    this.stunBar = this.scene.add.rectangle(this.x, this.y - 17 * RS, 12 * RS, 1 * RS, 0xffe066).setDepth(20);
     this.scene.tweens.add({ targets: this.stunBar, scaleX: 0, duration: ms, ease: 'Linear' });
 
     this.wobble = this.scene.tweens.add({
@@ -160,7 +161,7 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
         break;
 
       case 'leash':
-        if (distHome < 4) {
+        if (distHome < 4 * RS) {
           body.setVelocity(0, 0);
           this.aiState = 'idle';
         } else {
@@ -191,12 +192,12 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
     this.aiState = 'notice';
     this.noticeUntil = now + 220;
     // A readability cue when an enemy first spots you (§14 P1).
-    const cue = addPixelText(this.scene, Math.round(this.x), Math.round(this.y - 14), '!', {
+    const cue = addPixelText(this.scene, Math.round(this.x), Math.round(this.y - 14 * RS), '!', {
       color: 0xffe066,
     }).setOrigin(0.5, 1).setDepth(20);
     this.scene.tweens.add({
       targets: cue,
-      y: cue.y - 4,
+      y: cue.y - 4 * RS,
       alpha: 0,
       delay: 250,
       duration: 350,
@@ -233,9 +234,9 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
   private spawnSpores(): void {
     for (let i = 0; i < 6; i++) {
       const angle = (Math.PI * 2 * i) / 6 + Math.random() * 0.5;
-      const dist = 6 + Math.random() * 6;
+      const dist = (6 + Math.random() * 6) * RS;
       const spore = this.scene.add
-        .rectangle(this.x, this.y, 2, 2, 0x6f9b3a)
+        .rectangle(this.x, this.y, 2 * RS, 2 * RS, 0x6f9b3a)
         .setDepth(8);
       this.scene.tweens.add({
         targets: spore,

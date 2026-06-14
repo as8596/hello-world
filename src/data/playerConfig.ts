@@ -1,7 +1,10 @@
+import { RENDER_SCALE } from './render';
+
 /**
  * Player tuning — data, not hardcoded into the entity (project convention).
  * Movement is expressed in pixels/second so it stays delta-time correct and
- * framerate-independent (DESIGN.md §14, P0).
+ * framerate-independent (DESIGN.md §14, P0). Spatial values are `design *
+ * RENDER_SCALE` so they track the global render scale.
  */
 export interface PlayerConfig {
   /** Top speed in px/sec. */
@@ -20,11 +23,9 @@ export interface PlayerConfig {
    * generated placeholder is used. Tune these once you can see it in-game.
    */
   sprite: {
-    /** On-screen height in px the art is scaled to. */
-    targetHeight: number;
-    /** Vertical origin (0..1); ~0.9 puts the feet near the bottom. */
+    /** Vertical origin (0..1); ~0.9 puts the feet near the bottom of the frame. */
     originY: number;
-    /** World-space foot collision box. */
+    /** Foot collision box, in the art's native (128px-frame) pixels. */
     bodyWidth: number;
     bodyHeight: number;
   };
@@ -63,23 +64,23 @@ export interface PlayerConfig {
 }
 
 export const playerConfig: PlayerConfig = {
-  maxSpeed: 90,
-  acceleration: 750,
-  friction: 950,
+  maxSpeed: 90 * RENDER_SCALE,
+  acceleration: 750 * RENDER_SCALE,
+  friction: 950 * RENDER_SCALE,
   walkFrameRate: 8,
   // A short body near the feet reads better for top-down overlap than the full sprite.
-  body: { width: 8, height: 7, offsetX: 4, offsetY: 8 },
-  // Tuned for the 128x128 art (character centered, feet ~90% down the frame).
+  body: { width: 8 * RENDER_SCALE, height: 7 * RENDER_SCALE, offsetX: 4 * RENDER_SCALE, offsetY: 8 * RENDER_SCALE },
+  // Native 128px art (character centered, feet ~90% down the frame); the foot
+  // box is in those native pixels (the sprite renders 1:1, no scaling).
   sprite: {
-    targetHeight: 34,
     originY: 0.9,
-    bodyWidth: 10,
-    bodyHeight: 6,
+    bodyWidth: 34,
+    bodyHeight: 18,
   },
   maxHearts: 3,
   heartFragmentHalfHearts: 2,
   invulnMs: 800,
-  hurtKnockback: 170,
+  hurtKnockback: 170 * RENDER_SCALE,
   hurtLockMs: 180,
   attack: {
     damage: 1,
@@ -87,10 +88,10 @@ export const playerConfig: PlayerConfig = {
     activeMs: 90,
     recoverMs: 130,
     bufferMs: 150,
-    reach: 11,
-    hitboxW: 16,
-    hitboxH: 14,
+    reach: 11 * RENDER_SCALE,
+    hitboxW: 16 * RENDER_SCALE,
+    hitboxH: 14 * RENDER_SCALE,
     hitStopMs: 70,
-    knockback: 150,
+    knockback: 150 * RENDER_SCALE,
   },
 };

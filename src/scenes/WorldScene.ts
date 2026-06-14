@@ -9,6 +9,7 @@ import { ITEMS } from '../data/items';
 import { handbellConfig } from '../data/handbellConfig';
 import { thistledownMap } from '../data/maps/thistledown';
 import { playerConfig } from '../data/playerConfig';
+import { RENDER_SCALE as RS } from '../data/render';
 import { Boss } from '../entities/Boss';
 import { BossDoor } from '../entities/BossDoor';
 import { Chime } from '../entities/Chime';
@@ -29,7 +30,8 @@ import { DialogueBox } from '../ui/DialogueBox';
 import { SceneKeys } from './SceneKeys';
 
 /** How close (px) the player must be to read a villager. */
-const INTERACT_RADIUS = 22;
+const INTERACT_RADIUS = 22 * RS;
+const BOSS_BAR_WIDTH = 140 * RS;
 
 /**
  * WorldScene — the playable overworld. Builds the Thistledown tilemap, spawns
@@ -165,7 +167,7 @@ export class WorldScene extends Phaser.Scene {
     const cam = this.cameras.main;
     cam.setBounds(0, 0, map.widthPx, map.heightPx);
     cam.startFollow(this.player, true, 0.12, 0.12);
-    cam.setDeadzone(36, 28);
+    cam.setDeadzone(36 * RS, 28 * RS);
     cam.fadeIn(250);
 
     this.dialogue = new DialogueBox(this);
@@ -406,8 +408,8 @@ export class WorldScene extends Phaser.Scene {
     if (this.enemies.length >= bramblewerth.adds.cap) return;
     const def = ENEMIES.thorn_sprite;
     if (!def) return;
-    const ex = Phaser.Math.Clamp(x, 96, 288);
-    const ey = Phaser.Math.Clamp(y, 28, 88);
+    const ex = Phaser.Math.Clamp(x, 96 * RS, 288 * RS);
+    const ey = Phaser.Math.Clamp(y, 28 * RS, 88 * RS);
     this.enemies.push(new EnemyBase(this, ex, ey, def, { onDeath: (e) => this.onEnemyDeath(e) }));
   }
 
@@ -491,8 +493,8 @@ export class WorldScene extends Phaser.Scene {
       const ox = this.greatBell?.x ?? this.player.x;
       const oy = this.greatBell?.y ?? this.player.y;
       const wave = this.add
-        .circle(ox, oy, 700, 0xfff2c0, 0.12)
-        .setStrokeStyle(4, 0xffffff, 0.9)
+        .circle(ox, oy, 700 * RS, 0xfff2c0, 0.12)
+        .setStrokeStyle(4 * RS, 0xffffff, 0.9)
         .setScale(0.02)
         .setDepth(1900);
       this.tweens.add({ targets: wave, scale: 1, alpha: 0, duration: 1500, ease: 'Cubic.Out', onComplete: () => wave.destroy() });
@@ -501,16 +503,16 @@ export class WorldScene extends Phaser.Scene {
 
   private buildBossBar(): void {
     const cx = Math.round(this.scale.width / 2);
-    const y = 13;
-    const width = 140;
+    const y = 13 * RS;
+    const width = BOSS_BAR_WIDTH;
     this.bossBarBg = this.add
-      .rectangle(cx, y, width + 4, 6, 0x10101a, 0.85)
+      .rectangle(cx, y, width + 4 * RS, 6 * RS, 0x10101a, 0.85)
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(2000)
       .setVisible(false);
     this.bossBarFill = this.add
-      .rectangle(cx - width / 2, y, width, 4, 0xc0432b)
+      .rectangle(cx - width / 2, y, width, 4 * RS, 0xc0432b)
       .setOrigin(0, 0.5)
       .setScrollFactor(0)
       .setDepth(2001)
@@ -519,7 +521,7 @@ export class WorldScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(2001)
       .setVisible(false);
-    this.bossName.setPosition(Math.round(cx - this.bossName.width / 2), 4);
+    this.bossName.setPosition(Math.round(cx - this.bossName.width / 2), 4 * RS);
   }
 
   private showBossBar(): void {
@@ -540,14 +542,14 @@ export class WorldScene extends Phaser.Scene {
       this.hideBossBar();
       return;
     }
-    this.bossBarFill.width = 140 * this.boss.hpRatio;
+    this.bossBarFill.width = BOSS_BAR_WIDTH * this.boss.hpRatio;
   }
 
   /** An expanding shockwave ring synced to the ring (§14 P0). */
   private spawnShockwave(x: number, y: number, radius: number): void {
     const ring = this.add
       .circle(x, y, radius)
-      .setStrokeStyle(2, 0xfff2c0, 0.9)
+      .setStrokeStyle(2 * RS, 0xfff2c0, 0.9)
       .setFillStyle(0xfff2c0, 0.08)
       .setScale(0.05)
       .setDepth(15);
@@ -597,7 +599,7 @@ export class WorldScene extends Phaser.Scene {
   /** Auto-collect heart fragments the player walks over. */
   private collectNearbyPickups(): void {
     for (const pickup of this.pickups) {
-      if (pickup.active && Phaser.Math.Distance.Between(this.player.x, this.player.y, pickup.x, pickup.y) <= 12) {
+      if (pickup.active && Phaser.Math.Distance.Between(this.player.x, this.player.y, pickup.x, pickup.y) <= 12 * RS) {
         pickup.collect();
       }
     }
@@ -645,9 +647,9 @@ export class WorldScene extends Phaser.Scene {
     const w = this.promptText.width;
     const h = this.promptText.height;
     const cx = Math.round(target.x);
-    const cy = Math.round(target.y - 12);
+    const cy = Math.round(target.y - 16 * RS);
     this.promptText.setPosition(Math.round(cx - w / 2), Math.round(cy - h / 2)).setVisible(true);
-    this.promptBg.setPosition(cx, cy).setSize(w + 4, h + 3).setVisible(true);
+    this.promptBg.setPosition(cx, cy).setSize(w + 4 * RS, h + 3 * RS).setVisible(true);
   }
 
   private act(target: Interactable): void {
@@ -729,13 +731,13 @@ export class WorldScene extends Phaser.Scene {
 
   private showToast(text: string): void {
     const cx = Math.round(this.scale.width / 2);
-    const cy = 24;
+    const cy = 24 * RS;
     const toast = addPixelText(this, 0, 0, text, { color: 0xe8e6d8 }).setScrollFactor(0).setDepth(2101);
     const w = toast.width;
     const h = toast.height;
     toast.setPosition(Math.round(cx - w / 2), Math.round(cy - h / 2));
     const bg = this.add
-      .rectangle(cx, cy, w + 6, h + 4, 0x10101a, 0.85)
+      .rectangle(cx, cy, w + 6 * RS, h + 4 * RS, 0x10101a, 0.85)
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(2100);
@@ -756,7 +758,7 @@ export class WorldScene extends Phaser.Scene {
     const hint = addPixelText(this, 0, 0, 'WASD move - J attack - F bell - E read', { color: 0xe8e6d8 })
       .setScrollFactor(0)
       .setDepth(1000);
-    hint.setPosition(Math.round((this.scale.width - hint.width) / 2), this.scale.height - 16);
+    hint.setPosition(Math.round((this.scale.width - hint.width) / 2), this.scale.height - 16 * RS);
     this.tweens.add({ targets: hint, alpha: 0, delay: 4500, duration: 1200, onComplete: () => hint.destroy() });
   }
 }

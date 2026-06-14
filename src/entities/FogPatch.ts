@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { RENDER_SCALE as RS } from '../data/render';
 import { eventBus } from '../systems/EventBus';
 import { TextureKeys } from '../systems/TextureFactory';
 
@@ -48,7 +49,7 @@ export class FogPatch extends Phaser.Physics.Arcade.Sprite {
     this.scene.tweens.add({
       targets: this,
       alpha: 0,
-      y: this.y - 6,
+      y: this.y - 6 * RS,
       scaleX: 1.4,
       scaleY: 1.4,
       duration: 420,

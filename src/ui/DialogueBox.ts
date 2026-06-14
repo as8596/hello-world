@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { RENDER_SCALE as RS } from '../data/render';
 import { addPixelText, PIXEL_FONT_KEY } from '../systems/PixelFont';
 
 /**
@@ -27,33 +28,33 @@ export class DialogueBox {
     this.scene = scene;
     const w = scene.scale.width;
     const h = scene.scale.height;
-    const margin = 8;
-    const panelH = 54;
+    const margin = 8 * RS;
+    const panelH = 54 * RS;
     const panelW = w - margin * 2;
-    const panelY = h - panelH - 6;
+    const panelY = h - panelH - 6 * RS;
 
     this.bg = scene.add
       .rectangle(margin, panelY, panelW, panelH, 0x10101a, 0.92)
       .setOrigin(0, 0)
-      .setStrokeStyle(1, 0x6fb3ff, 0.8)
+      .setStrokeStyle(1 * RS, 0x6fb3ff, 0.8)
       .setScrollFactor(0)
       .setDepth(2000)
       .setVisible(false);
 
-    this.body = addPixelText(scene, margin + 6, panelY + 6, '', { color: 0xe8e6d8, maxWidth: panelW - 16 })
+    this.body = addPixelText(scene, margin + 6 * RS, panelY + 6 * RS, '', { color: 0xe8e6d8, maxWidth: panelW - 16 * RS })
       .setScrollFactor(0)
       .setDepth(2001)
       .setVisible(false);
 
     this.indicator = scene.add
-      .bitmapText(margin + panelW - 12, panelY + panelH - 11, PIXEL_FONT_KEY, '>')
+      .bitmapText(margin + panelW - 12 * RS, panelY + panelH - 11 * RS, PIXEL_FONT_KEY, '>')
       .setTint(0x6fb3ff)
       .setScrollFactor(0)
       .setDepth(2001)
       .setVisible(false);
 
-    this.choiceX = margin + 8;
-    this.choiceStartY = panelY + 26;
+    this.choiceX = margin + 8 * RS;
+    this.choiceStartY = panelY + 26 * RS;
   }
 
   get isOpen(): boolean {
@@ -115,7 +116,7 @@ export class DialogueBox {
   renderChoices(labels: string[], selected: number): void {
     this.clearChoices();
     labels.forEach((label, i) => {
-      const bt = addPixelText(this.scene, this.choiceX, this.choiceStartY + i * 8, `${i === selected ? '> ' : '  '}${label}`, {
+      const bt = addPixelText(this.scene, this.choiceX, this.choiceStartY + i * 8 * RS, `${i === selected ? '> ' : '  '}${label}`, {
         color: i === selected ? 0xffe066 : 0x9a9a8a,
       })
         .setScrollFactor(0)

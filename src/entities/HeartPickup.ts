@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { RENDER_SCALE as RS } from '../data/render';
 import { TextureKeys } from '../systems/TextureFactory';
 
 export interface HeartPickupOptions {
@@ -22,7 +23,7 @@ export class HeartPickup extends Phaser.GameObjects.Sprite {
 
     scene.tweens.add({
       targets: this,
-      y: y - 2,
+      y: y - 2 * RS,
       yoyo: true,
       repeat: -1,
       duration: 700,
@@ -37,7 +38,7 @@ export class HeartPickup extends Phaser.GameObjects.Sprite {
     this.scene.tweens.killTweensOf(this);
     this.scene.tweens.add({
       targets: this,
-      y: this.y - 8,
+      y: this.y - 8 * RS,
       alpha: 0,
       scale: 1.6,
       duration: 260,

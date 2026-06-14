@@ -1,3 +1,4 @@
+import { TILE_SIZE } from '../render';
 import { Tile, type TileMapDef } from './types';
 
 /**
@@ -17,7 +18,7 @@ import { Tile, type TileMapDef } from './types';
  *           B  the great bell   @  spawn
  */
 export const thistledownMap: TileMapDef = {
-  tileSize: 16,
+  tileSize: TILE_SIZE,
   legend: {
     '.': Tile.Grass,
     '#': Tile.Wall,

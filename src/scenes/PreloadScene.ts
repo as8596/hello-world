@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { BASE_HEIGHT, BASE_WIDTH } from '../config';
+import { RENDER_SCALE as RS } from '../data/render';
 import { PLAYER_SPRITE_DIRS } from '../entities/Player';
 import { addPixelText, createPixelFont } from '../systems/PixelFont';
 import { generatePlaceholderTextures } from '../systems/TextureFactory';
@@ -36,18 +37,18 @@ export class PreloadScene extends Phaser.Scene {
 
   private drawLoadingBar(): void {
     const barWidth = Math.floor(BASE_WIDTH * 0.6);
-    const barHeight = 6;
+    const barHeight = 6 * RS;
     const x = Math.floor((BASE_WIDTH - barWidth) / 2);
     const y = Math.floor(BASE_HEIGHT / 2);
 
     const frame = this.add.rectangle(x, y, barWidth, barHeight, 0x222233).setOrigin(0, 0.5);
-    const fill = this.add.rectangle(x + 1, y, 0, barHeight - 2, 0x6fb3ff).setOrigin(0, 0.5);
+    const fill = this.add.rectangle(x + 1 * RS, y, 0, barHeight - 2 * RS, 0x6fb3ff).setOrigin(0, 0.5);
 
     const label = addPixelText(this, 0, 0, 'Loading...', { color: 0xe8e6d8 });
-    label.setPosition(Math.round((BASE_WIDTH - label.width) / 2), y - 16);
+    label.setPosition(Math.round((BASE_WIDTH - label.width) / 2), y - 16 * RS);
 
     this.load.on('progress', (value: number) => {
-      fill.width = (barWidth - 2) * value;
+      fill.width = (barWidth - 2 * RS) * value;
     });
 
     this.load.on('complete', () => {

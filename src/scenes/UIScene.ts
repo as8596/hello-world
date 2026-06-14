@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { playerConfig } from '../data/playerConfig';
+import { RENDER_SCALE as RS } from '../data/render';
 import { QUESTS } from '../data/quests';
 import { eventBus } from '../systems/EventBus';
 import { addPixelText } from '../systems/PixelFont';
@@ -29,10 +30,10 @@ export class UIScene extends Phaser.Scene {
     const full = playerConfig.maxHearts * 2;
     this.renderHearts(full, full);
 
-    this.coinText = addPixelText(this, 5, 14, '', { color: 0xffe066 });
+    this.coinText = addPixelText(this, 5 * RS, 14 * RS, '', { color: 0xffe066 });
     this.renderCoin(worldState.getCounter('coin'));
 
-    this.questText = addPixelText(this, 0, 0, '', { color: 0xe8e6d8, maxWidth: 150 }).setVisible(false);
+    this.questText = addPixelText(this, 0, 0, '', { color: 0xe8e6d8, maxWidth: 150 * RS }).setVisible(false);
     this.restorePinnedQuest();
 
     const offHealth = eventBus.on('playerHealth', (p) => {
@@ -64,7 +65,7 @@ export class UIScene extends Phaser.Scene {
     this.hearts = [];
     this.currentMax = max;
     for (let i = 0; i < max / 2; i++) {
-      this.hearts.push(this.add.image(5 + i * 8, 5, TextureKeys.Hearts, 'full').setOrigin(0, 0));
+      this.hearts.push(this.add.image((5 + i * 8) * RS, 5 * RS, TextureKeys.Hearts, 'full').setOrigin(0, 0));
     }
   }
 
@@ -78,7 +79,7 @@ export class UIScene extends Phaser.Scene {
       return;
     }
     this.questText.setText(`* ${objective}`);
-    this.questText.setPosition(this.scale.width - this.questText.width - 5, 5).setVisible(true);
+    this.questText.setPosition(this.scale.width - this.questText.width - 5 * RS, 5 * RS).setVisible(true);
   }
 
   private restorePinnedQuest(): void {

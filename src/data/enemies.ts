@@ -1,4 +1,5 @@
 import { TextureKeys } from '../systems/TextureFactory';
+import { RENDER_SCALE } from './render';
 
 /**
  * Enemy definitions (DESIGN.md §17). One shared EnemyBase runs the FSM; each
@@ -38,11 +39,11 @@ export const thornSprite: EnemyDef = {
   name: 'Thorn-sprite',
   texture: TextureKeys.ThornSprite,
   hp: 2,
-  speed: 55,
+  speed: 55 * RENDER_SCALE,
   contactDamage: 1,
-  vision: 90,
-  aggroRange: 80,
-  leashRange: 150,
+  vision: 90 * RENDER_SCALE,
+  aggroRange: 80 * RENDER_SCALE,
+  leashRange: 150 * RENDER_SCALE,
   stunnable: true,
 };
 

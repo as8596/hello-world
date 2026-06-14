@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { RENDER_SCALE as RS } from '../data/render';
 import { eventBus } from '../systems/EventBus';
 import { TextureKeys } from '../systems/TextureFactory';
 
@@ -35,7 +36,7 @@ export class BossDoor extends Phaser.Physics.Arcade.Sprite {
     eventBus.emit('bossDoorOpened', { x: this.x, y: this.y });
     this.scene.tweens.add({
       targets: this,
-      y: this.y - 8,
+      y: this.y - 8 * RS,
       alpha: 0,
       duration: 480,
       ease: 'Cubic.In',

@@ -64,7 +64,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private renderedSprite?: SpriteDir;
   /** Using real directional art (8 rotations) vs the generated placeholder. */
   private readonly useSheet: boolean;
-  /** Resting display scale (≈0.27 for the downscaled art, 1 for the placeholder). */
+  /** Resting display scale (1 — art renders 1:1 on the high-res framebuffer). */
   private baseScale = 1;
   private readonly cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   private readonly wasd: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
@@ -91,25 +91,15 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     const body = this.body as Phaser.Physics.Arcade.Body;
     if (useSheet) {
-      // Scale the real art to a tile-appropriate height, feet near the bottom,
-      // with a small foot collision box centered on the feet (origin), with the
-      // size/offset compensated for the sprite scale.
-      // Linear filtering so the large art downscales smoothly instead of
-      // shimmering/flickering with nearest-neighbor as it moves.
-      for (const d of PLAYER_SPRITE_DIRS) {
-        scene.textures.get(`player-${d.key}`).setFilter(Phaser.Textures.FilterMode.LINEAR);
-      }
+      // The framebuffer is high-res (RENDER_SCALE), so the 128px art displays
+      // 1:1 — no scaling, which keeps it crisp and shimmer-free. The foot box is
+      // in the art's native pixels, centered on the feet (origin).
       const cfg = playerConfig.sprite;
       const srcW = this.width;
       const srcH = this.height;
-      const s = cfg.targetHeight / srcH;
-      this.baseScale = s;
       this.setOrigin(0.5, cfg.originY);
-      this.setScale(s);
-      const bw = cfg.bodyWidth / s;
-      const bh = cfg.bodyHeight / s;
-      body.setSize(bw, bh);
-      body.setOffset(srcW * 0.5 - bw / 2, srcH * cfg.originY - bh / 2);
+      body.setSize(cfg.bodyWidth, cfg.bodyHeight);
+      body.setOffset(srcW * 0.5 - cfg.bodyWidth / 2, srcH * cfg.originY - cfg.bodyHeight / 2);
     } else {
       const { width, height, offsetX, offsetY } = playerConfig.body;
       body.setSize(width, height);

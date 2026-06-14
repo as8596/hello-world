@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type { BossConfig } from '../data/bossConfig';
+import { RENDER_SCALE as RS } from '../data/render';
 import { eventBus } from '../systems/EventBus';
 import { TextureKeys } from '../systems/TextureFactory';
 
@@ -50,8 +51,8 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
     this.opts = opts;
 
     const body = this.body as Phaser.Physics.Arcade.Body;
-    body.setSize(22, 18);
-    body.setOffset(5, 10);
+    body.setSize(22 * RS, 18 * RS);
+    body.setOffset(5 * RS, 10 * RS);
     body.setImmovable(true); // rooted at the shrine
     this.setDepth(9);
 
@@ -86,7 +87,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
     this.flashWhite();
     // Heavy: a small recoil shake rather than real knockback.
     const dir = this.x >= fromX ? 1 : -1;
-    this.scene.tweens.add({ targets: this, x: this.x + dir * 2, yoyo: true, duration: 50 });
+    this.scene.tweens.add({ targets: this, x: this.x + dir * 2 * RS, yoyo: true, duration: 50 });
 
     if (this.phase === 1 && this.hp <= this.def.maxHp * this.def.phase2At) this.enterPhase2();
     if (this.hp <= 0) this.die();
@@ -154,7 +155,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
   private chooseAction(now: number, px: number, py: number): void {
     this.actionCount++;
     if (this.actionCount % 2 === 0) {
-      this.opts.onRequestAdd(this.x + Phaser.Math.Between(-12, 12), this.y + 14);
+      this.opts.onRequestAdd(this.x + Phaser.Math.Between(-12 * RS, 12 * RS), this.y + 14 * RS);
     }
     if (this.actionCount % this.def.ventEvery === 0) {
       this.enterVent(now);
@@ -172,17 +173,17 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
     this.fsmEndsAt = now + this.def.ventMs;
     // Telegraph: a pulsing green aura + drifting fog wisps + a cue.
     this.ventAura = this.scene.add
-      .circle(this.x, this.y, 20, 0x9fe06a, 0.18)
+      .circle(this.x, this.y, 20 * RS, 0x9fe06a, 0.18)
       .setDepth(8);
     this.scene.tweens.add({ targets: this.ventAura, scale: 1.4, alpha: 0.05, yoyo: true, repeat: -1, duration: 360 });
     for (let i = 0; i < 5; i++) {
       const wisp = this.scene.add
-        .image(this.x + Phaser.Math.Between(-10, 10), this.y, TextureKeys.Fog)
+        .image(this.x + Phaser.Math.Between(-10 * RS, 10 * RS), this.y, TextureKeys.Fog)
         .setDepth(10)
         .setScale(0.7);
       this.scene.tweens.add({
         targets: wisp,
-        y: wisp.y - 16,
+        y: wisp.y - 16 * RS,
         alpha: 0,
         duration: this.def.ventMs,
         delay: i * 80,
@@ -204,7 +205,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
     this.clearVent();
     this.fsm = 'stunned';
     this.fsmEndsAt = this.scene.time.now + this.def.stunMs;
-    this.stunStars = this.scene.add.image(this.x, this.y - 20, TextureKeys.StunStars).setDepth(20);
+    this.stunStars = this.scene.add.image(this.x, this.y - 20 * RS, TextureKeys.StunStars).setDepth(20);
     this.scene.tweens.add({ targets: this.stunStars, alpha: { from: 0.5, to: 1 }, yoyo: true, repeat: -1, duration: 200 });
     this.scene.tweens.add({ targets: this, angle: { from: -5, to: 5 }, yoyo: true, repeat: -1, duration: 110 });
   }
@@ -238,7 +239,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
 
     const dir = this.flipX ? -1 : 1;
     const slash = this.scene.add
-      .image(this.x + dir * 18, this.y, TextureKeys.Slash)
+      .image(this.x + dir * 18 * RS, this.y, TextureKeys.Slash)
       .setScale(2.2)
       .setAngle(this.flipX ? 180 : 0)
       .setDepth(11)
@@ -258,7 +259,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
     // Telegraph: a growing ring outline showing the danger radius.
     const tell = this.scene.add
       .circle(this.x, this.y, this.def.slam.radius)
-      .setStrokeStyle(1, 0xff6b5a, 0.8)
+      .setStrokeStyle(1 * RS, 0xff6b5a, 0.8)
       .setFillStyle(0xff6b5a, 0.05)
       .setScale(0.2)
       .setDepth(8);
@@ -307,7 +308,7 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
 
   private clang(): void {
     // Armored: a metallic blue spark, no damage.
-    const spark = this.scene.add.circle(this.x, this.y - 4, 3, 0xbfe3ff, 0.9).setDepth(20);
+    const spark = this.scene.add.circle(this.x, this.y - 4 * RS, 3 * RS, 0xbfe3ff, 0.9).setDepth(20);
     this.scene.tweens.add({ targets: spark, scale: 2, alpha: 0, duration: 160, onComplete: () => spark.destroy() });
   }
 

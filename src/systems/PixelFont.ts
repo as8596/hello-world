@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CELL_W, GLYPH_H, GLYPH_W, PIXEL_GLYPHS } from '../data/pixelFont';
+import { RENDER_SCALE } from '../data/render';
 
 /**
  * Bakes the hand-authored pixel font (data/pixelFont.ts) into a texture and
@@ -14,12 +15,14 @@ export function createPixelFont(scene: Phaser.Scene): void {
   if (scene.cache.bitmapFont.has(PIXEL_FONT_KEY)) return;
 
   const count = PIXEL_GLYPHS.length;
+  const S = RENDER_SCALE; // bake the font at native (world) size like the other art
 
   if (!scene.textures.exists(TEXTURE_KEY)) {
-    const tex = scene.textures.createCanvas(TEXTURE_KEY, count * CELL_W, GLYPH_H);
+    const tex = scene.textures.createCanvas(TEXTURE_KEY, count * CELL_W * S, GLYPH_H * S);
     if (!tex) return;
     const ctx = tex.getContext();
-    ctx.clearRect(0, 0, count * CELL_W, GLYPH_H);
+    ctx.imageSmoothingEnabled = false;
+    ctx.scale(S, S);
     ctx.fillStyle = '#ffffff';
     PIXEL_GLYPHS.forEach((glyph, i) => {
       const ox = i * CELL_W;
@@ -38,13 +41,13 @@ export function createPixelFont(scene: Phaser.Scene): void {
     image: TEXTURE_KEY,
     'offset.x': 0,
     'offset.y': 0,
-    width: CELL_W,
-    height: GLYPH_H,
+    width: CELL_W * S,
+    height: GLYPH_H * S,
     chars,
     charsPerRow: count,
     'spacing.x': 0,
     'spacing.y': 0,
-    lineSpacing: 1,
+    lineSpacing: 1 * S,
   });
   scene.cache.bitmapFont.add(PIXEL_FONT_KEY, data);
 }

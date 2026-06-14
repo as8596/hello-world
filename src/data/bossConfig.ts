@@ -1,4 +1,5 @@
 import { TextureKeys } from '../systems/TextureFactory';
+import { RENDER_SCALE } from './render';
 
 /**
  * Boss tuning (DESIGN.md §12). Bramblewerth is armored: the sword only bites
@@ -39,8 +40,8 @@ export const bramblewerth: BossConfig = {
   ventEvery: 3,
   ventMs: 1300,
   stunMs: 3000,
-  swipe: { windupMs: 560, activeMs: 220, range: 42, damage: 1 },
-  slam: { windupMs: 680, activeMs: 160, radius: 48, damage: 2 },
+  swipe: { windupMs: 560, activeMs: 220, range: 42 * RENDER_SCALE, damage: 1 },
+  slam: { windupMs: 680, activeMs: 160, radius: 48 * RENDER_SCALE, damage: 2 },
   adds: { cap: 3, per: 1 },
   phase2SpeedMul: 0.7,
 };

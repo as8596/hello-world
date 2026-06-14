@@ -1,3 +1,5 @@
+import { RENDER_SCALE } from './render';
+
 /**
  * Warden's Handbell tuning (DESIGN.md §11). The signature tool: ring for an
  * AoE stun pulse and to dispel Hush-fog. It's a tool, not an Echo-spending
@@ -13,7 +15,7 @@ export interface HandbellConfig {
 }
 
 export const handbellConfig: HandbellConfig = {
-  radius: 58,
+  radius: 58 * RENDER_SCALE,
   stunMs: 1800,
   cooldownMs: 850,
 };

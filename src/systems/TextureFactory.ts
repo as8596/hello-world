@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
+import { RENDER_SCALE } from '../data/render';
 
 /**
  * TextureFactory — generates placeholder art at runtime so we never block on
- * real assets (project convention). Plain canvas-drawn pixels; swap for
- * Kenney/LPC/custom sheets later by loading real images in PreloadScene and
- * keeping the same texture keys + frame names.
+ * real assets (project convention). Authored in 16px "design" units; the
+ * drawing context is pre-scaled by RENDER_SCALE so every texture is produced at
+ * native (world) size and displays 1:1 alongside the high-res player art.
  */
 
 export const TextureKeys = {
@@ -26,10 +27,25 @@ export const TextureKeys = {
   VillagerAwake: 'villager_awake',
 } as const;
 
-const FRAME = 16; // player frame size, px
-const TILE = 16; // tileset tile size, px
+const FRAME = 16; // player placeholder frame size, design px
+const TILE = 16; // tileset tile size, design px
 
 type Dir = 'down' | 'side' | 'up';
+
+interface Made {
+  tex: Phaser.Textures.CanvasTexture;
+  ctx: CanvasRenderingContext2D;
+}
+
+/** Create a canvas texture `w x h` design units, drawn at native (x scale) size. */
+function makeTexture(scene: Phaser.Scene, key: string, w: number, h: number): Made | null {
+  const tex = scene.textures.createCanvas(key, w * RENDER_SCALE, h * RENDER_SCALE);
+  if (!tex) return null;
+  const ctx = tex.getContext();
+  ctx.imageSmoothingEnabled = false;
+  ctx.scale(RENDER_SCALE, RENDER_SCALE);
+  return { tex, ctx };
+}
 
 /** Generate every placeholder texture. Safe to call once during preload. */
 export function generatePlaceholderTextures(scene: Phaser.Scene): void {
@@ -53,10 +69,9 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
 /** The great shrine bell — large brass bell on a frame. */
 function generateGreatBell(scene: Phaser.Scene): void {
   if (scene.textures.exists(TextureKeys.GreatBell)) return;
-  const tex = scene.textures.createCanvas(TextureKeys.GreatBell, TILE, TILE);
-  if (!tex) return;
-  const ctx = tex.getContext();
-  ctx.clearRect(0, 0, TILE, TILE);
+  const made = makeTexture(scene, TextureKeys.GreatBell, TILE, TILE);
+  if (!made) return;
+  const { tex, ctx } = made;
   rect(ctx, 0, 2, 1, 12, 1, '#6b5a3a'); // beam
   rect(ctx, 0, 7, 2, 2, 1, '#8a6f24'); // hanger
   rect(ctx, 0, 5, 3, 6, 7, '#c9a23a'); // bell body
@@ -70,10 +85,9 @@ function generateGreatBell(scene: Phaser.Scene): void {
 /** An awake villager — upright, eyes open (used when the valley wakes). */
 function generateVillagerAwake(scene: Phaser.Scene): void {
   if (scene.textures.exists(TextureKeys.VillagerAwake)) return;
-  const tex = scene.textures.createCanvas(TextureKeys.VillagerAwake, TILE, TILE);
-  if (!tex) return;
-  const ctx = tex.getContext();
-  ctx.clearRect(0, 0, TILE, TILE);
+  const made = makeTexture(scene, TextureKeys.VillagerAwake, TILE, TILE);
+  if (!made) return;
+  const { tex, ctx } = made;
   ctx.fillStyle = 'rgba(0,0,0,0.18)';
   ctx.fillRect(5, 14, 6, 1);
   rect(ctx, 0, 6, 2, 4, 2, '#5b3a29'); // hair
@@ -92,10 +106,9 @@ function generateVillagerAwake(scene: Phaser.Scene): void {
 function generateBramblewerth(scene: Phaser.Scene): void {
   if (scene.textures.exists(TextureKeys.Bramblewerth)) return;
   const S = 32;
-  const tex = scene.textures.createCanvas(TextureKeys.Bramblewerth, S, S);
-  if (!tex) return;
-  const ctx = tex.getContext();
-  ctx.clearRect(0, 0, S, S);
+  const made = makeTexture(scene, TextureKeys.Bramblewerth, S, S);
+  if (!made) return;
+  const { tex, ctx } = made;
   // Body mass.
   rect(ctx, 0, 5, 7, 22, 20, '#2f4d22');
   rect(ctx, 0, 7, 5, 18, 2, '#2f4d22');
@@ -120,10 +133,9 @@ function generateBramblewerth(scene: Phaser.Scene): void {
 /** A resonance chime: a standing post with a small bell (tinted gold when rung). */
 function generateChime(scene: Phaser.Scene): void {
   if (scene.textures.exists(TextureKeys.Chime)) return;
-  const tex = scene.textures.createCanvas(TextureKeys.Chime, TILE, TILE);
-  if (!tex) return;
-  const ctx = tex.getContext();
-  ctx.clearRect(0, 0, TILE, TILE);
+  const made = makeTexture(scene, TextureKeys.Chime, TILE, TILE);
+  if (!made) return;
+  const { tex, ctx } = made;
   // Frame / post.
   rect(ctx, 0, 4, 1, 8, 2, '#6b5a3a');
   rect(ctx, 0, 11, 1, 2, 11, '#6b5a3a'); // top bar approx
@@ -139,10 +151,9 @@ function generateChime(scene: Phaser.Scene): void {
 /** An ornate boss door: stone frame with brass bars. */
 function generateBossDoor(scene: Phaser.Scene): void {
   if (scene.textures.exists(TextureKeys.BossDoor)) return;
-  const tex = scene.textures.createCanvas(TextureKeys.BossDoor, TILE, TILE);
-  if (!tex) return;
-  const ctx = tex.getContext();
-  ctx.clearRect(0, 0, TILE, TILE);
+  const made = makeTexture(scene, TextureKeys.BossDoor, TILE, TILE);
+  if (!made) return;
+  const { tex, ctx } = made;
   rect(ctx, 0, 0, 0, TILE, TILE, '#4a4038'); // stone
   rect(ctx, 0, 2, 1, 12, 14, '#2c2620'); // recess
   for (const x of [3, 6, 9, 12] as const) rect(ctx, 0, x, 2, 1, 12, '#b9892f'); // bars
@@ -154,10 +165,9 @@ function generateBossDoor(scene: Phaser.Scene): void {
 /** A glittering heart fragment pickup. */
 function generateHeartFragment(scene: Phaser.Scene): void {
   if (scene.textures.exists(TextureKeys.HeartFragment)) return;
-  const tex = scene.textures.createCanvas(TextureKeys.HeartFragment, 9, 8);
-  if (!tex) return;
-  const ctx = tex.getContext();
-  ctx.clearRect(0, 0, 9, 8);
+  const made = makeTexture(scene, TextureKeys.HeartFragment, 9, 8);
+  if (!made) return;
+  const { tex, ctx } = made;
   const mask = ['.##.##.', '#######', '#######', '.#####.', '..###..', '...#...'];
   for (let y = 0; y < mask.length; y++) {
     for (let x = 0; x < 7; x++) {
@@ -175,10 +185,9 @@ function generateHeartFragment(scene: Phaser.Scene): void {
 /** A small hearth (stone ring + flame) — rest point. */
 function generateHearth(scene: Phaser.Scene): void {
   if (scene.textures.exists(TextureKeys.Hearth)) return;
-  const tex = scene.textures.createCanvas(TextureKeys.Hearth, TILE, TILE);
-  if (!tex) return;
-  const ctx = tex.getContext();
-  ctx.clearRect(0, 0, TILE, TILE);
+  const made = makeTexture(scene, TextureKeys.Hearth, TILE, TILE);
+  if (!made) return;
+  const { tex, ctx } = made;
   // Stone ring.
   for (const [x, y] of [[2, 11], [5, 12], [8, 12], [11, 11], [3, 9], [10, 9]] as const) {
     rect(ctx, 0, x, y, 3, 2, '#7d7468');
@@ -196,10 +205,9 @@ function generateHearth(scene: Phaser.Scene): void {
 /** A soft Hush-fog tile (semi-transparent, wispy). */
 function generateFog(scene: Phaser.Scene): void {
   if (scene.textures.exists(TextureKeys.Fog)) return;
-  const tex = scene.textures.createCanvas(TextureKeys.Fog, TILE, TILE);
-  if (!tex) return;
-  const ctx = tex.getContext();
-  ctx.clearRect(0, 0, TILE, TILE);
+  const made = makeTexture(scene, TextureKeys.Fog, TILE, TILE);
+  if (!made) return;
+  const { tex, ctx } = made;
   ctx.fillStyle = 'rgba(214,221,232,0.55)';
   ctx.fillRect(1, 1, 14, 14);
   ctx.fillStyle = 'rgba(232,236,243,0.65)';
@@ -214,12 +222,9 @@ function generateFog(scene: Phaser.Scene): void {
 /** A little ring of stun stars, shown above a stunned enemy. */
 function generateStunStars(scene: Phaser.Scene): void {
   if (scene.textures.exists(TextureKeys.StunStars)) return;
-  const w = 16;
-  const h = 7;
-  const tex = scene.textures.createCanvas(TextureKeys.StunStars, w, h);
-  if (!tex) return;
-  const ctx = tex.getContext();
-  ctx.clearRect(0, 0, w, h);
+  const made = makeTexture(scene, TextureKeys.StunStars, 16, 7);
+  if (!made) return;
+  const { tex, ctx } = made;
   const star = (cx: number, cy: number): void => {
     ctx.fillStyle = '#ffe066';
     ctx.fillRect(cx, cy - 1, 1, 3);
@@ -234,10 +239,9 @@ function generateStunStars(scene: Phaser.Scene): void {
 /** A small spiky thorn-creature (transparent corners). */
 function generateThornSprite(scene: Phaser.Scene): void {
   if (scene.textures.exists(TextureKeys.ThornSprite)) return;
-  const tex = scene.textures.createCanvas(TextureKeys.ThornSprite, TILE, TILE);
-  if (!tex) return;
-  const ctx = tex.getContext();
-  ctx.clearRect(0, 0, TILE, TILE);
+  const made = makeTexture(scene, TextureKeys.ThornSprite, TILE, TILE);
+  if (!made) return;
+  const { tex, ctx } = made;
   // Ground shadow.
   ctx.fillStyle = 'rgba(0,0,0,0.20)';
   ctx.fillRect(4, 14, 8, 1);
@@ -260,10 +264,9 @@ function generateHearts(scene: Phaser.Scene): void {
   if (scene.textures.exists(TextureKeys.Hearts)) return;
   const w = 7;
   const h = 6;
-  const tex = scene.textures.createCanvas(TextureKeys.Hearts, w * 3, h);
-  if (!tex) return;
-  const ctx = tex.getContext();
-  ctx.clearRect(0, 0, w * 3, h);
+  const made = makeTexture(scene, TextureKeys.Hearts, w * 3, h);
+  if (!made) return;
+  const { tex, ctx } = made;
 
   // Heart mask (7x6).
   const mask = ['.##.##.', '#######', '#######', '.#####.', '..###..', '...#...'];
@@ -279,19 +282,20 @@ function generateHearts(scene: Phaser.Scene): void {
   draw(w * 2, () => '#4a2632'); // empty
   tex.refresh();
 
-  tex.add('full', 0, 0, 0, w, h);
-  tex.add('half', 0, w, 0, w, h);
-  tex.add('empty', 0, w * 2, 0, w, h);
+  // Frames are in native (scaled) texture pixels.
+  const S = RENDER_SCALE;
+  tex.add('full', 0, 0, 0, w * S, h * S);
+  tex.add('half', 0, w * S, 0, w * S, h * S);
+  tex.add('empty', 0, w * 2 * S, 0, w * S, h * S);
   tex.refresh();
 }
 
 /** A crescent swing VFX, drawn pointing +x; rotated per facing at runtime. */
 function generateSlash(scene: Phaser.Scene): void {
   if (scene.textures.exists(TextureKeys.Slash)) return;
-  const tex = scene.textures.createCanvas(TextureKeys.Slash, TILE, TILE);
-  if (!tex) return;
-  const ctx = tex.getContext();
-  ctx.clearRect(0, 0, TILE, TILE);
+  const made = makeTexture(scene, TextureKeys.Slash, TILE, TILE);
+  if (!made) return;
+  const { tex, ctx } = made;
   const cx = 4;
   const cy = 8;
   for (let i = 0; i <= 14; i++) {
@@ -312,10 +316,9 @@ function generateSlash(scene: Phaser.Scene): void {
 /** Free-standing world objects (transparent background so grass shows around). */
 function generateObjects(scene: Phaser.Scene): void {
   if (!scene.textures.exists(TextureKeys.Vine)) {
-    const tex = scene.textures.createCanvas(TextureKeys.Vine, TILE, TILE);
-    if (tex) {
-      const ctx = tex.getContext();
-      ctx.clearRect(0, 0, TILE, TILE);
+    const made = makeTexture(scene, TextureKeys.Vine, TILE, TILE);
+    if (made) {
+      const { tex, ctx } = made;
       // A tangled bramble clump, roughly circular, corners left transparent.
       for (const [x, y] of [[5, 2], [9, 3], [3, 6], [11, 6], [6, 9], [10, 10], [4, 11], [8, 12]] as const) {
         rect(ctx, 0, x, y, 3, 3, '#2c4a26');
@@ -327,10 +330,9 @@ function generateObjects(scene: Phaser.Scene): void {
   }
 
   if (!scene.textures.exists(TextureKeys.Villager)) {
-    const tex = scene.textures.createCanvas(TextureKeys.Villager, TILE, TILE);
-    if (tex) {
-      const ctx = tex.getContext();
-      ctx.clearRect(0, 0, TILE, TILE);
+    const made = makeTexture(scene, TextureKeys.Villager, TILE, TILE);
+    if (made) {
+      const { tex, ctx } = made;
       // A figure asleep on the ground, lying horizontally, with a soft shadow.
       ctx.fillStyle = 'rgba(0,0,0,0.18)';
       ctx.fillRect(2, 12, 12, 2);
@@ -356,9 +358,9 @@ const TILESET_COUNT = 8;
 
 function generateTileset(scene: Phaser.Scene): void {
   if (scene.textures.exists(TextureKeys.Tiles)) return;
-  const tex = scene.textures.createCanvas(TextureKeys.Tiles, TILE * TILESET_COUNT, TILE);
-  if (!tex) return;
-  const ctx = tex.getContext();
+  const made = makeTexture(scene, TextureKeys.Tiles, TILE * TILESET_COUNT, TILE);
+  if (!made) return;
+  const { tex, ctx } = made;
 
   drawGrass(ctx, 0 * TILE, 0);
   drawPath(ctx, 1 * TILE);
@@ -437,10 +439,9 @@ function drawVine(ctx: CanvasRenderingContext2D, ox: number): void {
 function generatePlayer(scene: Phaser.Scene): void {
   if (scene.textures.exists(TextureKeys.Player)) return;
   // 2 walk frames (cols) x 3 directions (rows): down, side, up.
-  const tex = scene.textures.createCanvas(TextureKeys.Player, FRAME * 2, FRAME * 3);
-  if (!tex) return;
-  const ctx = tex.getContext();
-  ctx.clearRect(0, 0, FRAME * 2, FRAME * 3);
+  const made = makeTexture(scene, TextureKeys.Player, FRAME * 2, FRAME * 3);
+  if (!made) return;
+  const { tex, ctx } = made;
 
   const rows: Dir[] = ['down', 'side', 'up'];
   rows.forEach((dir, r) => {
@@ -449,8 +450,10 @@ function generatePlayer(scene: Phaser.Scene): void {
     }
   });
 
+  // Frames are in native (scaled) texture pixels.
+  const S = RENDER_SCALE;
   const add = (name: string, col: number, row: number): void => {
-    tex.add(name, 0, col * FRAME, row * FRAME, FRAME, FRAME);
+    tex.add(name, 0, col * FRAME * S, row * FRAME * S, FRAME * S, FRAME * S);
   };
   add('down-0', 0, 0);
   add('down-1', 1, 0);
