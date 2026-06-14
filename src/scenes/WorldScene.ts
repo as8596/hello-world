@@ -33,6 +33,13 @@ import { SceneKeys } from './SceneKeys';
 const INTERACT_RADIUS = 22 * RS;
 const BOSS_BAR_WIDTH = 140 * RS;
 
+// Nighttime mood. NIGHT_TINT is multiplied over the world (purple → darker,
+// blue-leaning); NIGHT_STRENGTH is how strongly (0 = off, 1 = full). GLOW_TEXTURE
+// is the warm firelight added back at hearths.
+const NIGHT_TINT = 0x2a2148;
+const NIGHT_STRENGTH = 0.6;
+const GLOW_TEXTURE = 'warm-glow';
+
 /**
  * WorldScene — the playable overworld. Builds the Thistledown tilemap, spawns
  * the player, vines, villagers, and enemies, and runs the combat loop (sword
@@ -71,6 +78,8 @@ export class WorldScene extends Phaser.Scene {
   private gateRemaining = 0;
   private fogRemaining = 0;
   private dyingPlayer = false;
+  private readonly hearthPositions: { x: number; y: number }[] = [];
+  private nightOverlay?: Phaser.GameObjects.Rectangle;
 
   constructor() {
     super(SceneKeys.World);
@@ -122,6 +131,7 @@ export class WorldScene extends Phaser.Scene {
       } else if (obj.type === 'heart') {
         this.pickups.push(new HeartPickup(this, obj.x, obj.y, { onCollect: (p) => this.onHeartCollected(p) }));
       } else if (obj.type === 'hearth') {
+        this.hearthPositions.push({ x: obj.x, y: obj.y });
         this.interactables.push(
           new Interactable(this, obj.x, obj.y, {
             texture: TextureKeys.Hearth,
@@ -170,6 +180,8 @@ export class WorldScene extends Phaser.Scene {
     cam.startFollow(this.player, true, 0.12, 0.12);
     cam.setDeadzone(36 * RS, 28 * RS);
     cam.fadeIn(250);
+
+    this.setupNightAmbiance();
 
     this.dialogue = new DialogueBox(this);
     this.dialogueRunner = new DialogueRunner(this.dialogue, worldState, (e) => this.runDialogueEffect(e));
@@ -474,6 +486,10 @@ export class WorldScene extends Phaser.Scene {
       this.player.gainMaxHalfHearts(2);
       worldState.setFlag('thistledown_woken', true);
       this.showToast('Thistledown wakes.');
+      // Dawn: as the curse lifts, so does the night.
+      if (this.nightOverlay) {
+        this.tweens.add({ targets: this.nightOverlay, alpha: 0.25, duration: 1800, ease: 'Sine.inOut' });
+      }
       this.waking = false;
       // The Oath choice, offered by a Warden's resonance at the shrine (§12).
       if (!worldState.getFlag('oath')) {
@@ -570,6 +586,60 @@ export class WorldScene extends Phaser.Scene {
       ease: 'Cubic.Out',
       onComplete: () => ring.destroy(),
     });
+  }
+
+  /**
+   * Nighttime mood: a purple wash over the world (a screen-fixed MULTIPLY layer
+   * below all UI), with a warm pulsing firelight added back at each hearth so
+   * the rest points read as cozy islands of light in the dark.
+   */
+  private setupNightAmbiance(): void {
+    // If the valley already woke (e.g. retrying after death), start at dawn.
+    const woken = worldState.hasFlag('thistledown_woken');
+    this.nightOverlay = this.add
+      .rectangle(0, 0, this.scale.width, this.scale.height, NIGHT_TINT, NIGHT_STRENGTH)
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setBlendMode(Phaser.BlendModes.MULTIPLY)
+      .setDepth(400)
+      .setAlpha(woken ? 0.25 : 1);
+
+    this.ensureGlowTexture();
+    for (const p of this.hearthPositions) {
+      const glow = this.add
+        .image(p.x, p.y, GLOW_TEXTURE)
+        .setBlendMode(Phaser.BlendModes.ADD)
+        .setDepth(401)
+        .setScale(1.4)
+        .setAlpha(0.85);
+      // A slow, organic flicker so the fire feels alive.
+      this.tweens.add({
+        targets: glow,
+        scale: 1.62,
+        alpha: 1,
+        duration: 1400,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.inOut',
+      });
+    }
+  }
+
+  /** Build the soft warm radial-gradient glow texture once. */
+  private ensureGlowTexture(): void {
+    if (this.textures.exists(GLOW_TEXTURE)) return;
+    const size = 256;
+    const tex = this.textures.createCanvas(GLOW_TEXTURE, size, size);
+    if (!tex) return;
+    const ctx = tex.getContext();
+    const r = size / 2;
+    const g = ctx.createRadialGradient(r, r, 0, r, r, r);
+    g.addColorStop(0, 'rgba(255,196,120,0.95)');
+    g.addColorStop(0.4, 'rgba(255,150,78,0.5)');
+    g.addColorStop(1, 'rgba(255,120,50,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+    tex.refresh();
   }
 
   /** A gentle, cozy screen pulse on ring (§14 P1). */
