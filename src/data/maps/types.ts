@@ -28,7 +28,9 @@ export type ObjectType =
   | 'greatbell'
   | 'maple'
   | 'blade'
-  | 'handbell';
+  | 'handbell'
+  | 'exit' // an edge zone that transitions to another area
+  | 'entry'; // a named spawn point the player arrives at from another area
 
 export interface ObjectSpec {
   type: ObjectType;
@@ -36,6 +38,11 @@ export interface ObjectSpec {
   group?: string;
   /** For enemies: which EnemyDef id to spawn. */
   enemyId?: string;
+  /** For 'exit': the area id to travel to and the entry id to arrive at there. */
+  toArea?: string;
+  toEntry?: string;
+  /** For 'entry': the id matched by an exit's `toEntry`. */
+  entryId?: string;
 }
 
 /** A resolved object placement with a pixel-center position. */

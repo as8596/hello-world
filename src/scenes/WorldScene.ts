@@ -7,7 +7,7 @@ import type { Effect } from '../data/dialogue/types';
 import { ENEMIES } from '../data/enemies';
 import { ITEMS } from '../data/items';
 import { handbellConfig } from '../data/handbellConfig';
-import { thistledownMap } from '../data/maps/thistledown';
+import { AREAS, type AreaId, isAreaId, START_AREA } from '../data/maps/areas';
 import { playerConfig } from '../data/playerConfig';
 import { RENDER_SCALE as RS } from '../data/render';
 import { Boss } from '../entities/Boss';
@@ -90,6 +90,12 @@ export class WorldScene extends Phaser.Scene {
   private readonly fireflies: Phaser.GameObjects.Image[] = [];
   private hurtVignette?: Phaser.GameObjects.Image;
 
+  /** The area currently loaded, its edge exits, and named arrival points. */
+  private areaId: AreaId = START_AREA;
+  private exits: { x: number; y: number; toArea: AreaId; toEntry: string }[] = [];
+  private entries = new Map<string, { x: number; y: number }>();
+  private transitioning = false;
+
   constructor() {
     super(SceneKeys.World);
   }
@@ -112,10 +118,16 @@ export class WorldScene extends Phaser.Scene {
     this.gateRemaining = 0;
     this.fogRemaining = 0;
     this.dyingPlayer = false;
+    this.transitioning = false;
     this.hearthPositions.length = 0;
     this.fireflies.length = 0;
+    this.exits = [];
+    this.entries.clear();
 
-    const map = buildTilemap(this, thistledownMap);
+    // Which area are we in? (set by a transition / load; defaults to the start.)
+    const savedArea = worldState.getFlag('area');
+    this.areaId = isAreaId(savedArea) ? savedArea : START_AREA;
+    const map = buildTilemap(this, AREAS[this.areaId]);
     this.physics.world.setBounds(0, 0, map.widthPx, map.heightPx);
 
     // Hand-placed objects. The map reacts to saved/earned flags so a reload (or
@@ -198,6 +210,12 @@ export class WorldScene extends Phaser.Scene {
           onInteract: () => this.ringGreatBell(),
         });
         this.interactables.push(this.greatBell);
+      } else if (obj.type === 'exit') {
+        if (obj.toArea && isAreaId(obj.toArea) && obj.toEntry) {
+          this.exits.push({ x: obj.x, y: obj.y, toArea: obj.toArea, toEntry: obj.toEntry });
+        }
+      } else if (obj.type === 'entry') {
+        if (obj.entryId) this.entries.set(obj.entryId, { x: obj.x, y: obj.y });
       } else {
         const lines = sleepingVillagerLines[villagerIndex % sleepingVillagerLines.length];
         villagerIndex++;
@@ -211,10 +229,16 @@ export class WorldScene extends Phaser.Scene {
     if (woken) for (const v of this.villagers) v.setTexture(TextureKeys.VillagerAwake);
 
     Player.registerAnims(this);
-    // Respawn / load at the last hearth rested at, else the Waking Hollow.
-    const spawn = worldState.hasFlag('has_hearth')
-      ? { x: worldState.getCounter('hearth_x'), y: worldState.getCounter('hearth_y') }
-      : map.spawn;
+    // Spawn priority: (1) the entry we just transitioned to, (2) the last hearth
+    // if it's in this area, (3) the area's default spawn.
+    const pendingEntry = worldState.getFlag('area_entry');
+    worldState.clearFlag('area_entry'); // consume it
+    let spawn = map.spawn;
+    if (typeof pendingEntry === 'string' && this.entries.has(pendingEntry)) {
+      spawn = this.entries.get(pendingEntry)!;
+    } else if (worldState.hasFlag('has_hearth') && worldState.getFlag('hearth_area') === this.areaId) {
+      spawn = { x: worldState.getCounter('hearth_x'), y: worldState.getCounter('hearth_y') };
+    }
     this.player = new Player(this, spawn.x, spawn.y);
     this.physics.add.collider(this.player, map.layer);
     this.physics.add.collider(this.player, this.vines);
@@ -312,7 +336,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   update(_time: number, deltaMs: number): void {
-    if (this.dyingPlayer) return;
+    if (this.dyingPlayer || this.transitioning) return;
     // Hit-stop: while physics is paused on a connecting hit, freeze everything.
     if (this.physics.world.isPaused) return;
     // The waking peal plays out as a cutscene; hold the player.
@@ -354,6 +378,7 @@ export class WorldScene extends Phaser.Scene {
 
     this.collectNearbyPickups();
     this.maybeShowContextHints();
+    if (this.checkAreaTransition()) return;
 
     const target = this.nearestActionable();
     this.updatePrompt(target);
@@ -889,8 +914,38 @@ export class WorldScene extends Phaser.Scene {
     this.dyingPlayer = true;
     if (this.physics.world.isPaused) this.physics.world.resume();
     this.player.halt();
+    // Respawn in the hearth's area (create() then spawns at the hearth itself).
+    const hearthArea = worldState.getFlag('hearth_area');
+    if (worldState.hasFlag('has_hearth') && isAreaId(hearthArea)) worldState.setFlag('area', hearthArea);
     this.cameras.main.fadeOut(450, 0, 0, 0);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.restart());
+  }
+
+  // --- Area transitions ---------------------------------------------------
+
+  /** Walked onto an edge opening? Fade out, swap area, fade in at its entry. */
+  private checkAreaTransition(): boolean {
+    const px = this.player.x;
+    const py = this.player.y;
+    for (const exit of this.exits) {
+      if (Phaser.Math.Distance.Between(px, py, exit.x, exit.y) <= 14 * RS) {
+        this.transitionTo(exit.toArea, exit.toEntry);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private transitionTo(toArea: AreaId, toEntry: string): void {
+    if (this.transitioning) return;
+    this.transitioning = true;
+    this.player.halt();
+    this.cameras.main.fadeOut(320, 0, 0, 0);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      worldState.setFlag('area', toArea);
+      worldState.setFlag('area_entry', toEntry);
+      this.scene.restart();
+    });
   }
 
   // --- Pickups & hearth ---------------------------------------------------
@@ -954,6 +1009,7 @@ export class WorldScene extends Phaser.Scene {
     this.player.healFull();
     worldState.setFlag('rested', true);
     worldState.setFlag('has_hearth', true);
+    worldState.setFlag('hearth_area', this.areaId);
     worldState.setCounter('hearth_x', Math.round(x));
     worldState.setCounter('hearth_y', Math.round(y));
     audio.playSfx('rested');
