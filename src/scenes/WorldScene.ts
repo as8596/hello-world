@@ -65,6 +65,7 @@ export class WorldScene extends Phaser.Scene {
   private interactKeys: Phaser.Input.Keyboard.Key[] = [];
   private attackKeys: Phaser.Input.Keyboard.Key[] = [];
   private ringKeys: Phaser.Input.Keyboard.Key[] = [];
+  private dodgeKeys: Phaser.Input.Keyboard.Key[] = [];
   private promptText!: Phaser.GameObjects.BitmapText;
   private promptBg!: Phaser.GameObjects.Rectangle;
   private gateRemaining = 0;
@@ -186,6 +187,7 @@ export class WorldScene extends Phaser.Scene {
     // Hearts HUD lives in a parallel overlay scene; launch it once.
     if (!this.scene.isActive(SceneKeys.UI)) this.scene.launch(SceneKeys.UI);
     this.player.emitHealth();
+    this.player.emitStamina(true);
 
     const kb = this.input.keyboard!;
     this.interactKeys = [
@@ -199,6 +201,10 @@ export class WorldScene extends Phaser.Scene {
     this.ringKeys = [
       kb.addKey(Phaser.Input.Keyboard.KeyCodes.F),
       kb.addKey(Phaser.Input.Keyboard.KeyCodes.Q),
+    ];
+    this.dodgeKeys = [
+      kb.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT),
+      kb.addKey(Phaser.Input.Keyboard.KeyCodes.K),
     ];
     this.navUpKeys = [kb.addKey(Phaser.Input.Keyboard.KeyCodes.UP), kb.addKey(Phaser.Input.Keyboard.KeyCodes.W)];
     this.navDownKeys = [kb.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN), kb.addKey(Phaser.Input.Keyboard.KeyCodes.S)];
@@ -240,6 +246,7 @@ export class WorldScene extends Phaser.Scene {
     const interactPressed = this.interactKeys.some((k) => Phaser.Input.Keyboard.JustDown(k));
     const attackPressed = this.attackKeys.some((k) => Phaser.Input.Keyboard.JustDown(k));
     const ringPressed = this.ringKeys.some((k) => Phaser.Input.Keyboard.JustDown(k));
+    const dodgePressed = this.dodgeKeys.some((k) => Phaser.Input.Keyboard.JustDown(k));
 
     // While a dialogue is open, freeze the player and route input to it.
     if (this.dialogueRunner.isActive) {
@@ -253,6 +260,8 @@ export class WorldScene extends Phaser.Scene {
     }
 
     this.player.update(deltaMs);
+    // After movement: a dash press overrides this frame's velocity.
+    if (dodgePressed) this.player.tryDodge(now);
     for (const enemy of this.enemies) enemy.think(this.player.x, this.player.y);
     if (this.boss) {
       this.boss.think(this.player.x, this.player.y);
@@ -755,7 +764,7 @@ export class WorldScene extends Phaser.Scene {
 
   /** A soft, fading control hint instead of a wall of tutorial text (§14 P1). */
   private addControlHint(): void {
-    const hint = addPixelText(this, 0, 0, 'WASD move - J attack - F bell - E read', { color: 0xe8e6d8 })
+    const hint = addPixelText(this, 0, 0, 'WASD move - J attack - SHIFT dodge - F bell - E read', { color: 0xe8e6d8 })
       .setScrollFactor(0)
       .setDepth(1000);
     hint.setPosition(Math.round((this.scale.width - hint.width) / 2), this.scale.height - 16 * RS);

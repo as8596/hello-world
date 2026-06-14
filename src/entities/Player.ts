@@ -88,6 +88,15 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private dead = false;
   private bellReadyAt = 0;
 
+  /** Stamina (abstract points), regenerating; gates the dodge. */
+  private stamina = playerConfig.maxStamina;
+  private lastStaminaEmit = -1;
+  /** While `now < dodgeUntil` the dash burst is active (steering is locked). */
+  private dodgeUntil = 0;
+  /** Earliest time a new dash may start (dash end + cooldown). */
+  private dodgeReadyAt = 0;
+  private readonly dodgeDir = { x: 0, y: 0 };
+
   constructor(scene: Phaser.Scene, x: number, y: number) {
     const useSheet = hasDirectionalSheet(scene);
     super(scene, x, y, useSheet ? 'player-south' : TextureKeys.Player, useSheet ? undefined : 'down-0');
@@ -244,6 +253,85 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     return true;
   }
 
+  // --- Dodge --------------------------------------------------------------
+
+  /** True while the dash burst is active (steering locked, i-frames live). */
+  get isDodging(): boolean {
+    return this.scene.time.now < this.dodgeUntil;
+  }
+
+  /**
+   * Dodge-roll (DESIGN.md §13 step 7): a short stamina-gated dash with i-frames,
+   * in the current movement direction (or facing if standing still). Returns
+   * true if it fired. No-op while dead, mid-dash, on cooldown, or out of stamina.
+   */
+  tryDodge(now: number): boolean {
+    const d = playerConfig.dodge;
+    if (this.dead || this.isDodging || now < this.dodgeReadyAt) return false;
+    if (this.stamina < d.staminaCost) return false;
+
+    // Direction: live input vector, else the way we're facing.
+    let dx = 0;
+    let dy = 0;
+    if (this.cursors.left.isDown || this.wasd.left.isDown) dx -= 1;
+    if (this.cursors.right.isDown || this.wasd.right.isDown) dx += 1;
+    if (this.cursors.up.isDown || this.wasd.up.isDown) dy -= 1;
+    if (this.cursors.down.isDown || this.wasd.down.isDown) dy += 1;
+    if (dx === 0 && dy === 0) {
+      const o = this.facingOffset();
+      dx = o.x;
+      dy = o.y;
+    }
+    const len = Math.hypot(dx, dy) || 1;
+    this.dodgeDir.x = dx / len;
+    this.dodgeDir.y = dy / len;
+
+    this.stamina -= d.staminaCost;
+    this.emitStamina(true);
+    this.dodgeUntil = now + d.durationMs;
+    this.dodgeReadyAt = now + d.durationMs + d.cooldownMs;
+    this.invulnUntil = Math.max(this.invulnUntil, now + d.iframesMs);
+
+    // Face and animate in the dash direction.
+    if (Math.abs(dx) > Math.abs(dy)) this.facing = dx < 0 ? 'left' : 'right';
+    else this.facing = dy < 0 ? 'up' : 'down';
+    this.spriteFacing = dir8(dx, dy);
+
+    (this.body as Phaser.Physics.Arcade.Body).setVelocity(this.dodgeDir.x * d.speed, this.dodgeDir.y * d.speed);
+    this.spawnDashVfx();
+    return true;
+  }
+
+  /** A short blue after-image trail so the roll reads as a quick burst. */
+  private spawnDashVfx(): void {
+    for (let i = 0; i < 3; i++) {
+      this.scene.time.delayedCall(i * 55, () => {
+        if (!this.active) return;
+        const ghost = this.scene.add
+          .image(this.x, this.y, this.texture.key, this.frame.name)
+          .setOrigin(this.originX, this.originY)
+          .setFlipX(this.flipX)
+          .setDepth(this.depth - 1)
+          .setAlpha(0.4)
+          .setTint(0x9fd0ff);
+        this.scene.tweens.add({ targets: ghost, alpha: 0, duration: 200, onComplete: () => ghost.destroy() });
+      });
+    }
+  }
+
+  /** Current stamina as a 0..1 ratio (for the HUD). */
+  get staminaRatio(): number {
+    return this.stamina / playerConfig.maxStamina;
+  }
+
+  /** Broadcast stamina to the HUD when it changes (or `force` on spawn). */
+  emitStamina(force: boolean): void {
+    const q = Math.round(this.stamina / 0.05);
+    if (!force && q === this.lastStaminaEmit) return;
+    this.lastStaminaEmit = q;
+    eventBus.emit('playerStamina', { ratio: this.staminaRatio, max: playerConfig.maxStamina });
+  }
+
   // --- Attack -------------------------------------------------------------
 
   /** True only while the hitbox is live. */
@@ -345,6 +433,20 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   update(deltaMs: number): void {
     const dt = deltaMs / 1000;
     const body = this.body as Phaser.Physics.Arcade.Body;
+
+    // Stamina regenerates whenever we're not mid-dash; keep the HUD in sync.
+    if (!this.isDodging) {
+      this.stamina = Math.min(playerConfig.maxStamina, this.stamina + playerConfig.staminaRegenPerSec * dt);
+    }
+    this.emitStamina(false);
+
+    // Mid-dash: hold the burst and ignore steering until it ends (§13 step 7).
+    if (this.isDodging) {
+      const d = playerConfig.dodge;
+      body.setVelocity(this.dodgeDir.x * d.speed, this.dodgeDir.y * d.speed);
+      this.renderFacing(true);
+      return;
+    }
 
     // --- Read input into a -1..1 vector ---------------------------------
     let ix = 0;

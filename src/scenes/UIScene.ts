@@ -19,6 +19,8 @@ export class UIScene extends Phaser.Scene {
   private currentMax = -1;
   private coinText!: Phaser.GameObjects.BitmapText;
   private questText!: Phaser.GameObjects.BitmapText;
+  private staminaFill!: Phaser.GameObjects.Rectangle;
+  private readonly staminaWidth = 28 * RS;
 
   constructor() {
     super(SceneKeys.UI);
@@ -30,7 +32,13 @@ export class UIScene extends Phaser.Scene {
     const full = playerConfig.maxHearts * 2;
     this.renderHearts(full, full);
 
-    this.coinText = addPixelText(this, 5 * RS, 14 * RS, '', { color: 0xffe066 });
+    // Stamina bar under the hearts (gates the dodge).
+    const sy = 12 * RS;
+    this.add.rectangle(5 * RS, sy, this.staminaWidth + 2 * RS, 3 * RS, 0x10101a, 0.85).setOrigin(0, 0);
+    this.staminaFill = this.add.rectangle(6 * RS, sy + 1 * RS, this.staminaWidth, 1 * RS, 0x76c44a).setOrigin(0, 0);
+    this.renderStamina(1);
+
+    this.coinText = addPixelText(this, 5 * RS, 17 * RS, '', { color: 0xffe066 });
     this.renderCoin(worldState.getCounter('coin'));
 
     this.questText = addPixelText(this, 0, 0, '', { color: 0xe8e6d8, maxWidth: 150 * RS }).setVisible(false);
@@ -41,6 +49,7 @@ export class UIScene extends Phaser.Scene {
       this.renderHearts(hp, max);
     });
     const offCoin = eventBus.on('coinChanged', (p) => this.renderCoin((p as { coin: number }).coin));
+    const offStamina = eventBus.on('playerStamina', (p) => this.renderStamina((p as { ratio: number }).ratio));
     const offQuest = eventBus.on('questObjective', (p) => {
       const { objective } = p as { objective: string };
       this.renderQuest(objective);
@@ -48,8 +57,16 @@ export class UIScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       offHealth();
       offCoin();
+      offStamina();
       offQuest();
     });
+  }
+
+  private renderStamina(ratio: number): void {
+    const r = Phaser.Math.Clamp(ratio, 0, 1);
+    this.staminaFill.width = this.staminaWidth * r;
+    // Dim toward amber when nearly empty so "can't dodge" reads at a glance.
+    this.staminaFill.setFillStyle(r < 0.34 ? 0xc4a24a : 0x76c44a);
   }
 
   private renderHearts(hp: number, max: number): void {

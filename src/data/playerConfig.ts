@@ -39,6 +39,23 @@ export interface PlayerConfig {
   hurtKnockback: number;
   /** How long input is locked after being hurt, so knockback reads (ms). */
   hurtLockMs: number;
+  /** Max stamina (abstract points; gates the dodge). Not a spatial value. */
+  maxStamina: number;
+  /** Stamina regenerated per second. */
+  staminaRegenPerSec: number;
+  /** Dodge-roll tuning (DESIGN.md §13 step 7): a stamina-gated dash with i-frames. */
+  dodge: {
+    /** Dash burst speed (px/sec). */
+    speed: number;
+    /** How long the dash burst lasts (ms). */
+    durationMs: number;
+    /** Invulnerability granted by the roll (ms); covers the dash + a little. */
+    iframesMs: number;
+    /** Stamina spent per dodge. */
+    staminaCost: number;
+    /** Minimum gap after a dash ends before another can start (ms). */
+    cooldownMs: number;
+  };
   /** Melee swing tuning (DESIGN.md §9, §14). */
   attack: {
     /** Damage dealt per connecting swing (Might governs this later). */
@@ -82,6 +99,15 @@ export const playerConfig: PlayerConfig = {
   invulnMs: 800,
   hurtKnockback: 170 * RENDER_SCALE,
   hurtLockMs: 180,
+  maxStamina: 3,
+  staminaRegenPerSec: 1.4,
+  dodge: {
+    speed: 260 * RENDER_SCALE,
+    durationMs: 180,
+    iframesMs: 240,
+    staminaCost: 1,
+    cooldownMs: 320,
+  },
   attack: {
     damage: 1,
     windupMs: 70,
