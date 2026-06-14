@@ -238,6 +238,9 @@ function generateThornSprite(scene: Phaser.Scene): void {
   if (!tex) return;
   const ctx = tex.getContext();
   ctx.clearRect(0, 0, TILE, TILE);
+  // Ground shadow.
+  ctx.fillStyle = 'rgba(0,0,0,0.20)';
+  ctx.fillRect(4, 14, 8, 1);
   // Body blob.
   rect(ctx, 0, 4, 5, 8, 8, '#3a5e2a');
   rect(ctx, 0, 5, 4, 6, 1, '#3a5e2a');
@@ -343,21 +346,28 @@ function generateObjects(scene: Phaser.Scene): void {
 }
 
 /**
- * Tileset laid out left-to-right so tile index matches column:
- * 0 grass · 1 path · 2 wall/tree · 3 water · 4 vine. Matches the Tile enum.
+ * Tileset. Indices 0-4 match the Tile enum (grass/path/wall/water/vine); extra
+ * grass variants + a flower tile are appended so the ground can be scattered
+ * for an organic look instead of a flat checker (see TilemapBuilder).
  */
+export const GRASS_VARIANT_INDICES = [0, 5, 6];
+export const FLOWER_TILE_INDEX = 7;
+const TILESET_COUNT = 8;
+
 function generateTileset(scene: Phaser.Scene): void {
   if (scene.textures.exists(TextureKeys.Tiles)) return;
-  const count = 5;
-  const tex = scene.textures.createCanvas(TextureKeys.Tiles, TILE * count, TILE);
+  const tex = scene.textures.createCanvas(TextureKeys.Tiles, TILE * TILESET_COUNT, TILE);
   if (!tex) return;
   const ctx = tex.getContext();
 
-  drawGrass(ctx, 0 * TILE);
+  drawGrass(ctx, 0 * TILE, 0);
   drawPath(ctx, 1 * TILE);
   drawWall(ctx, 2 * TILE);
   drawWater(ctx, 3 * TILE);
   drawVine(ctx, 4 * TILE);
+  drawGrass(ctx, 5 * TILE, 1);
+  drawGrass(ctx, 6 * TILE, 2);
+  drawFlowers(ctx, 7 * TILE);
 
   tex.refresh();
 }
@@ -367,39 +377,59 @@ function rect(ctx: CanvasRenderingContext2D, ox: number, x: number, y: number, w
   ctx.fillRect(ox + x, y, w, h);
 }
 
-function drawGrass(ctx: CanvasRenderingContext2D, ox: number): void {
-  rect(ctx, ox, 0, 0, TILE, TILE, '#3f6b43');
-  rect(ctx, ox, 8, 0, 8, 8, '#3a6240');
-  rect(ctx, ox, 0, 8, 8, 8, '#3a6240');
-  for (const [x, y] of [[2, 3], [11, 5], [6, 11], [13, 13]] as const) rect(ctx, ox, x, y, 1, 2, '#34593a');
-  for (const [x, y] of [[5, 6], [12, 2], [3, 12], [9, 9]] as const) rect(ctx, ox, x, y, 1, 1, '#4a7d4f');
+const GRASS_BASE = ['#4a7a43', '#46763f', '#4e7e47'];
+const GRASS_MOTTLE: { dark: ReadonlyArray<readonly [number, number]>; light: ReadonlyArray<readonly [number, number]>; tuft: ReadonlyArray<readonly [number, number]> }[] = [
+  { dark: [[3, 2], [10, 5], [6, 11], [13, 9]], light: [[5, 6], [12, 3], [8, 13]], tuft: [[2, 9], [14, 6]] },
+  { dark: [[5, 4], [11, 9], [3, 13]], light: [[8, 3], [13, 11], [6, 7]], tuft: [[10, 12], [4, 5]] },
+  { dark: [[7, 3], [12, 7], [4, 11]], light: [[3, 5], [9, 9], [14, 13]], tuft: [[6, 13], [11, 4]] },
+];
+
+function drawGrass(ctx: CanvasRenderingContext2D, ox: number, variant: number): void {
+  rect(ctx, ox, 0, 0, TILE, TILE, GRASS_BASE[variant]);
+  const m = GRASS_MOTTLE[variant];
+  for (const [x, y] of m.dark) rect(ctx, ox, x, y, 1, 1, '#3c6537');
+  for (const [x, y] of m.light) rect(ctx, ox, x, y, 1, 1, '#5e8e51');
+  for (const [x, y] of m.tuft) rect(ctx, ox, x, y, 1, 2, '#74a35d');
+}
+
+function drawFlowers(ctx: CanvasRenderingContext2D, ox: number): void {
+  drawGrass(ctx, ox, 0);
+  // A couple of little blooms.
+  rect(ctx, ox, 4, 6, 1, 2, '#3c6537'); // stem
+  rect(ctx, ox, 3, 5, 3, 1, '#e8d36a');
+  rect(ctx, ox, 4, 4, 1, 1, '#fff0a8');
+  rect(ctx, ox, 11, 10, 1, 2, '#3c6537');
+  rect(ctx, ox, 10, 9, 3, 1, '#d98cae');
+  rect(ctx, ox, 11, 8, 1, 1, '#f3c4da');
 }
 
 function drawPath(ctx: CanvasRenderingContext2D, ox: number): void {
-  rect(ctx, ox, 0, 0, TILE, TILE, '#8a6b45');
-  for (const [x, y] of [[3, 4], [10, 6], [6, 11], [13, 2], [9, 13]] as const) rect(ctx, ox, x, y, 1, 1, '#75582f');
-  for (const [x, y] of [[5, 7], [12, 10], [2, 12]] as const) rect(ctx, ox, x, y, 1, 1, '#a08254');
+  rect(ctx, ox, 0, 0, TILE, TILE, '#9a7a4e'); // warm dirt
+  for (const [x, y] of [[2, 3], [9, 5], [5, 10], [12, 2], [8, 13], [13, 9]] as const) rect(ctx, ox, x, y, 1, 1, '#7e5f37');
+  for (const [x, y] of [[4, 6], [11, 11], [6, 2], [14, 5]] as const) rect(ctx, ox, x, y, 1, 1, '#b5966a');
+  for (const [x, y] of [[3, 8], [10, 7]] as const) rect(ctx, ox, x, y, 2, 1, '#6e5230'); // pebbles
 }
 
 function drawWall(ctx: CanvasRenderingContext2D, ox: number): void {
-  // A leafy tree/hedge block.
-  rect(ctx, ox, 0, 0, TILE, TILE, '#1f3a26');
-  rect(ctx, ox, 2, 2, 12, 11, '#2c5036');
-  rect(ctx, ox, 4, 1, 8, 3, '#35613f');
-  for (const [x, y] of [[3, 4], [10, 5], [6, 8], [11, 10], [5, 11]] as const) rect(ctx, ox, x, y, 2, 2, '#3f7049');
-  rect(ctx, ox, 7, 13, 2, 3, '#4a3527'); // trunk
+  // Leafy tree/hedge with an outline so the forest border reads against grass.
+  rect(ctx, ox, 0, 0, TILE, TILE, '#243a26'); // shaded floor / gaps
+  rect(ctx, ox, 1, 1, 14, 13, '#1b3320'); // dark outline
+  rect(ctx, ox, 2, 2, 12, 11, '#2f5639'); // canopy mid
+  rect(ctx, ox, 3, 2, 9, 4, '#3f6e49'); // lit top
+  for (const [x, y] of [[4, 4], [10, 5], [6, 8], [11, 9], [5, 11]] as const) rect(ctx, ox, x, y, 2, 2, '#508059');
+  rect(ctx, ox, 7, 13, 2, 3, '#3a2a1c'); // trunk
 }
 
 function drawWater(ctx: CanvasRenderingContext2D, ox: number): void {
-  rect(ctx, ox, 0, 0, TILE, TILE, '#2f6fb0');
-  rect(ctx, ox, 0, 0, TILE, 8, '#3a7cc0');
-  for (const y of [3, 9, 13] as const) rect(ctx, ox, 2, y, 6, 1, '#6aa6da');
+  rect(ctx, ox, 0, 0, TILE, TILE, '#3a78b8');
+  rect(ctx, ox, 0, 0, TILE, 7, '#4a8ac8'); // lit upper
+  rect(ctx, ox, 0, 0, TILE, 2, '#9fc7e8'); // foam edge
+  for (const y of [4, 9, 13] as const) rect(ctx, ox, 2, y, 6, 1, '#6aa6da');
   for (const y of [6, 11] as const) rect(ctx, ox, 9, y, 5, 1, '#6aa6da');
 }
 
 function drawVine(ctx: CanvasRenderingContext2D, ox: number): void {
   rect(ctx, ox, 0, 0, TILE, TILE, '#2c4a26');
-  // Tangled brambles.
   for (const [x, y] of [[2, 2], [6, 4], [10, 2], [13, 6], [4, 9], [8, 11], [12, 12], [3, 13]] as const) rect(ctx, ox, x, y, 2, 2, '#5b7d33');
   for (const [x, y] of [[5, 6], [9, 8], [11, 4], [2, 11]] as const) rect(ctx, ox, x, y, 1, 1, '#7fa64a');
 }
@@ -448,6 +478,10 @@ function drawCharacter(
     ctx.fillStyle = color;
     ctx.fillRect(ox + x, oy + y, w, h);
   };
+
+  // Soft ground shadow so the character sits in the world.
+  ctx.fillStyle = 'rgba(0,0,0,0.20)';
+  ctx.fillRect(ox + 4, oy + 15, 8, 1);
 
   // Head
   px(5, 2, 6, 5, SKIN);

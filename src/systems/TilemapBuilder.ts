@@ -1,6 +1,51 @@
 import Phaser from 'phaser';
 import { Tile, type MapObjectInstance, type TileMapDef } from '../data/maps/types';
-import { TextureKeys } from './TextureFactory';
+import { FLOWER_TILE_INDEX, GRASS_VARIANT_INDICES, TextureKeys } from './TextureFactory';
+
+/** Narrow walkable runs this wide or less become the dirt trail. */
+const MAX_TRAIL_WIDTH = 2;
+
+/** Pick a grass tile variant (rarely a flower) for organic-looking ground. */
+function pickGrass(): number {
+  const r = Math.random();
+  if (r < 0.06) return FLOWER_TILE_INDEX;
+  if (r < 0.4) return GRASS_VARIANT_INDICES[1];
+  if (r < 0.65) return GRASS_VARIANT_INDICES[2];
+  return GRASS_VARIANT_INDICES[0];
+}
+
+/**
+ * Decorate the raw tile grid in place: pave narrow corridors as a dirt trail
+ * (so the journey through the forest reads), then scatter grass variants over
+ * the remaining open ground. Purely cosmetic — walkability is unchanged since
+ * none of these indices are in `blocking`.
+ */
+function decorate(data: number[][], blocking: number[]): void {
+  const blockingSet = new Set<number>(blocking);
+  const walkable = (t: number): boolean => !blockingSet.has(t);
+
+  // Pave narrow horizontal runs of open ground.
+  for (const row of data) {
+    let x = 0;
+    while (x < row.length) {
+      if (!walkable(row[x])) {
+        x++;
+        continue;
+      }
+      let end = x;
+      while (end < row.length && walkable(row[end])) end++;
+      if (end - x <= MAX_TRAIL_WIDTH) {
+        for (let i = x; i < end; i++) if (row[i] === Tile.Grass) row[i] = Tile.Path;
+      }
+      x = end;
+    }
+  }
+
+  // Scatter grass variants over the rest.
+  for (const row of data) {
+    for (let i = 0; i < row.length; i++) if (row[i] === Tile.Grass) row[i] = pickGrass();
+  }
+}
 
 export interface BuiltMap {
   layer: Phaser.Tilemaps.TilemapLayer;
@@ -54,6 +99,8 @@ export function buildTilemap(scene: Phaser.Scene, def: TileMapDef): BuiltMap {
     }
     data.push(cells);
   }
+
+  decorate(data, def.blocking);
 
   const map = scene.make.tilemap({ data, tileWidth: tileSize, tileHeight: tileSize });
   const tileset = map.addTilesetImage('tiles', TextureKeys.Tiles, tileSize, tileSize);
