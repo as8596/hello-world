@@ -374,7 +374,9 @@ export class WorldScene extends Phaser.Scene {
         enemy.stun(handbellConfig.stunMs);
       }
     }
-    for (const patch of this.fog) {
+    // Snapshot: dispel() removes the patch from this.fog mid-loop, which would
+    // otherwise skip the next in-range patch (e.g. the middle of three).
+    for (const patch of [...this.fog]) {
       if (patch.active && Phaser.Math.Distance.Between(px, py, patch.x, patch.y) <= r) {
         patch.dispel();
       }
