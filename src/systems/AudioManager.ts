@@ -20,7 +20,8 @@ export type SfxName =
   | 'playerHurt'
   | 'heart'
   | 'rested'
-  | 'fog';
+  | 'fog'
+  | 'footstep';
 
 // --- tiny synth helpers ----------------------------------------------------
 
@@ -162,6 +163,8 @@ const SFX: Record<SfxName, (ctx: AudioContext, dest: AudioNode) => void> = {
     for (const f of [392, 494, 587]) tone(ctx, d, f, 'sine', t, 1.3, 0.07, 0.05);
   },
   fog: (ctx, d) => noiseBurst(ctx, d, ctx.currentTime, 0.5, 0.05, 'highpass', 2200, 0.5),
+  // A soft, low, slightly-varied foot plant — kept quiet so it sits under everything.
+  footstep: (ctx, d) => noiseBurst(ctx, d, ctx.currentTime, 0.09, 0.045, 'lowpass', 270 + Math.random() * 90, 1.3),
 };
 
 // --- the manager -----------------------------------------------------------

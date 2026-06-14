@@ -98,6 +98,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   /** Earliest time a new dash may start (dash end + cooldown). */
   private dodgeReadyAt = 0;
   private readonly dodgeDir = { x: 0, y: 0 };
+  /** Distance accumulator for footstep cadence (one step per 2 animation frames). */
+  private stepAccum = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     const useSheet = hasDirectionalSheet(scene);
@@ -522,6 +524,18 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     );
 
     this.renderFacing(moving);
+
+    // Soft footsteps on a distance cadence (synced to the leg animation: one
+    // step per ~2 animation frames), so they never play faster than you move.
+    if (moving) {
+      this.stepAccum += body.velocity.length() * dt;
+      if (this.stepAccum >= playerConfig.runPixelsPerFrame * 2) {
+        this.stepAccum = 0;
+        audio.playSfx('footstep');
+      }
+    } else {
+      this.stepAccum = playerConfig.runPixelsPerFrame; // first step lands soon after starting
+    }
   }
 
   /** Update the displayed art for the current facing (sheet or placeholder). */
