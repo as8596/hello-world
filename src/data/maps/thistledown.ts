@@ -1,14 +1,16 @@
 import { Tile, type TileMapDef } from './types';
 
 /**
- * Thistledown — the vertical-slice overworld (DESIGN.md §12), as a carved
- * forest path. You wake at the bottom (`@`) and follow the trail north toward
- * the belltower clearing. Water and a vine-blocked side pocket (the future
- * cut-the-vines moment) constrain the route so walls actually matter.
+ * Thistledown — the vertical-slice overworld (DESIGN.md §12). South (you wake)
+ * to north (the belltower). From the bottom up:
+ *   - Sleeping Thistledown: a wide village clearing with sleeping villagers.
+ *   - A vine GATE across the only path north — cut it to open the lane.
+ *   - Thornwood Trail: a forest corridor, a pond, and a vine-sealed side
+ *     pocket (a future reward, cut-the-vines later).
+ *   - The belltower clearing at the top.
  *
- *   .  grass (walkable)      #  tree/wall (blocks)
- *   w  water (blocks)        v  vine (blocks, cuttable later)
- *   @  player spawn
+ * Terrain:  .  grass     #  tree/wall     w  water
+ * Objects:  v  gate vine   V  pocket vine   N  sleeping villager   @  spawn
  */
 export const thistledownMap: TileMapDef = {
   tileSize: 16,
@@ -16,24 +18,29 @@ export const thistledownMap: TileMapDef = {
     '.': Tile.Grass,
     '#': Tile.Wall,
     w: Tile.Water,
-    v: Tile.Vine,
   },
-  blocking: [Tile.Wall, Tile.Water, Tile.Vine],
+  blocking: [Tile.Wall, Tile.Water],
+  objects: {
+    v: { type: 'vine', group: 'gate' },
+    V: { type: 'vine', group: 'pocket' },
+    N: { type: 'villager' },
+  },
+  floorTile: Tile.Grass,
   spawnChar: '@',
   spawnTile: Tile.Grass,
   rows: [
     '########################',
-    '#########......#########',
-    '#########......#########',
-    '#########......#########',
-    '#########......#########',
+    '########........########',
+    '########........########',
+    '########........########',
+    '########........########',
     '###########..###########',
     '###########..###########',
     '###########..###########',
     '###########..###########',
-    '###########..v....######',
-    '###########..v....######',
-    '###########..v....######',
+    '###########..V....######',
+    '###########..V....######',
+    '###########..V....######',
     '###########..###########',
     '########ww......########',
     '########ww......########',
@@ -45,12 +52,16 @@ export const thistledownMap: TileMapDef = {
     '###########..###########',
     '###########..###########',
     '###########..###########',
+    '###########vv###########',
     '###########..###########',
-    '###########..###########',
-    '###########..###########',
-    '###########..###########',
-    '###########@.###########',
-    '###########..###########',
+    '####................####',
+    '####................####',
+    '####.....N....N.....####',
+    '####................####',
+    '####................####',
+    '####...N........N...####',
+    '####................####',
+    '####.......@........####',
     '########################',
   ],
 };

@@ -10,6 +10,8 @@ import Phaser from 'phaser';
 export const TextureKeys = {
   Player: 'player',
   Tiles: 'tiles',
+  Vine: 'vine',
+  Villager: 'villager',
 } as const;
 
 const FRAME = 16; // player frame size, px
@@ -21,6 +23,43 @@ type Dir = 'down' | 'side' | 'up';
 export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   generateTileset(scene);
   generatePlayer(scene);
+  generateObjects(scene);
+}
+
+/** Free-standing world objects (transparent background so grass shows around). */
+function generateObjects(scene: Phaser.Scene): void {
+  if (!scene.textures.exists(TextureKeys.Vine)) {
+    const tex = scene.textures.createCanvas(TextureKeys.Vine, TILE, TILE);
+    if (tex) {
+      const ctx = tex.getContext();
+      ctx.clearRect(0, 0, TILE, TILE);
+      // A tangled bramble clump, roughly circular, corners left transparent.
+      for (const [x, y] of [[5, 2], [9, 3], [3, 6], [11, 6], [6, 9], [10, 10], [4, 11], [8, 12]] as const) {
+        rect(ctx, 0, x, y, 3, 3, '#2c4a26');
+      }
+      for (const [x, y] of [[6, 4], [4, 8], [9, 7], [7, 11], [11, 9]] as const) rect(ctx, 0, x, y, 2, 2, '#5b7d33');
+      for (const [x, y] of [[7, 5], [5, 9], [10, 8]] as const) rect(ctx, 0, x, y, 1, 1, '#9ec465');
+      tex.refresh();
+    }
+  }
+
+  if (!scene.textures.exists(TextureKeys.Villager)) {
+    const tex = scene.textures.createCanvas(TextureKeys.Villager, TILE, TILE);
+    if (tex) {
+      const ctx = tex.getContext();
+      ctx.clearRect(0, 0, TILE, TILE);
+      // A figure asleep on the ground, lying horizontally, with a soft shadow.
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.fillRect(2, 12, 12, 2);
+      rect(ctx, 0, 5, 6, 9, 5, '#7c6f9c'); // blanket / body
+      rect(ctx, 0, 5, 8, 9, 1, '#6a5e88'); // fold
+      rect(ctx, 0, 3, 6, 3, 4, '#e8c39e'); // head
+      rect(ctx, 0, 3, 5, 3, 2, '#5b3a29'); // hair
+      rect(ctx, 0, 13, 3, 1, 1, '#cfd2e0'); // sleepy 'z'
+      rect(ctx, 0, 14, 2, 1, 1, '#cfd2e0');
+      tex.refresh();
+    }
+  }
 }
 
 /**

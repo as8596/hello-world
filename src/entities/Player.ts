@@ -65,6 +65,16 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     make('player-walk-up', ['up-0', 'up-1']);
   }
 
+  /** Halt and settle on an idle frame (e.g. while a dialogue is open). */
+  halt(): void {
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    body.setVelocity(0, 0);
+    const dirKey = this.facing === 'left' || this.facing === 'right' ? 'side' : this.facing;
+    this.anims.stop();
+    this.setFlipX(this.facing === 'left');
+    this.setFrame(`${dirKey}-0`);
+  }
+
   update(deltaMs: number): void {
     const dt = deltaMs / 1000;
     const body = this.body as Phaser.Physics.Arcade.Body;

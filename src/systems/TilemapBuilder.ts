@@ -1,26 +1,34 @@
 import Phaser from 'phaser';
-import type { TileMapDef } from '../data/maps/types';
+import { Tile, type MapObjectInstance, type TileMapDef } from '../data/maps/types';
 import { TextureKeys } from './TextureFactory';
 
 export interface BuiltMap {
   layer: Phaser.Tilemaps.TilemapLayer;
   spawn: { x: number; y: number };
+  /** Hand-placed objects (vines, villagers, …) resolved to pixel centers. */
+  objects: MapObjectInstance[];
   widthPx: number;
   heightPx: number;
 }
 
 /**
- * Build a Phaser tilemap + collision layer from an ASCII TileMapDef.
- * Returns the layer (for colliders), the player spawn point (pixel center),
- * and the map's pixel dimensions (for world/camera bounds).
+ * Build a Phaser tilemap + collision layer from an ASCII TileMapDef. Terrain
+ * characters become tiles; object/spawn characters become a floor tile plus an
+ * entry in the returned `objects`/`spawn`. Returns the layer (for colliders),
+ * the spawn point, the objects, and the map's pixel dimensions.
  */
 export function buildTilemap(scene: Phaser.Scene, def: TileMapDef): BuiltMap {
   const { tileSize, rows, legend, spawnChar, spawnTile } = def;
+  const floorTile = def.floorTile ?? Tile.Grass;
+  const objectDefs = def.objects ?? {};
   const height = rows.length;
   const width = rows[0]?.length ?? 0;
 
   let spawn = { x: tileSize / 2, y: tileSize / 2 };
+  const objects: MapObjectInstance[] = [];
   const data: number[][] = [];
+
+  const center = (i: number): number => i * tileSize + tileSize / 2;
 
   for (let y = 0; y < height; y++) {
     const row = rows[y];
@@ -30,18 +38,19 @@ export function buildTilemap(scene: Phaser.Scene, def: TileMapDef): BuiltMap {
     const cells: number[] = [];
     for (let x = 0; x < width; x++) {
       const ch = row[x];
-      let index: number;
       if (ch === spawnChar) {
-        index = spawnTile;
-        spawn = { x: x * tileSize + tileSize / 2, y: y * tileSize + tileSize / 2 };
+        cells.push(spawnTile);
+        spawn = { x: center(x), y: center(y) };
+      } else if (objectDefs[ch]) {
+        cells.push(floorTile);
+        objects.push({ ...objectDefs[ch], x: center(x), y: center(y) });
       } else {
-        const mapped = legend[ch];
-        if (mapped === undefined) {
+        const tile = legend[ch];
+        if (tile === undefined) {
           throw new Error(`Map cell (${x},${y}) uses unknown character '${ch}'`);
         }
-        index = mapped;
+        cells.push(tile);
       }
-      cells.push(index);
     }
     data.push(cells);
   }
@@ -59,6 +68,7 @@ export function buildTilemap(scene: Phaser.Scene, def: TileMapDef): BuiltMap {
   return {
     layer,
     spawn,
+    objects,
     widthPx: width * tileSize,
     heightPx: height * tileSize,
   };
