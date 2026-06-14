@@ -27,6 +27,25 @@ export class PreloadScene extends Phaser.Scene {
     // the Player falls back to the generated placeholder.
     this.load.setPath('assets/sprites');
     for (const d of PLAYER_SPRITE_DIRS) this.load.image(`player-${d.key}`, d.file);
+
+    // Optional running-animation sheets (generated from GIFs by `npm run
+    // sprites`). The frame size lives in the manifest, so load that first and
+    // queue the sheets when it arrives — Phaser processes loads added mid-run.
+    this.load.json('player-run-manifest', 'player-run.json');
+    this.load.once(
+      'filecomplete-json-player-run-manifest',
+      (_key: string, _type: string, data: unknown) => {
+        const m = data as { frameWidth: number; frameHeight: number; dirs?: string[] } | undefined;
+        if (!m || !Array.isArray(m.dirs)) return;
+        for (const dir of m.dirs) {
+          this.load.spritesheet(`player-run-${dir}`, `player-run-${dir}.png`, {
+            frameWidth: m.frameWidth,
+            frameHeight: m.frameHeight,
+          });
+        }
+      },
+    );
+
     // A missing optional asset must not fail the boot.
     this.load.on('loaderror', () => undefined);
   }

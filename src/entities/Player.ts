@@ -154,6 +154,24 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     make('player-walk-down', ['down-0', 'down-1']);
     make('player-walk-side', ['side-0', 'side-1']);
     make('player-walk-up', ['up-0', 'up-1']);
+
+    // Optional real directional run cycles (from the GIF sheets). Register one
+    // per direction that actually loaded; the rest fall back to static art.
+    const manifest = scene.cache.json.get('player-run-manifest') as
+      | { frames: number; dirs?: string[] }
+      | undefined;
+    if (manifest && Array.isArray(manifest.dirs)) {
+      for (const dir of manifest.dirs) {
+        const key = `player-run-${dir}`;
+        if (scene.anims.exists(key) || !scene.textures.exists(key)) continue;
+        scene.anims.create({
+          key,
+          frames: scene.anims.generateFrameNumbers(key, { start: 0, end: manifest.frames - 1 }),
+          frameRate: playerConfig.walkFrameRate,
+          repeat: -1,
+        });
+      }
+    }
   }
 
   // --- Health -------------------------------------------------------------
@@ -499,10 +517,18 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   /** Update the displayed art for the current facing (sheet or placeholder). */
   private renderFacing(moving: boolean): void {
     if (this.useSheet) {
-      // Eight distinct rotations, no flip; one static frame per direction.
-      if (this.renderedSprite !== this.spriteFacing) {
-        this.renderedSprite = this.spriteFacing;
-        this.setTexture(`player-${this.spriteFacing}`);
+      // Eight distinct rotations, no flip. Play the directional run cycle while
+      // moving if its sheet loaded; otherwise show the static frame.
+      const runKey = `player-run-${this.spriteFacing}`;
+      if (moving && this.scene.anims.exists(runKey)) {
+        this.anims.play(runKey, true);
+        this.renderedSprite = undefined; // force the static frame to re-apply on stop
+      } else {
+        if (this.anims.isPlaying) this.anims.stop();
+        if (this.renderedSprite !== this.spriteFacing) {
+          this.renderedSprite = this.spriteFacing;
+          this.setTexture(`player-${this.spriteFacing}`);
+        }
       }
       return;
     }
