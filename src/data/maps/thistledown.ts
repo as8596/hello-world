@@ -5,7 +5,8 @@ import { Tile, type TileMapDef } from './types';
  * Thistledown — the vertical-slice overworld (DESIGN.md §12). South (you wake)
  * to north (the belltower), as an encounter ladder that teaches each verb solo
  * then tests it. From the bottom up:
- *   - The Waking Hollow: you wake among sleepers (movement only).
+ *   - The Waking Hollow: you wake among sleepers; a blade (L) and the Warden's
+ *     Handbell (g) glint just north — pick them up to unlock attack + ring.
  *   - Sleeping Thistledown: cut a vine GATE, fight thorn-sprites, hearth + Maple.
  *   - Thornwood Trail: a pond, mushroom-folk (dodge timing), a brambleback that
  *     blocks the direct lane (ring-to-stun), and a fog-sealed pocket hiding a
@@ -17,6 +18,7 @@ import { Tile, type TileMapDef } from './types';
  * Terrain:  .  grass     #  tree/wall     w  water
  * Objects:  v  gate vine (sword)   f  Hush-fog (handbell)   h  heart fragment
  *           H  hearth (rest)   M  Maple (shopkeeper)   N  sleeping villager
+ *           L  blade (unlocks attack)   g  handbell (unlocks ring)
  *           S  thorn-sprite   b  brambleback (armored)   m  mushroom-folk
  *           C  resonance chime   D  boss door   X  boss spawn   B  great bell   @  spawn
  */
@@ -32,6 +34,8 @@ export const thistledownMap: TileMapDef = {
     v: { type: 'vine', group: 'gate' },
     f: { type: 'fog', group: 'pocket' },
     h: { type: 'heart' },
+    L: { type: 'blade' },
+    g: { type: 'handbell' },
     H: { type: 'hearth' },
     M: { type: 'maple' },
     N: { type: 'villager' },
@@ -90,9 +94,9 @@ export const thistledownMap: TileMapDef = {
     '##........................##', // 40
     '##..N..........S..........##', // 41 sleeper + a lone sprite
     '##........................##', // 42
-    '##........................##', // 43
+    '##.........g..............##', // 43 the Warden's Handbell (glints)
     '##....N.........N.........##', // 44 — The Waking Hollow
-    '##........................##', // 45
+    '##.........L..............##', // 45 the blade (glints)
     '##.........@..............##', // 46 spawn
     '##........................##', // 47
     '############################', // 48

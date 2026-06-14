@@ -267,7 +267,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
    * scene then applies the AoE stun + fog dispel). A small pop sells the ring.
    */
   ringBell(now: number): boolean {
-    if (this.dead || now < this.bellReadyAt) return false;
+    if (this.dead || !worldState.hasFlag('has_handbell') || now < this.bellReadyAt) return false;
     this.bellReadyAt = now + handbellConfig.cooldownMs;
     // Pop relative to the resting scale (the art is downscaled, not scale 1).
     this.scene.tweens.add({
@@ -373,6 +373,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
    * buffered so it can fire the instant the current swing ends (§14 P0).
    */
   queueAttack(now: number): void {
+    if (!worldState.hasFlag('has_blade')) return; // unlocked by the blade pickup
     if (this.attackState === 'ready') this.startSwing();
     else this.bufferedAttackAt = now;
   }

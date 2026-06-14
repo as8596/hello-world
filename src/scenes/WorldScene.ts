@@ -18,7 +18,9 @@ import { EnemyBase } from '../entities/EnemyBase';
 import { FogPatch } from '../entities/FogPatch';
 import { HeartPickup } from '../entities/HeartPickup';
 import { Interactable } from '../entities/Interactable';
+import { Pickup } from '../entities/Pickup';
 import { Player } from '../entities/Player';
+import { HintSystem } from '../systems/HintSystem';
 import { addPixelText } from '../systems/PixelFont';
 import { TextureKeys } from '../systems/TextureFactory';
 import { buildTilemap } from '../systems/TilemapBuilder';
@@ -62,6 +64,7 @@ export class WorldScene extends Phaser.Scene {
   private interactables: Interactable[] = [];
   private enemies: EnemyBase[] = [];
   private pickups: HeartPickup[] = [];
+  private itemPickups: Pickup[] = [];
   private chimes: Chime[] = [];
   private bossDoors: BossDoor[] = [];
   private chimesRung = 0;
@@ -97,6 +100,7 @@ export class WorldScene extends Phaser.Scene {
     this.interactables = [];
     this.enemies = [];
     this.pickups = [];
+    this.itemPickups = [];
     this.chimes = [];
     this.bossDoors = [];
     this.chimesRung = 0;
@@ -118,6 +122,12 @@ export class WorldScene extends Phaser.Scene {
     // a death-respawn) rebuilds the world in its current state, not from scratch
     // (DESIGN.md §22): opened gates stay open, the boss stays beaten, etc.
     const woken = worldState.hasFlag('thistledown_woken');
+    // A woken valley implies you long since took up the blade + bell (defensive
+    // against hand-edited/late saves, so verbs are never locked in the hub).
+    if (woken) {
+      worldState.setFlag('has_blade', true);
+      worldState.setFlag('has_handbell', true);
+    }
     let villagerIndex = 0;
     for (const obj of map.objects) {
       if (obj.type === 'vine') {
@@ -150,6 +160,18 @@ export class WorldScene extends Phaser.Scene {
       } else if (obj.type === 'heart') {
         if (worldState.hasFlag('heart_fragment_taken')) continue;
         this.pickups.push(new HeartPickup(this, obj.x, obj.y, { onCollect: (p) => this.onHeartCollected(p) }));
+      } else if (obj.type === 'blade') {
+        if (woken || worldState.hasFlag('has_blade')) continue;
+        const glow = this.makePickupGlint(obj.x, obj.y, [180, 210, 255]); // cool steel glint
+        this.itemPickups.push(
+          new Pickup(this, obj.x, obj.y, TextureKeys.Blade, { glow, onCollect: () => this.onBladeCollected() }),
+        );
+      } else if (obj.type === 'handbell') {
+        if (woken || worldState.hasFlag('has_handbell')) continue;
+        const glow = this.makePickupGlint(obj.x, obj.y, [255, 220, 140]); // warm gold glint
+        this.itemPickups.push(
+          new Pickup(this, obj.x, obj.y, TextureKeys.Handbell, { glow, onCollect: () => this.onHandbellCollected() }),
+        );
       } else if (obj.type === 'hearth') {
         this.hearthPositions.push({ x: obj.x, y: obj.y });
         this.interactables.push(
@@ -264,7 +286,7 @@ export class WorldScene extends Phaser.Scene {
       }
     });
 
-    this.addControlHint();
+    HintSystem.tryShow(this, 'move', 'WASD / Arrows  -  move');
 
     // Death handling (the HUD listens to playerHealth in UIScene).
     const offDied = eventBus.on('playerDied', () => this.handlePlayerDeath());
@@ -331,6 +353,7 @@ export class WorldScene extends Phaser.Scene {
     if (ringPressed && this.player.ringBell(now)) this.ringHandbell();
 
     this.collectNearbyPickups();
+    this.maybeShowContextHints();
 
     const target = this.nearestActionable();
     this.updatePrompt(target);
@@ -872,13 +895,48 @@ export class WorldScene extends Phaser.Scene {
 
   // --- Pickups & hearth ---------------------------------------------------
 
-  /** Auto-collect heart fragments the player walks over. */
+  /** Auto-collect heart fragments + Hollow items the player walks over. */
   private collectNearbyPickups(): void {
+    const px = this.player.x;
+    const py = this.player.y;
     for (const pickup of this.pickups) {
-      if (pickup.active && Phaser.Math.Distance.Between(this.player.x, this.player.y, pickup.x, pickup.y) <= 12 * RS) {
+      if (pickup.active && Phaser.Math.Distance.Between(px, py, pickup.x, pickup.y) <= 12 * RS) {
         pickup.collect();
       }
     }
+    for (const item of this.itemPickups) {
+      if (item.active && Phaser.Math.Distance.Between(px, py, item.x, item.y) <= 12 * RS) {
+        item.collect();
+      }
+    }
+  }
+
+  /** A soft ADD glow drawn above the night overlay so a pickup beacons in the dark. */
+  private makePickupGlint(x: number, y: number, rgb: [number, number, number]): Phaser.GameObjects.Image {
+    const key = `pickup-glow-${rgb.join('-')}`;
+    this.makeRadialGlow(key, 96, rgb, 0.7, 2.6);
+    const glow = this.add
+      .image(x, y, key)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setDepth(402)
+      .setScale(0.6)
+      .setAlpha(0.35);
+    this.tweens.add({ targets: glow, scale: 0.9, alpha: 0.62, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    return glow;
+  }
+
+  private onBladeCollected(): void {
+    worldState.setFlag('has_blade', true);
+    audio.playSfx('chime');
+    this.showToast('You take up the blade.');
+    HintSystem.tryShow(this, 'attack', 'J / Click  -  attack');
+  }
+
+  private onHandbellCollected(): void {
+    worldState.setFlag('has_handbell', true);
+    audio.playSfx('handbell');
+    this.showToast("You lift the Warden's Handbell.");
+    HintSystem.tryShow(this, 'ring', 'F  -  ring the bell');
   }
 
   private onHeartCollected(pickup: HeartPickup): void {
@@ -1036,12 +1094,30 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
-  /** A soft, fading control hint instead of a wall of tutorial text (§14 P1). */
-  private addControlHint(): void {
-    const hint = addPixelText(this, 0, 0, 'WASD move - J attack - SHIFT dodge - F bell - E read', { color: 0xe8e6d8 })
-      .setScrollFactor(0)
-      .setDepth(1000);
-    hint.setPosition(Math.round((this.scale.width - hint.width) / 2), this.scale.height - 16 * RS);
-    this.tweens.add({ targets: hint, alpha: 0, delay: 4500, duration: 1200, onComplete: () => hint.destroy() });
+  /**
+   * Contextual verb hints (§14a): surface a fading one-time hint the moment its
+   * verb becomes relevant. Each is self-rate-limited by its `hint_*` flag, so
+   * the array scans stop after each fires. The pickup handlers also fire the
+   * attack/ring hints; this covers the "already armed, approach a target" case.
+   */
+  private maybeShowContextHints(): void {
+    const px = this.player.x;
+    const py = this.player.y;
+    if (worldState.hasFlag('has_blade') && !worldState.hasFlag('hint_attack')) {
+      const near =
+        this.enemies.some((e) => !e.isDead && Phaser.Math.Distance.Between(px, py, e.x, e.y) <= e.def.aggroRange) ||
+        this.vines.some((v) => v.active && Phaser.Math.Distance.Between(px, py, v.x, v.y) <= 40 * RS);
+      if (near) HintSystem.tryShow(this, 'attack', 'J / Click  -  attack');
+    }
+    if (worldState.hasFlag('has_handbell') && !worldState.hasFlag('hint_ring')) {
+      if (this.fog.some((f) => f.active && Phaser.Math.Distance.Between(px, py, f.x, f.y) <= 48 * RS)) {
+        HintSystem.tryShow(this, 'ring', 'F  -  ring the bell');
+      }
+    }
+    if (!worldState.hasFlag('hint_read')) {
+      if (this.interactables.some((n) => Phaser.Math.Distance.Between(px, py, n.x, n.y) <= INTERACT_RADIUS)) {
+        HintSystem.tryShow(this, 'read', 'E  -  read');
+      }
+    }
   }
 }

@@ -10,7 +10,9 @@
 import { worldState } from './WorldState';
 
 const SAVE_KEY = 'brackenvale_save_v1';
-const SAVE_VERSION = 1;
+// v2: the Waking Hollow added has_blade/has_handbell gating; pre-v2 saves lack
+// those flags, so they're invalidated (clean fresh start) rather than migrated.
+const SAVE_VERSION = 2;
 
 interface SaveData {
   saveVersion: number;

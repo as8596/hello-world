@@ -27,6 +27,8 @@ export const TextureKeys = {
   VillagerAwake: 'villager_awake',
   Brambleback: 'brambleback',
   MushroomFolk: 'mushroom_folk',
+  Blade: 'blade',
+  Handbell: 'handbell',
 } as const;
 
 const FRAME = 16; // player placeholder frame size, design px
@@ -68,6 +70,40 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   generateVillagerAwake(scene);
   generateBrambleback(scene);
   generateMushroomFolk(scene);
+  generateBlade(scene);
+  generateHandbell(scene);
+}
+
+/** A small sword lying point-up — the blade pickup (unlocks attack). */
+function generateBlade(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.Blade)) return;
+  const made = makeTexture(scene, TextureKeys.Blade, TILE, TILE);
+  if (!made) return;
+  const { tex, ctx } = made;
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillRect(5, 14, 6, 1); // shadow
+  rect(ctx, 0, 7, 1, 2, 9, '#cdd3dc'); // blade
+  rect(ctx, 0, 8, 1, 1, 8, '#eef2f7'); // edge highlight
+  rect(ctx, 0, 5, 10, 6, 1, '#7a5a32'); // crossguard
+  rect(ctx, 0, 7, 11, 2, 3, '#5a3d28'); // grip
+  rect(ctx, 0, 7, 14, 2, 1, '#caa23a'); // pommel
+  tex.refresh();
+}
+
+/** A small handbell with a handle — distinct from the large framed GreatBell. */
+function generateHandbell(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.Handbell)) return;
+  const made = makeTexture(scene, TextureKeys.Handbell, TILE, TILE);
+  if (!made) return;
+  const { tex, ctx } = made;
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillRect(5, 14, 6, 1); // shadow
+  rect(ctx, 0, 7, 2, 2, 3, '#5a3d28'); // handle
+  rect(ctx, 0, 6, 5, 4, 5, '#c9a23a'); // bell body
+  rect(ctx, 0, 7, 5, 2, 1, '#e3c66a'); // highlight
+  rect(ctx, 0, 5, 9, 6, 1, '#8a6f24'); // flared rim
+  rect(ctx, 0, 7, 11, 2, 2, '#8a6f24'); // clapper
+  tex.refresh();
 }
 
 /** An armored bramble-bruiser: stone plates over a thorn body (the ring-to-stun foe). */
