@@ -34,11 +34,12 @@ const INTERACT_RADIUS = 22 * RS;
 const BOSS_BAR_WIDTH = 140 * RS;
 
 // Nighttime mood. NIGHT_TINT is multiplied over the world (purple → darker,
-// blue-leaning); NIGHT_STRENGTH is how strongly (0 = off, 1 = full). GLOW_TEXTURE
-// is the warm firelight added back at hearths.
+// blue-leaning); NIGHT_STRENGTH is how strongly (0 = off, 1 = full). The glow
+// textures are warm light added back at hearths + drifting fireflies.
 const NIGHT_TINT = 0x2a2148;
 const NIGHT_STRENGTH = 0.6;
 const GLOW_TEXTURE = 'warm-glow';
+const FIREFLY_TEXTURE = 'firefly-glow';
 
 /**
  * WorldScene — the playable overworld. Builds the Thistledown tilemap, spawns
@@ -80,6 +81,7 @@ export class WorldScene extends Phaser.Scene {
   private dyingPlayer = false;
   private readonly hearthPositions: { x: number; y: number }[] = [];
   private nightOverlay?: Phaser.GameObjects.Rectangle;
+  private readonly fireflies: Phaser.GameObjects.Image[] = [];
 
   constructor() {
     super(SceneKeys.World);
@@ -181,7 +183,7 @@ export class WorldScene extends Phaser.Scene {
     cam.setDeadzone(36 * RS, 28 * RS);
     cam.fadeIn(250);
 
-    this.setupNightAmbiance();
+    this.setupNightAmbiance(map.widthPx, map.heightPx);
 
     this.dialogue = new DialogueBox(this);
     this.dialogueRunner = new DialogueRunner(this.dialogue, worldState, (e) => this.runDialogueEffect(e));
@@ -486,10 +488,15 @@ export class WorldScene extends Phaser.Scene {
       this.player.gainMaxHalfHearts(2);
       worldState.setFlag('thistledown_woken', true);
       this.showToast('Thistledown wakes.');
-      // Dawn: as the curse lifts, so does the night.
+      // Dawn: as the curse lifts, so does the night — and the fireflies wink out.
       if (this.nightOverlay) {
         this.tweens.add({ targets: this.nightOverlay, alpha: 0.25, duration: 1800, ease: 'Sine.inOut' });
       }
+      for (const fly of this.fireflies) {
+        this.tweens.killTweensOf(fly);
+        this.tweens.add({ targets: fly, alpha: 0, duration: 1400, onComplete: () => fly.destroy() });
+      }
+      this.fireflies.length = 0;
       this.waking = false;
       // The Oath choice, offered by a Warden's resonance at the shrine (§12).
       if (!worldState.getFlag('oath')) {
@@ -593,7 +600,7 @@ export class WorldScene extends Phaser.Scene {
    * below all UI), with a warm pulsing firelight added back at each hearth so
    * the rest points read as cozy islands of light in the dark.
    */
-  private setupNightAmbiance(): void {
+  private setupNightAmbiance(mapW: number, mapH: number): void {
     // If the valley already woke (e.g. retrying after death), start at dawn.
     const woken = worldState.hasFlag('thistledown_woken');
     this.nightOverlay = this.add
@@ -604,20 +611,58 @@ export class WorldScene extends Phaser.Scene {
       .setDepth(400)
       .setAlpha(woken ? 0.25 : 1);
 
-    this.ensureGlowTexture();
+    // Warm orange firelight at each hearth — small, soft, slowly breathing.
+    this.makeRadialGlow(GLOW_TEXTURE, 256, [255, 134, 50], 0.85, 2.8);
     for (const p of this.hearthPositions) {
       const glow = this.add
         .image(p.x, p.y, GLOW_TEXTURE)
         .setBlendMode(Phaser.BlendModes.ADD)
         .setDepth(401)
-        .setScale(1.4)
-        .setAlpha(0.85);
-      // A slow, organic flicker so the fire feels alive.
+        .setScale(0.82)
+        .setAlpha(0.5);
       this.tweens.add({
         targets: glow,
-        scale: 1.62,
-        alpha: 1,
-        duration: 1400,
+        scale: 0.96,
+        alpha: 0.66,
+        duration: 1500,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.inOut',
+      });
+    }
+
+    // Random pixel fireflies drifting through the dark forest.
+    if (woken) return;
+    this.makeFireflyTexture();
+    const count = Phaser.Math.Clamp(Math.round((mapW * mapH) / 90000), 16, 48);
+    for (let i = 0; i < count; i++) {
+      const x = Phaser.Math.Between(24, mapW - 24);
+      const y = Phaser.Math.Between(24, mapH - 24);
+      const fly = this.add
+        .image(x, y, FIREFLY_TEXTURE)
+        .setBlendMode(Phaser.BlendModes.ADD)
+        .setDepth(401)
+        .setScale(Phaser.Math.FloatBetween(0.7, 1.4))
+        .setAlpha(Phaser.Math.FloatBetween(0.12, 0.4));
+      if (Math.random() < 0.5) fly.setTint(0xfff0a0); // some warmer/yellower
+      this.fireflies.push(fly);
+      // Slow wander.
+      this.tweens.add({
+        targets: fly,
+        x: x + Phaser.Math.Between(-26, 26),
+        y: y + Phaser.Math.Between(-22, 22),
+        duration: Phaser.Math.Between(2400, 4400),
+        delay: Phaser.Math.Between(0, 1500),
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.inOut',
+      });
+      // Out-of-sync twinkle.
+      this.tweens.add({
+        targets: fly,
+        alpha: Phaser.Math.FloatBetween(0.6, 0.95),
+        duration: Phaser.Math.Between(700, 1500),
+        delay: Phaser.Math.Between(0, 1200),
         yoyo: true,
         repeat: -1,
         ease: 'Sine.inOut',
@@ -625,20 +670,59 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  /** Build the soft warm radial-gradient glow texture once. */
-  private ensureGlowTexture(): void {
-    if (this.textures.exists(GLOW_TEXTURE)) return;
-    const size = 256;
-    const tex = this.textures.createCanvas(GLOW_TEXTURE, size, size);
+  /** Bake a soft radial glow texture with a smooth power-curve falloff. */
+  private makeRadialGlow(key: string, size: number, rgb: [number, number, number], peak: number, pow: number): void {
+    if (this.textures.exists(key)) return;
+    const tex = this.textures.createCanvas(key, size, size);
     if (!tex) return;
     const ctx = tex.getContext();
-    const r = size / 2;
-    const g = ctx.createRadialGradient(r, r, 0, r, r, r);
-    g.addColorStop(0, 'rgba(255,196,120,0.95)');
-    g.addColorStop(0.4, 'rgba(255,150,78,0.5)');
-    g.addColorStop(1, 'rgba(255,120,50,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, size, size);
+    const img = ctx.createImageData(size, size);
+    const c = size / 2;
+    const [r, g, b] = rgb;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const d = Math.hypot(x - c + 0.5, y - c + 0.5) / c;
+        const a = d >= 1 ? 0 : Math.pow(1 - d, pow) * peak;
+        const i = (y * size + x) * 4;
+        img.data[i] = r;
+        img.data[i + 1] = g;
+        img.data[i + 2] = b;
+        img.data[i + 3] = Math.round(a * 255);
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    tex.refresh();
+  }
+
+  /** Bake the tiny firefly glow: a soft green-gold halo with a bright pixel core. */
+  private makeFireflyTexture(): void {
+    if (this.textures.exists(FIREFLY_TEXTURE)) return;
+    const size = 24;
+    const tex = this.textures.createCanvas(FIREFLY_TEXTURE, size, size);
+    if (!tex) return;
+    const ctx = tex.getContext();
+    const img = ctx.createImageData(size, size);
+    const c = size / 2;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const d = Math.hypot(x - c + 0.5, y - c + 0.5) / c;
+        const a = d >= 1 ? 0 : Math.pow(1 - d, 2.4) * 0.85;
+        const i = (y * size + x) * 4;
+        img.data[i] = 205;
+        img.data[i + 1] = 255;
+        img.data[i + 2] = 150;
+        img.data[i + 3] = Math.round(a * 255);
+      }
+    }
+    // Bright near-white core (2x2 pixels) for the "firefly spark".
+    for (const [dx, dy] of [[-1, -1], [0, -1], [-1, 0], [0, 0]] as const) {
+      const i = ((c + dy) * size + (c + dx)) * 4;
+      img.data[i] = 255;
+      img.data[i + 1] = 255;
+      img.data[i + 2] = 210;
+      img.data[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
     tex.refresh();
   }
 
