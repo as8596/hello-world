@@ -38,7 +38,8 @@ you want, then **Code → Download ZIP**. Unzip it, `cd` into the folder, and ru
 ### Controls
 
 - **WASD** or **Arrow keys** — move
-- **E** or **Space** — interact (cut vines, read sleeping villagers; advance dialogue)
+- **J** / **X** / **click** — swing (cuts vines)
+- **E** or **Space** — read sleeping villagers; advance dialogue
 
 ## Scripts
 
@@ -62,9 +63,9 @@ public/assets/ sprites / tilesets / maps (placeholder art generated at runtime f
 
 ## Status
 
-Following the MVP build order in `DESIGN.md` §13. **Milestone A** is done (it
-runs and you can move) and **Milestone B is complete**: the Thistledown
-overworld is a real tilemap with collision, and the world now responds to you
-— cut the vine gate to open the lane north, and read the sleeping villagers
-via a typewriter dialogue box. Interaction runs through the WorldState/EventBus
-spine. Combat, the handbell, enemies, and the bell-ringing payoff come next.
+Following the MVP build order in `DESIGN.md` §13. **Milestones A & B are done**
+(it runs, you move, the overworld is a collidable tilemap, and the world reacts
+— read villagers, cut the vine gate to open the lane). **Milestone C is
+underway**: a directional melee swing with wind-up/active/recovery timing,
+input buffering, and hit-stop now cuts the vine gate. Enemies, dodge, the
+handbell, and the bell-ringing payoff come next.

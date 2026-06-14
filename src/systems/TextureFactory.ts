@@ -12,6 +12,7 @@ export const TextureKeys = {
   Tiles: 'tiles',
   Vine: 'vine',
   Villager: 'villager',
+  Slash: 'slash',
 } as const;
 
 const FRAME = 16; // player frame size, px
@@ -24,6 +25,31 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   generateTileset(scene);
   generatePlayer(scene);
   generateObjects(scene);
+  generateSlash(scene);
+}
+
+/** A crescent swing VFX, drawn pointing +x; rotated per facing at runtime. */
+function generateSlash(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.Slash)) return;
+  const tex = scene.textures.createCanvas(TextureKeys.Slash, TILE, TILE);
+  if (!tex) return;
+  const ctx = tex.getContext();
+  ctx.clearRect(0, 0, TILE, TILE);
+  const cx = 4;
+  const cy = 8;
+  for (let i = 0; i <= 14; i++) {
+    const t = -0.85 + (1.7 * i) / 14;
+    const x = Math.round(cx + 7 * Math.cos(t));
+    const y = Math.round(cy + 7 * Math.sin(t));
+    rect(ctx, 0, x, y, 2, 2, '#ffffff');
+  }
+  for (let i = 0; i <= 14; i++) {
+    const t = -0.6 + (1.2 * i) / 14;
+    const x = Math.round(cx + 5 * Math.cos(t));
+    const y = Math.round(cy + 5 * Math.sin(t));
+    rect(ctx, 0, x, y, 1, 1, '#bfe3ff');
+  }
+  tex.refresh();
 }
 
 /** Free-standing world objects (transparent background so grass shows around). */

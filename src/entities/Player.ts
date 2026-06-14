@@ -18,10 +18,16 @@ function approach(current: number, target: number, maxDelta: number): number {
  *
  * Driven from the owning scene's `update(_, deltaMs)` — call `player.update(deltaMs)`.
  */
+type AttackState = 'ready' | 'windup' | 'active' | 'recover';
+
 export class Player extends Phaser.Physics.Arcade.Sprite {
   private facing: Facing = 'down';
   private readonly cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   private readonly wasd: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
+
+  private attackState: AttackState = 'ready';
+  private bufferedAttackAt = -Infinity;
+  private readonly hitTargets = new Set<unknown>();
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, TextureKeys.Player, 'down-0');
@@ -63,6 +69,98 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     make('player-walk-down', ['down-0', 'down-1']);
     make('player-walk-side', ['side-0', 'side-1']);
     make('player-walk-up', ['up-0', 'up-1']);
+  }
+
+  // --- Attack -------------------------------------------------------------
+
+  /** True only while the hitbox is live. */
+  get isAttacking(): boolean {
+    return this.attackState === 'active';
+  }
+
+  /**
+   * Request a swing. Fires immediately if ready; otherwise the press is
+   * buffered so it can fire the instant the current swing ends (§14 P0).
+   */
+  queueAttack(now: number): void {
+    if (this.attackState === 'ready') this.startSwing();
+    else this.bufferedAttackAt = now;
+  }
+
+  /** The world-space hitbox rectangle while active, else null. */
+  getHitRect(): Phaser.Geom.Rectangle | null {
+    if (this.attackState !== 'active') return null;
+    const a = playerConfig.attack;
+    const o = this.facingOffset();
+    const cx = this.x + o.x * a.reach;
+    const cy = this.y + o.y * a.reach;
+    return new Phaser.Geom.Rectangle(cx - a.hitboxW / 2, cy - a.hitboxH / 2, a.hitboxW, a.hitboxH);
+  }
+
+  /** Returns true the first time a given target is hit within the current swing. */
+  registerHit(target: unknown): boolean {
+    if (this.hitTargets.has(target)) return false;
+    this.hitTargets.add(target);
+    return true;
+  }
+
+  private startSwing(): void {
+    const a = playerConfig.attack;
+    this.attackState = 'windup';
+    this.hitTargets.clear();
+
+    this.scene.time.delayedCall(a.windupMs, () => {
+      if (!this.active) return;
+      this.attackState = 'active';
+      this.showSlash();
+
+      this.scene.time.delayedCall(a.activeMs, () => {
+        if (!this.active) return;
+        this.attackState = 'recover';
+
+        this.scene.time.delayedCall(a.recoverMs, () => {
+          if (!this.active) return;
+          this.attackState = 'ready';
+          // Consume a buffered press that landed during the swing.
+          if (this.scene.time.now - this.bufferedAttackAt <= a.bufferMs) {
+            this.bufferedAttackAt = -Infinity;
+            this.startSwing();
+          }
+        });
+      });
+    });
+  }
+
+  private facingOffset(): { x: number; y: number } {
+    switch (this.facing) {
+      case 'left':
+        return { x: -1, y: 0 };
+      case 'right':
+        return { x: 1, y: 0 };
+      case 'up':
+        return { x: 0, y: -1 };
+      default:
+        return { x: 0, y: 1 };
+    }
+  }
+
+  private showSlash(): void {
+    const a = playerConfig.attack;
+    const o = this.facingOffset();
+    const angle = this.facing === 'right' ? 0 : this.facing === 'down' ? 90 : this.facing === 'left' ? 180 : 270;
+    const slash = this.scene.add
+      .image(this.x + o.x * a.reach, this.y + o.y * a.reach, TextureKeys.Slash)
+      .setDepth(11)
+      .setAngle(angle)
+      .setAlpha(0.95);
+    this.scene.tweens.add({
+      targets: slash,
+      alpha: 0,
+      scaleX: 1.35,
+      scaleY: 1.35,
+      duration: a.activeMs + 50,
+      onComplete: () => slash.destroy(),
+    });
   }
 
   /** Halt and settle on an idle frame (e.g. while a dialogue is open). */

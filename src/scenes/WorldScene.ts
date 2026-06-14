@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { sleepingVillagerLines } from '../data/dialogue/villagers';
 import { thistledownMap } from '../data/maps/thistledown';
+import { playerConfig } from '../data/playerConfig';
 import { Destructible } from '../entities/Destructible';
 import { Interactable } from '../entities/Interactable';
 import { Player } from '../entities/Player';
@@ -11,16 +12,14 @@ import { worldState } from '../systems/WorldState';
 import { DialogueBox } from '../ui/DialogueBox';
 import { SceneKeys } from './SceneKeys';
 
-/** How close (px) the player must be to read/cut a target. */
+/** How close (px) the player must be to read a villager. */
 const INTERACT_RADIUS = 22;
-
-type Actionable = Destructible | Interactable;
 
 /**
  * WorldScene — the playable overworld. Builds the Thistledown tilemap, spawns
- * the player plus hand-placed objects (cuttable vines, readable villagers),
- * and routes interaction through the WorldState/EventBus spine. Proves
- * Milestone B.4 ("clearing vines opens a lane").
+ * the player plus hand-placed objects (sword-cuttable vines, readable
+ * villagers), and routes everything through the WorldState/EventBus spine.
+ * Proves Milestone C.5 ("swinging destroys vines").
  */
 export class WorldScene extends Phaser.Scene {
   private player!: Player;
@@ -28,9 +27,12 @@ export class WorldScene extends Phaser.Scene {
   private vines: Destructible[] = [];
   private interactables: Interactable[] = [];
   private interactKeys: Phaser.Input.Keyboard.Key[] = [];
+  private attackKeys: Phaser.Input.Keyboard.Key[] = [];
   private promptText!: Phaser.GameObjects.BitmapText;
   private promptBg!: Phaser.GameObjects.Rectangle;
   private gateRemaining = 0;
+  /** Time (scene clock) until which the world is hit-stop frozen. */
+  private freezeUntil = 0;
 
   constructor() {
     super(SceneKeys.World);
@@ -40,6 +42,7 @@ export class WorldScene extends Phaser.Scene {
     this.vines = [];
     this.interactables = [];
     this.gateRemaining = 0;
+    this.freezeUntil = 0;
 
     const map = buildTilemap(this, thistledownMap);
     this.physics.world.setBounds(0, 0, map.widthPx, map.heightPx);
@@ -88,6 +91,16 @@ export class WorldScene extends Phaser.Scene {
       kb.addKey(Phaser.Input.Keyboard.KeyCodes.E),
       kb.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
     ];
+    this.attackKeys = [
+      kb.addKey(Phaser.Input.Keyboard.KeyCodes.J),
+      kb.addKey(Phaser.Input.Keyboard.KeyCodes.X),
+    ];
+    // Mouse/touch also swings.
+    this.input.on('pointerdown', () => {
+      if (!this.dialogue.isOpen && this.time.now >= this.freezeUntil) {
+        this.player.queueAttack(this.time.now);
+      }
+    });
 
     this.addControlHint();
 
@@ -98,7 +111,16 @@ export class WorldScene extends Phaser.Scene {
   }
 
   update(_time: number, deltaMs: number): void {
+    const now = this.time.now;
+
+    // Hit-stop: a few frozen frames on a connecting hit (§14 P0).
+    if (now < this.freezeUntil) {
+      this.player.halt();
+      return;
+    }
+
     const interactPressed = this.interactKeys.some((k) => Phaser.Input.Keyboard.JustDown(k));
+    const attackPressed = this.attackKeys.some((k) => Phaser.Input.Keyboard.JustDown(k));
 
     // While a dialogue is open, freeze the player and route input to it.
     if (this.dialogue.isOpen) {
@@ -111,35 +133,57 @@ export class WorldScene extends Phaser.Scene {
 
     this.player.update(deltaMs);
 
+    if (attackPressed) this.player.queueAttack(now);
+    this.resolveAttackHits();
+
     const target = this.nearestActionable();
     this.updatePrompt(target);
     if (interactPressed && target) this.act(target);
   }
 
-  /** Nearest cuttable/readable object within reach, or null. */
-  private nearestActionable(): Actionable | null {
-    let best: Actionable | null = null;
+  /** While the swing is live, cut any vine the hitbox overlaps (once per swing). */
+  private resolveAttackHits(): void {
+    if (!this.player.isAttacking) return;
+    const rect = this.player.getHitRect();
+    if (!rect) return;
+    for (const vine of this.vines) {
+      if (!vine.active) continue;
+      if (
+        Phaser.Geom.Intersects.RectangleToRectangle(rect, vine.getBounds()) &&
+        this.player.registerHit(vine)
+      ) {
+        vine.hit(1);
+        this.onHitConnected();
+      }
+    }
+  }
+
+  /** Shared reaction to a melee hit landing: hit-stop (knockback once enemies exist). */
+  private onHitConnected(): void {
+    this.freezeUntil = this.time.now + playerConfig.attack.hitStopMs;
+  }
+
+  /** Nearest readable villager within reach, or null. */
+  private nearestActionable(): Interactable | null {
+    let best: Interactable | null = null;
     let bestDist = INTERACT_RADIUS;
-    const consider = (o: Actionable): void => {
-      const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, o.x, o.y);
+    for (const npc of this.interactables) {
+      const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, npc.x, npc.y);
       if (d <= bestDist) {
         bestDist = d;
-        best = o;
+        best = npc;
       }
-    };
-    for (const v of this.vines) if (v.active) consider(v);
-    for (const i of this.interactables) consider(i);
+    }
     return best;
   }
 
-  private updatePrompt(target: Actionable | null): void {
+  private updatePrompt(target: Interactable | null): void {
     if (!target) {
       this.promptText.setVisible(false);
       this.promptBg.setVisible(false);
       return;
     }
-    const label = target instanceof Destructible ? 'E > cut' : `E > ${target.label}`;
-    this.promptText.setText(label);
+    this.promptText.setText(`E > ${target.label}`);
     const w = this.promptText.width;
     const h = this.promptText.height;
     const cx = Math.round(target.x);
@@ -148,14 +192,10 @@ export class WorldScene extends Phaser.Scene {
     this.promptBg.setPosition(cx, cy).setSize(w + 4, h + 3).setVisible(true);
   }
 
-  private act(target: Actionable): void {
-    if (target instanceof Destructible) {
-      target.hit(1);
-    } else {
-      worldState.addCounter('villagers_read');
-      eventBus.emit('npcTalked', { x: target.x, y: target.y });
-      this.dialogue.openLines(target.lines);
-    }
+  private act(target: Interactable): void {
+    worldState.addCounter('villagers_read');
+    eventBus.emit('npcTalked', { x: target.x, y: target.y });
+    this.dialogue.openLines(target.lines);
   }
 
   private onVineCut(cut: Destructible): void {
@@ -199,7 +239,7 @@ export class WorldScene extends Phaser.Scene {
 
   /** A soft, fading control hint instead of a wall of tutorial text (§14 P1). */
   private addControlHint(): void {
-    const hint = addPixelText(this, 0, 0, 'WASD / Arrows to move - E to interact', { color: 0xe8e6d8 })
+    const hint = addPixelText(this, 0, 0, 'WASD move - J attack - E read', { color: 0xe8e6d8 })
       .setScrollFactor(0)
       .setDepth(1000);
     hint.setPosition(Math.round((this.scale.width - hint.width) / 2), this.scale.height - 16);

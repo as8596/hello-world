@@ -14,6 +14,26 @@ export interface PlayerConfig {
   walkFrameRate: number;
   /** Arcade physics body, relative to the 16x16 frame. */
   body: { width: number; height: number; offsetX: number; offsetY: number };
+  /** Melee swing tuning (DESIGN.md §9, §14). */
+  attack: {
+    /** Telegraph before the hitbox goes live (ms). */
+    windupMs: number;
+    /** How long the hitbox is live (ms). */
+    activeMs: number;
+    /** Lockout after the active window (ms); total of the three = cooldown. */
+    recoverMs: number;
+    /** A press this long before "ready" still fires (input buffering, §14 P0). */
+    bufferMs: number;
+    /** Distance from the player center to the hitbox center (px). */
+    reach: number;
+    /** Hitbox size (px). */
+    hitboxW: number;
+    hitboxH: number;
+    /** Freeze duration on a connecting hit (hit-stop, §14 P0). */
+    hitStopMs: number;
+    /** Knockback impulse applied to struck dynamic bodies (px/sec). */
+    knockback: number;
+  };
 }
 
 export const playerConfig: PlayerConfig = {
@@ -23,4 +43,15 @@ export const playerConfig: PlayerConfig = {
   walkFrameRate: 8,
   // A short body near the feet reads better for top-down overlap than the full sprite.
   body: { width: 8, height: 7, offsetX: 4, offsetY: 8 },
+  attack: {
+    windupMs: 70,
+    activeMs: 90,
+    recoverMs: 130,
+    bufferMs: 150,
+    reach: 11,
+    hitboxW: 16,
+    hitboxH: 14,
+    hitStopMs: 70,
+    knockback: 150,
+  },
 };
