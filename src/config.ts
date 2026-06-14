@@ -37,6 +37,10 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     arcade: {
       gravity: { x: 0, y: 0 },
       debug: false,
+      // The dodge dash moves faster than the default 16px tile-collision bias,
+      // which let it tunnel through wall tiles. Raise it above the dash's
+      // per-frame travel (~17px @60fps, more on a slow frame) so walls hold.
+      tileBias: 48,
     },
   },
 
