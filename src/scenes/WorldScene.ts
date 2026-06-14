@@ -7,6 +7,7 @@ import { playerConfig } from '../data/playerConfig';
 import { Destructible } from '../entities/Destructible';
 import { EnemyBase } from '../entities/EnemyBase';
 import { FogPatch } from '../entities/FogPatch';
+import { HeartPickup } from '../entities/HeartPickup';
 import { Interactable } from '../entities/Interactable';
 import { Player } from '../entities/Player';
 import { addPixelText } from '../systems/PixelFont';
@@ -33,7 +34,7 @@ export class WorldScene extends Phaser.Scene {
   private fog: FogPatch[] = [];
   private interactables: Interactable[] = [];
   private enemies: EnemyBase[] = [];
-  private hearts: Phaser.GameObjects.Image[] = [];
+  private pickups: HeartPickup[] = [];
   private interactKeys: Phaser.Input.Keyboard.Key[] = [];
   private attackKeys: Phaser.Input.Keyboard.Key[] = [];
   private ringKeys: Phaser.Input.Keyboard.Key[] = [];
@@ -52,7 +53,7 @@ export class WorldScene extends Phaser.Scene {
     this.fog = [];
     this.interactables = [];
     this.enemies = [];
-    this.hearts = [];
+    this.pickups = [];
     this.gateRemaining = 0;
     this.fogRemaining = 0;
     this.dyingPlayer = false;
@@ -82,6 +83,16 @@ export class WorldScene extends Phaser.Scene {
         if (def) {
           this.enemies.push(new EnemyBase(this, obj.x, obj.y, def, { onDeath: (e) => this.onEnemyDeath(e) }));
         }
+      } else if (obj.type === 'heart') {
+        this.pickups.push(new HeartPickup(this, obj.x, obj.y, { onCollect: (p) => this.onHeartCollected(p) }));
+      } else if (obj.type === 'hearth') {
+        this.interactables.push(
+          new Interactable(this, obj.x, obj.y, {
+            texture: TextureKeys.Hearth,
+            label: 'rest',
+            onInteract: () => this.useHearth(),
+          }),
+        );
       } else {
         const lines = sleepingVillagerLines[villagerIndex % sleepingVillagerLines.length];
         villagerIndex++;
@@ -115,7 +126,9 @@ export class WorldScene extends Phaser.Scene {
       .setDepth(1501)
       .setVisible(false);
 
-    this.buildHearts();
+    // Hearts HUD lives in a parallel overlay scene; launch it once.
+    if (!this.scene.isActive(SceneKeys.UI)) this.scene.launch(SceneKeys.UI);
+    this.player.emitHealth();
 
     const kb = this.input.keyboard!;
     this.interactKeys = [
@@ -138,13 +151,9 @@ export class WorldScene extends Phaser.Scene {
 
     this.addControlHint();
 
-    // Spine wiring (DESIGN.md §16): keep the HUD in sync, handle death.
-    const offHealth = eventBus.on('playerHealth', (p) => this.updateHearts((p as { hp: number }).hp));
+    // Death handling (the HUD listens to playerHealth in UIScene).
     const offDied = eventBus.on('playerDied', () => this.handlePlayerDeath());
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      offHealth();
-      offDied();
-    });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, offDied);
 
     worldState.addCounter('world:entered');
     eventBus.emit('world:ready', undefined);
@@ -176,6 +185,8 @@ export class WorldScene extends Phaser.Scene {
     this.resolveAttackHits();
 
     if (ringPressed && this.player.ringBell(now)) this.ringHandbell();
+
+    this.collectNearbyPickups();
 
     const target = this.nearestActionable();
     this.updatePrompt(target);
@@ -309,27 +320,31 @@ export class WorldScene extends Phaser.Scene {
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.restart());
   }
 
-  // --- Hearts HUD ---------------------------------------------------------
+  // --- Pickups & hearth ---------------------------------------------------
 
-  private buildHearts(): void {
-    const count = this.player.heartsMax / 2;
-    for (let i = 0; i < count; i++) {
-      this.hearts.push(
-        this.add
-          .image(5 + i * 8, 5, TextureKeys.Hearts, 'full')
-          .setOrigin(0, 0)
-          .setScrollFactor(0)
-          .setDepth(1800),
-      );
+  /** Auto-collect heart fragments the player walks over. */
+  private collectNearbyPickups(): void {
+    for (const pickup of this.pickups) {
+      if (pickup.active && Phaser.Math.Distance.Between(this.player.x, this.player.y, pickup.x, pickup.y) <= 12) {
+        pickup.collect();
+      }
     }
-    this.updateHearts(this.player.heartsHp);
   }
 
-  private updateHearts(hp: number): void {
-    for (let i = 0; i < this.hearts.length; i++) {
-      const v = Phaser.Math.Clamp(hp - i * 2, 0, 2);
-      this.hearts[i].setFrame(v >= 2 ? 'full' : v === 1 ? 'half' : 'empty');
-    }
+  private onHeartCollected(pickup: HeartPickup): void {
+    const idx = this.pickups.indexOf(pickup);
+    if (idx >= 0) this.pickups.splice(idx, 1);
+    worldState.addCounter('heart_fragments');
+    this.player.gainMaxHalfHearts(playerConfig.heartFragmentHalfHearts);
+    this.showToast('Heart container! Max health up.');
+  }
+
+  /** Rest at a hearth: heal to full and save (save system is a later step). */
+  private useHearth(): void {
+    this.player.healFull();
+    worldState.setFlag('rested', true);
+    eventBus.emit('rested', { region: 'thistledown' });
+    this.showToast('You rest by the hearth.');
   }
 
   // --- Interaction --------------------------------------------------------
@@ -364,6 +379,10 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private act(target: Interactable): void {
+    if (target.onInteract) {
+      target.onInteract(this);
+      return;
+    }
     worldState.addCounter('villagers_read');
     eventBus.emit('npcTalked', { x: target.x, y: target.y });
     this.dialogue.openLines(target.lines);

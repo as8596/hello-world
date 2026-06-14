@@ -10,8 +10,8 @@ import { Tile, type TileMapDef } from './types';
  *   - The belltower clearing at the top.
  *
  * Terrain:  .  grass     #  tree/wall     w  water
- * Objects:  v  gate vine (sword)   f  Hush-fog (handbell)
- *           N  sleeping villager   S  thorn-sprite   @  spawn
+ * Objects:  v  gate vine (sword)   f  Hush-fog (handbell)   h  heart fragment
+ *           H  hearth (rest)   N  sleeping villager   S  thorn-sprite   @  spawn
  */
 export const thistledownMap: TileMapDef = {
   tileSize: 16,
@@ -24,6 +24,8 @@ export const thistledownMap: TileMapDef = {
   objects: {
     v: { type: 'vine', group: 'gate' },
     f: { type: 'fog', group: 'pocket' },
+    h: { type: 'heart' },
+    H: { type: 'hearth' },
     N: { type: 'villager' },
     S: { type: 'enemy', enemyId: 'thorn_sprite' },
   },
@@ -41,7 +43,7 @@ export const thistledownMap: TileMapDef = {
     '###########..###########',
     '###########..###########',
     '###########..f....######',
-    '###########..f..N.######',
+    '###########..f..h.######',
     '###########..f....######',
     '###########..###########',
     '########ww......########',
@@ -61,7 +63,7 @@ export const thistledownMap: TileMapDef = {
     '####.....N....N.....####',
     '####...........S....####',
     '####................####',
-    '####...N........N...####',
+    '####...N...H....N...####',
     '####................####',
     '####.......@........####',
     '########################',

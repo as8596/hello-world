@@ -16,6 +16,8 @@ export interface PlayerConfig {
   body: { width: number; height: number; offsetX: number; offsetY: number };
   /** Max hearts (Vigor governs this later). Health is tracked in half-hearts. */
   maxHearts: number;
+  /** Max-HP gained per heart fragment, in half-hearts (2 = one full heart). */
+  heartFragmentHalfHearts: number;
   /** Invulnerability window after taking a hit (i-frames, ms). */
   invulnMs: number;
   /** Knockback impulse when hurt (px/sec). */
@@ -54,6 +56,7 @@ export const playerConfig: PlayerConfig = {
   // A short body near the feet reads better for top-down overlap than the full sprite.
   body: { width: 8, height: 7, offsetX: 4, offsetY: 8 },
   maxHearts: 3,
+  heartFragmentHalfHearts: 2,
   invulnMs: 800,
   hurtKnockback: 170,
   hurtLockMs: 180,

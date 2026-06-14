@@ -70,7 +70,9 @@ Following the MVP build order in `DESIGN.md` §13. **Milestones A & B are done**
 input buffering, hit-stop) cuts vines and fights **thorn-sprites** (perception +
 chase/leash FSM, HP, hit-flash, spore-burst death); you have **hearts**, take
 contact damage with i-frames + knockback, and death restarts the scene. (Dodge,
-step 7, is deferred.) **Milestone D is underway**: the **Warden's Handbell** —
-ring for an expanding shockwave that stuns nearby enemies (an unmistakable
-wobble/stars state with a timer) and dispels a **Hush-fog** wall, which recedes
-to reveal a sleeper. Heart pickups/UI and the boss come next.
+step 7, is deferred.) **Milestone D is done**: the **Warden's Handbell** — ring for an expanding
+shockwave that stuns nearby enemies (an unmistakable wobble/stars state with a
+timer) and dispels a **Hush-fog** wall, which recedes to reveal a **heart
+fragment** that raises your max health. A parallel **UIScene** draws the hearts,
+and a **hearth** in the village heals you to full. The Belltower mini-dungeon
+and the boss (Milestone E) come next.

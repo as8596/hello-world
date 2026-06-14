@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
 import { PreloadScene } from './scenes/PreloadScene';
+import { UIScene } from './scenes/UIScene';
 import { WorldScene } from './scenes/WorldScene';
 
 /**
@@ -36,5 +37,5 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     },
   },
 
-  scene: [BootScene, PreloadScene, WorldScene],
+  scene: [BootScene, PreloadScene, WorldScene, UIScene],
 };

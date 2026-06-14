@@ -32,7 +32,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private readonly hitTargets = new Set<unknown>();
 
   /** Health, tracked in half-hearts (maxHearts * 2). */
-  private readonly maxHp = playerConfig.maxHearts * 2;
+  private maxHp = playerConfig.maxHearts * 2;
   private hp = playerConfig.maxHearts * 2;
   private invulnUntil = 0;
   private controlLockUntil = 0;
@@ -102,6 +102,20 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   /** Broadcast current health (e.g. to refresh the HUD on spawn). */
   emitHealth(): void {
     eventBus.emit('playerHealth', { hp: this.hp, max: this.maxHp });
+  }
+
+  /** Heal to full (e.g. resting at a hearth), with a soft green flash. */
+  healFull(): void {
+    this.hp = this.maxHp;
+    this.emitHealth();
+    this.scene.tweens.add({ targets: this, alpha: 0.4, yoyo: true, duration: 110, repeat: 2, onComplete: () => this.setAlpha(1) });
+  }
+
+  /** Raise max health by `halfHearts` and top off (heart fragment). */
+  gainMaxHalfHearts(halfHearts: number): void {
+    this.maxHp += halfHearts;
+    this.hp = this.maxHp;
+    this.emitHealth();
   }
 
   /**

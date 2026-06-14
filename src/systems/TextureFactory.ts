@@ -17,6 +17,8 @@ export const TextureKeys = {
   Hearts: 'hearts',
   Fog: 'fog',
   StunStars: 'stun_stars',
+  HeartFragment: 'heart_fragment',
+  Hearth: 'hearth',
 } as const;
 
 const FRAME = 16; // player frame size, px
@@ -34,6 +36,50 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   generateHearts(scene);
   generateFog(scene);
   generateStunStars(scene);
+  generateHeartFragment(scene);
+  generateHearth(scene);
+}
+
+/** A glittering heart fragment pickup. */
+function generateHeartFragment(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.HeartFragment)) return;
+  const tex = scene.textures.createCanvas(TextureKeys.HeartFragment, 9, 8);
+  if (!tex) return;
+  const ctx = tex.getContext();
+  ctx.clearRect(0, 0, 9, 8);
+  const mask = ['.##.##.', '#######', '#######', '.#####.', '..###..', '...#...'];
+  for (let y = 0; y < mask.length; y++) {
+    for (let x = 0; x < 7; x++) {
+      if (mask[y][x] === '#') {
+        ctx.fillStyle = y <= 1 ? '#ff8fb0' : '#e0567f';
+        ctx.fillRect(x + 1, y + 1, 1, 1);
+      }
+    }
+  }
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(3, 2, 1, 1); // shine
+  tex.refresh();
+}
+
+/** A small hearth (stone ring + flame) — rest point. */
+function generateHearth(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.Hearth)) return;
+  const tex = scene.textures.createCanvas(TextureKeys.Hearth, TILE, TILE);
+  if (!tex) return;
+  const ctx = tex.getContext();
+  ctx.clearRect(0, 0, TILE, TILE);
+  // Stone ring.
+  for (const [x, y] of [[2, 11], [5, 12], [8, 12], [11, 11], [3, 9], [10, 9]] as const) {
+    rect(ctx, 0, x, y, 3, 2, '#7d7468');
+  }
+  // Logs.
+  rect(ctx, 0, 4, 11, 8, 2, '#5a3d28');
+  // Flame.
+  rect(ctx, 0, 6, 6, 4, 5, '#e8702a');
+  rect(ctx, 0, 7, 4, 2, 5, '#f4b23a');
+  rect(ctx, 0, 7, 7, 2, 3, '#ffe39a');
+  rect(ctx, 0, 7, 2, 2, 2, '#f4b23a'); // tip
+  tex.refresh();
 }
 
 /** A soft Hush-fog tile (semi-transparent, wispy). */

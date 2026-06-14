@@ -15,7 +15,7 @@ export const Tile = {
 export type Tile = (typeof Tile)[keyof typeof Tile];
 
 /** Object kinds that can be hand-placed on the map via legend characters. */
-export type ObjectType = 'vine' | 'villager' | 'enemy' | 'fog';
+export type ObjectType = 'vine' | 'villager' | 'enemy' | 'fog' | 'heart' | 'hearth';
 
 export interface ObjectSpec {
   type: ObjectType;
