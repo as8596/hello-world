@@ -21,6 +21,7 @@ export const TextureKeys = {
   Hearth: 'hearth',
   Chime: 'chime',
   BossDoor: 'boss_door',
+  Bramblewerth: 'bramblewerth',
 } as const;
 
 const FRAME = 16; // player frame size, px
@@ -42,6 +43,36 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   generateHearth(scene);
   generateChime(scene);
   generateBossDoor(scene);
+  generateBramblewerth(scene);
+}
+
+/** The boss: a 32x32 thorny bramble-beast with a reddish core (the weak point). */
+function generateBramblewerth(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.Bramblewerth)) return;
+  const S = 32;
+  const tex = scene.textures.createCanvas(TextureKeys.Bramblewerth, S, S);
+  if (!tex) return;
+  const ctx = tex.getContext();
+  ctx.clearRect(0, 0, S, S);
+  // Body mass.
+  rect(ctx, 0, 5, 7, 22, 20, '#2f4d22');
+  rect(ctx, 0, 7, 5, 18, 2, '#2f4d22');
+  rect(ctx, 0, 3, 9, 2, 16, '#2f4d22');
+  rect(ctx, 0, 27, 9, 2, 16, '#2f4d22');
+  // Mottling.
+  for (const [x, y] of [[8, 10], [18, 11], [12, 20], [22, 22], [9, 24]] as const) rect(ctx, 0, x, y, 3, 3, '#3a5e2a');
+  // Thorns around the edge.
+  for (const [x, y] of [[15, 3], [4, 6], [27, 6], [2, 16], [28, 16], [6, 27], [25, 27], [15, 29]] as const) {
+    rect(ctx, 0, x, y, 2, 2, '#1f3a18');
+  }
+  // Armored core (the weak point).
+  rect(ctx, 0, 12, 13, 8, 8, '#7a2f2f');
+  rect(ctx, 0, 13, 14, 6, 6, '#c0432b');
+  rect(ctx, 0, 15, 16, 2, 2, '#ff8a5a');
+  // Eyes.
+  rect(ctx, 0, 10, 11, 2, 2, '#ffe39a');
+  rect(ctx, 0, 20, 11, 2, 2, '#ffe39a');
+  tex.refresh();
 }
 
 /** A resonance chime: a standing post with a small bell (tinted gold when rung). */

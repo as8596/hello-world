@@ -74,5 +74,9 @@ step 7, is deferred.) **Milestone D is done**: the **Warden's Handbell** stuns e
 **Hush-fog** wall hiding a **heart fragment**; a parallel **UIScene** draws the
 hearts and a **hearth** heals you. **Milestone E is underway**: the north end is
 now the **Belltower** — a combat hall with **three resonance chimes** you ring
-(with the handbell) to open the **boss door** to the shrine. The Bramblewerth
-boss and the bell-ringing payoff come next.
+(with the handbell) to open the **boss door**, and beyond it the boss fight.
+**Bramblewerth the Thornwarden** is an armored boss you beat with the signature
+**ring → stun → strike** combo: it telegraphs vine-swipes (and a phase-2
+ground-slam) and periodically *vents* — ring the bell then to stun it open and
+strike its core, while thorn-sprite adds pressure you. The bell-ringing payoff
+(waking the valley) comes next.

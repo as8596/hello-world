@@ -1,9 +1,11 @@
 import Phaser from 'phaser';
 import { sleepingVillagerLines } from '../data/dialogue/villagers';
+import { bramblewerth } from '../data/bossConfig';
 import { ENEMIES } from '../data/enemies';
 import { handbellConfig } from '../data/handbellConfig';
 import { thistledownMap } from '../data/maps/thistledown';
 import { playerConfig } from '../data/playerConfig';
+import { Boss } from '../entities/Boss';
 import { BossDoor } from '../entities/BossDoor';
 import { Chime } from '../entities/Chime';
 import { Destructible } from '../entities/Destructible';
@@ -40,6 +42,11 @@ export class WorldScene extends Phaser.Scene {
   private chimes: Chime[] = [];
   private bossDoors: BossDoor[] = [];
   private chimesRung = 0;
+  private boss?: Boss;
+  private bossSpawn?: { x: number; y: number };
+  private bossBarBg?: Phaser.GameObjects.Rectangle;
+  private bossBarFill?: Phaser.GameObjects.Rectangle;
+  private bossName?: Phaser.GameObjects.BitmapText;
   private interactKeys: Phaser.Input.Keyboard.Key[] = [];
   private attackKeys: Phaser.Input.Keyboard.Key[] = [];
   private ringKeys: Phaser.Input.Keyboard.Key[] = [];
@@ -62,6 +69,8 @@ export class WorldScene extends Phaser.Scene {
     this.chimes = [];
     this.bossDoors = [];
     this.chimesRung = 0;
+    this.boss = undefined;
+    this.bossSpawn = undefined;
     this.gateRemaining = 0;
     this.fogRemaining = 0;
     this.dyingPlayer = false;
@@ -105,6 +114,8 @@ export class WorldScene extends Phaser.Scene {
         this.chimes.push(new Chime(this, obj.x, obj.y, { onActivate: () => this.onChimeRung() }));
       } else if (obj.type === 'door') {
         this.bossDoors.push(new BossDoor(this, obj.x, obj.y));
+      } else if (obj.type === 'boss') {
+        this.bossSpawn = { x: obj.x, y: obj.y }; // spawned when the door opens
       } else {
         const lines = sleepingVillagerLines[villagerIndex % sleepingVillagerLines.length];
         villagerIndex++;
@@ -168,6 +179,14 @@ export class WorldScene extends Phaser.Scene {
     const offDied = eventBus.on('playerDied', () => this.handlePlayerDeath());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, offDied);
 
+    this.buildBossBar();
+    // If the shrine was already opened (e.g. retrying after death), skip straight
+    // to the boss so the fight is retryable without re-ringing the chimes.
+    if (worldState.hasFlag('thistledown_belldoor_open')) {
+      for (const door of this.bossDoors) door.open();
+      this.spawnBoss();
+    }
+
     worldState.addCounter('world:entered');
     eventBus.emit('world:ready', undefined);
   }
@@ -193,6 +212,10 @@ export class WorldScene extends Phaser.Scene {
 
     this.player.update(deltaMs);
     for (const enemy of this.enemies) enemy.think(this.player.x, this.player.y);
+    if (this.boss) {
+      this.boss.think(this.player.x, this.player.y);
+      this.updateBossBar();
+    }
 
     if (attackPressed) this.player.queueAttack(now);
     this.resolveAttackHits();
@@ -232,6 +255,17 @@ export class WorldScene extends Phaser.Scene {
         enemy.takeDamage(playerConfig.attack.damage, this.player.x, this.player.y);
         this.onHitConnected();
       }
+    }
+
+    if (
+      this.boss &&
+      !this.boss.isDying &&
+      Phaser.Geom.Intersects.RectangleToRectangle(rect, this.boss.getBounds()) &&
+      this.player.registerHit(this.boss)
+    ) {
+      const vulnerable = this.boss.isVulnerable;
+      this.boss.takeDamage(playerConfig.attack.damage, this.player.x, this.player.y);
+      if (vulnerable) this.onHitConnected(); // armored clang otherwise: no freeze
     }
   }
 
@@ -284,6 +318,9 @@ export class WorldScene extends Phaser.Scene {
         chime.activate();
       }
     }
+    if (this.boss && Phaser.Math.Distance.Between(px, py, this.boss.x, this.boss.y) <= r) {
+      this.boss.onBellRung(); // only stuns while it's venting
+    }
 
     worldState.addCounter('bell_rung');
     eventBus.emit('bellRung', { region: 'thistledown' });
@@ -303,7 +340,84 @@ export class WorldScene extends Phaser.Scene {
       eventBus.emit('bellDoorOpened', { region: 'thistledown' });
       for (const door of this.bossDoors) door.open();
       this.showToast('The shrine door opens.');
+      this.time.delayedCall(900, () => this.spawnBoss());
     }
+  }
+
+  // --- Boss ---------------------------------------------------------------
+
+  private spawnBoss(): void {
+    if (this.boss || !this.bossSpawn) return;
+    this.boss = new Boss(this, this.bossSpawn.x, this.bossSpawn.y, bramblewerth, {
+      onPlayerHit: (damage, fromX, fromY) => {
+        if (this.player.takeHit(damage, fromX, fromY)) this.cameras.main.shake(140, 0.005);
+      },
+      onRequestAdd: (x, y) => this.spawnBossAdd(x, y),
+      onDefeated: () => this.onBossDefeated(),
+    });
+    this.physics.add.collider(this.player, this.boss);
+    this.showBossBar();
+    this.cameras.main.shake(220, 0.004);
+    this.showToast('Bramblewerth, the Thornwarden');
+  }
+
+  private spawnBossAdd(x: number, y: number): void {
+    if (this.enemies.length >= bramblewerth.adds.cap) return;
+    const def = ENEMIES.thorn_sprite;
+    if (!def) return;
+    const ex = Phaser.Math.Clamp(x, 96, 288);
+    const ey = Phaser.Math.Clamp(y, 28, 88);
+    this.enemies.push(new EnemyBase(this, ex, ey, def, { onDeath: (e) => this.onEnemyDeath(e) }));
+  }
+
+  private onBossDefeated(): void {
+    worldState.setFlag('bramblewerth_defeated', true);
+    this.hideBossBar();
+    this.showToast('The thorns fall still.');
+  }
+
+  private buildBossBar(): void {
+    const cx = Math.round(this.scale.width / 2);
+    const y = 13;
+    const width = 140;
+    this.bossBarBg = this.add
+      .rectangle(cx, y, width + 4, 6, 0x10101a, 0.85)
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(2000)
+      .setVisible(false);
+    this.bossBarFill = this.add
+      .rectangle(cx - width / 2, y, width, 4, 0xc0432b)
+      .setOrigin(0, 0.5)
+      .setScrollFactor(0)
+      .setDepth(2001)
+      .setVisible(false);
+    this.bossName = addPixelText(this, 0, 0, bramblewerth.name, { color: 0xe8e6d8 })
+      .setScrollFactor(0)
+      .setDepth(2001)
+      .setVisible(false);
+    this.bossName.setPosition(Math.round(cx - this.bossName.width / 2), 4);
+  }
+
+  private showBossBar(): void {
+    this.bossBarBg?.setVisible(true);
+    this.bossBarFill?.setVisible(true);
+    this.bossName?.setVisible(true);
+  }
+
+  private hideBossBar(): void {
+    this.bossBarBg?.setVisible(false);
+    this.bossBarFill?.setVisible(false);
+    this.bossName?.setVisible(false);
+  }
+
+  private updateBossBar(): void {
+    if (!this.boss || !this.bossBarFill) return;
+    if (this.boss.isDying) {
+      this.hideBossBar();
+      return;
+    }
+    this.bossBarFill.width = 140 * this.boss.hpRatio;
   }
 
   /** An expanding shockwave ring synced to the ring (§14 P0). */
