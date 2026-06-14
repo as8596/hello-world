@@ -14,6 +14,14 @@ function hasDirectionalArt(scene: Phaser.Scene, def: EnemyDef): boolean {
   return SPRITE_DIRS.every((d) => scene.textures.exists(`${def.directional!.keyPrefix}-${d}`));
 }
 
+// Idle wandering (§17 "patrol"): amble to random points near home, with breaks.
+const PATROL_RADIUS = 40 * RS; // how far from home it wanders
+const PATROL_SPEED_MULT = 0.4; // slower than a chase
+const PATROL_REACH = 8 * RS; // "arrived" threshold
+const PATROL_PAUSE_MIN = 800;
+const PATROL_PAUSE_MAX = 2400;
+const PATROL_MOVE_TIMEOUT = 2600; // give up a leg if stuck on a wall
+
 type EnemyState = 'idle' | 'notice' | 'chase' | 'windup' | 'attack' | 'recover' | 'leash' | 'stunned' | 'dead';
 
 export interface EnemyOptions {
@@ -50,6 +58,11 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
   private attackHitDone = false;
   private readonly attackTarget = { x: 0, y: 0 };
   private telegraph?: Phaser.GameObjects.Arc;
+
+  // Idle patrol state.
+  private patrolMode: 'pause' | 'move' = 'pause';
+  private patrolTarget?: { x: number; y: number };
+  private patrolPhaseUntil = 0;
 
   private stunStars?: Phaser.GameObjects.Image;
   private stunBar?: Phaser.GameObjects.Rectangle;
@@ -92,6 +105,9 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
     }
     body.setCollideWorldBounds(true);
     this.setDepth(7);
+
+    // Stagger the first patrol break so a group doesn't move in lockstep.
+    this.patrolPhaseUntil = scene.time.now + Math.random() * 1800;
   }
 
   /** Face the way we're moving (8-direction art only); keep facing when still. */
@@ -226,7 +242,7 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
 
     switch (this.aiState) {
       case 'idle':
-        body.setVelocity(0, 0);
+        this.patrol(now);
         if (distPlayer <= this.def.aggroRange) this.toNotice(now);
         break;
 
@@ -352,6 +368,45 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
     const body = this.body as Phaser.Physics.Arcade.Body;
     const angle = Phaser.Math.Angle.Between(this.x, this.y, tx, ty);
     body.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+  }
+
+  /**
+   * Idle wander (§17): amble to a random point near home, then take a break and
+   * "inspect" (look around) before the next leg — so idle enemies feel alive
+   * instead of standing motionless.
+   */
+  private patrol(now: number): void {
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    if (this.patrolMode === 'pause') {
+      body.setVelocity(0, 0);
+      if (now >= this.patrolPhaseUntil) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = PATROL_RADIUS * (0.35 + Math.random() * 0.65);
+        this.patrolTarget = { x: this.home.x + Math.cos(angle) * dist, y: this.home.y + Math.sin(angle) * dist };
+        this.patrolMode = 'move';
+        this.patrolPhaseUntil = now + PATROL_MOVE_TIMEOUT;
+      }
+      return;
+    }
+    // moving: stop on arrival or if a leg runs long (stuck on a wall), then rest.
+    const t = this.patrolTarget;
+    const arrived = !t || Phaser.Math.Distance.Between(this.x, this.y, t.x, t.y) <= PATROL_REACH;
+    if (arrived || now >= this.patrolPhaseUntil) {
+      body.setVelocity(0, 0);
+      this.patrolMode = 'pause';
+      this.patrolPhaseUntil = now + Phaser.Math.Between(PATROL_PAUSE_MIN, PATROL_PAUSE_MAX);
+      this.inspect();
+    } else {
+      this.moveToward(t!.x, t!.y, this.def.speed * PATROL_SPEED_MULT);
+    }
+  }
+
+  /** Glance a random way while resting (directional art only). */
+  private inspect(): void {
+    if (!this.useDir) return;
+    const dir = SPRITE_DIRS[Math.floor(Math.random() * SPRITE_DIRS.length)];
+    this.renderedDir = dir;
+    this.setTexture(`${this.def.directional!.keyPrefix}-${dir}`);
   }
 
   private toNotice(now: number): void {

@@ -34,8 +34,8 @@ export const villageMap: TileMapDef = {
   spawnTile: Tile.Grass,
   rows: [
     '############nn##############', // 0  north opening -> trail
-    '##........................##', // 1
-    '##..........vv............##', // 2  vine gate (cut to pass north)
+    '############..##############', // 1  the gate neck (walled — no way around)
+    '############vv##############', // 2  vine gate (cut to pass north)
     '##..........2.............##', // 3  arrive here coming back from the trail
     '##........................##', // 4
     '##....N..........N........##', // 5  sleepers
