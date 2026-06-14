@@ -12,7 +12,7 @@ import { Tile, type TileMapDef } from './types';
  *
  * Terrain:  .  grass     #  tree/wall     w  water
  * Objects:  v  gate vine (sword)   f  Hush-fog (handbell)   h  heart fragment
- *           H  hearth (rest)   N  sleeping villager   S  thorn-sprite
+ *           H  hearth (rest)   M  Maple (shopkeeper)   N  sleeping villager   S  thorn-sprite
  *           C  resonance chime   D  boss door   X  boss spawn
  *           B  the great bell   @  spawn
  */
@@ -29,6 +29,7 @@ export const thistledownMap: TileMapDef = {
     f: { type: 'fog', group: 'pocket' },
     h: { type: 'heart' },
     H: { type: 'hearth' },
+    M: { type: 'maple' },
     N: { type: 'villager' },
     S: { type: 'enemy', enemyId: 'thorn_sprite' },
     C: { type: 'chime' },
@@ -74,7 +75,7 @@ export const thistledownMap: TileMapDef = {
     '####.....N....N.....####',
     '####...........S....####',
     '####................####',
-    '####...N...H....N...####', // villagers + hearth
+    '####...N...H....M...####', // villagers + hearth + Maple
     '####................####',
     '####.......@........####', // spawn (the Waking Hollow)
     '########################',

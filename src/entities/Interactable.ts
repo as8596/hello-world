@@ -6,21 +6,24 @@ export interface InteractableOptions {
   label?: string;
   /** Texture key (default the villager placeholder). */
   texture?: string;
-  /** Lines shown when read (villagers). Ignored if `onInteract` is set. */
+  /** Lines shown when read (villagers). Ignored if `onInteract`/`npcId` is set. */
   lines?: string[];
-  /** Custom action instead of opening dialogue (e.g. a hearth). */
+  /** Named NPC to play via the data-driven dialogue system (e.g. 'maple'). */
+  npcId?: string;
+  /** Custom action instead of dialogue (e.g. a hearth). */
   onInteract?: (scene: Phaser.Scene) => void;
 }
 
 /**
  * Interactable — a non-blocking world object the player can act on with E.
- * Defaults to a readable sleeping villager (shows its dialogue lines), but with
- * `onInteract` it becomes any point-of-interest, e.g. a hearth that heals/saves.
- * The scene handles proximity.
+ * Defaults to a readable sleeping villager (shows its dialogue lines); with
+ * `npcId` it plays a named data-driven NPC; with `onInteract` it runs a custom
+ * action (e.g. a hearth or the great bell). The scene handles proximity.
  */
 export class Interactable extends Phaser.GameObjects.Sprite {
   readonly lines: string[];
   readonly label: string;
+  readonly npcId?: string;
   readonly onInteract?: (scene: Phaser.Scene) => void;
 
   constructor(scene: Phaser.Scene, x: number, y: number, opts: InteractableOptions = {}) {
@@ -28,6 +31,7 @@ export class Interactable extends Phaser.GameObjects.Sprite {
     scene.add.existing(this);
     this.lines = opts.lines ?? [];
     this.label = opts.label ?? 'read';
+    this.npcId = opts.npcId;
     this.onInteract = opts.onInteract;
     this.setDepth(6);
   }

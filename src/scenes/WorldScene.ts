@@ -1,7 +1,11 @@
 import Phaser from 'phaser';
 import { sleepingVillagerLines } from '../data/dialogue/villagers';
 import { bramblewerth } from '../data/bossConfig';
+import { NPCS } from '../data/dialogue/npcs';
+import { oathNpc } from '../data/dialogue/oath';
+import type { Effect } from '../data/dialogue/types';
 import { ENEMIES } from '../data/enemies';
+import { ITEMS } from '../data/items';
 import { handbellConfig } from '../data/handbellConfig';
 import { thistledownMap } from '../data/maps/thistledown';
 import { playerConfig } from '../data/playerConfig';
@@ -17,7 +21,9 @@ import { Player } from '../entities/Player';
 import { addPixelText } from '../systems/PixelFont';
 import { TextureKeys } from '../systems/TextureFactory';
 import { buildTilemap } from '../systems/TilemapBuilder';
+import { DialogueRunner } from '../systems/DialogueRunner';
 import { eventBus } from '../systems/EventBus';
+import { QuestManager } from '../systems/QuestManager';
 import { worldState } from '../systems/WorldState';
 import { DialogueBox } from '../ui/DialogueBox';
 import { SceneKeys } from './SceneKeys';
@@ -34,6 +40,10 @@ const INTERACT_RADIUS = 22;
 export class WorldScene extends Phaser.Scene {
   private player!: Player;
   private dialogue!: DialogueBox;
+  private dialogueRunner!: DialogueRunner;
+  private quests!: QuestManager;
+  private navUpKeys: Phaser.Input.Keyboard.Key[] = [];
+  private navDownKeys: Phaser.Input.Keyboard.Key[] = [];
   private vines: Destructible[] = [];
   private fog: FogPatch[] = [];
   private interactables: Interactable[] = [];
@@ -122,6 +132,10 @@ export class WorldScene extends Phaser.Scene {
         this.bossDoors.push(new BossDoor(this, obj.x, obj.y));
       } else if (obj.type === 'boss') {
         this.bossSpawn = { x: obj.x, y: obj.y }; // spawned when the door opens
+      } else if (obj.type === 'maple') {
+        const maple = new Interactable(this, obj.x, obj.y, { npcId: 'maple', label: 'talk' });
+        this.interactables.push(maple);
+        this.villagers.push(maple); // wakes with the peal
       } else if (obj.type === 'greatbell') {
         this.greatBell = new Interactable(this, obj.x, obj.y, {
           texture: TextureKeys.GreatBell,
@@ -155,6 +169,8 @@ export class WorldScene extends Phaser.Scene {
     cam.fadeIn(250);
 
     this.dialogue = new DialogueBox(this);
+    this.dialogueRunner = new DialogueRunner(this.dialogue, worldState, (e) => this.runDialogueEffect(e));
+    this.quests = new QuestManager(worldState);
 
     this.promptBg = this.add
       .rectangle(0, 0, 1, 1, 0xe8e6d8, 0.92)
@@ -182,6 +198,8 @@ export class WorldScene extends Phaser.Scene {
       kb.addKey(Phaser.Input.Keyboard.KeyCodes.F),
       kb.addKey(Phaser.Input.Keyboard.KeyCodes.Q),
     ];
+    this.navUpKeys = [kb.addKey(Phaser.Input.Keyboard.KeyCodes.UP), kb.addKey(Phaser.Input.Keyboard.KeyCodes.W)];
+    this.navDownKeys = [kb.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN), kb.addKey(Phaser.Input.Keyboard.KeyCodes.S)];
     this.input.on('pointerdown', () => {
       if (!this.dyingPlayer && !this.dialogue.isOpen && !this.physics.world.isPaused) {
         this.player.queueAttack(this.time.now);
@@ -222,11 +240,13 @@ export class WorldScene extends Phaser.Scene {
     const ringPressed = this.ringKeys.some((k) => Phaser.Input.Keyboard.JustDown(k));
 
     // While a dialogue is open, freeze the player and route input to it.
-    if (this.dialogue.isOpen) {
+    if (this.dialogueRunner.isActive) {
       this.player.halt();
       this.promptText.setVisible(false);
       this.promptBg.setVisible(false);
-      if (interactPressed) this.dialogue.advance();
+      if (this.navUpKeys.some((k) => Phaser.Input.Keyboard.JustDown(k))) this.dialogueRunner.move(-1);
+      if (this.navDownKeys.some((k) => Phaser.Input.Keyboard.JustDown(k))) this.dialogueRunner.move(1);
+      if (interactPressed) this.dialogueRunner.advance();
       return;
     }
 
@@ -310,6 +330,7 @@ export class WorldScene extends Phaser.Scene {
     const idx = this.enemies.indexOf(dead);
     if (idx >= 0) this.enemies.splice(idx, 1);
     worldState.addCounter('enemies_killed');
+    this.addCoin(2); // a bounded coin faucet (DESIGN.md §19)
   }
 
   // --- Handbell -----------------------------------------------------------
@@ -443,6 +464,10 @@ export class WorldScene extends Phaser.Scene {
       worldState.setFlag('thistledown_woken', true);
       this.showToast('Thistledown wakes.');
       this.waking = false;
+      // The Oath choice, offered by a Warden's resonance at the shrine (§12).
+      if (!worldState.getFlag('oath')) {
+        this.time.delayedCall(800, () => this.dialogueRunner.startNpc(oathNpc));
+      }
     });
   }
 
@@ -626,13 +651,65 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private act(target: Interactable): void {
+    if (target.npcId) {
+      const npc = NPCS[target.npcId];
+      if (npc) {
+        eventBus.emit('npcTalked', { id: target.npcId });
+        this.dialogueRunner.startNpc(npc);
+      }
+      return;
+    }
     if (target.onInteract) {
       target.onInteract(this);
       return;
     }
     worldState.addCounter('villagers_read');
     eventBus.emit('npcTalked', { x: target.x, y: target.y });
-    this.dialogue.openLines(target.lines);
+    this.dialogueRunner.startLines('', target.lines);
+  }
+
+  // --- Coin, dialogue effects, the Oath -----------------------------------
+
+  private addCoin(amount: number): void {
+    const coin = worldState.addCounter('coin', amount);
+    eventBus.emit('coinChanged', { coin });
+  }
+
+  /** Apply a dialogue/shop Effect (DESIGN.md §16/§19). */
+  private runDialogueEffect(effect: Effect): void {
+    if ('setFlag' in effect) {
+      worldState.setFlag(effect.setFlag, effect.to);
+    } else if ('startQuest' in effect) {
+      this.quests.start(effect.startQuest);
+    } else if ('advanceQuest' in effect) {
+      this.quests.complete(effect.advanceQuest);
+    } else if ('spendCoin' in effect) {
+      this.addCoin(-effect.spendCoin);
+    } else if ('giveItem' in effect) {
+      const amount = effect.amount ?? 1;
+      if (effect.giveItem === 'coin') this.addCoin(amount);
+      else {
+        worldState.addCounter(`item_${effect.giveItem}`, amount);
+        this.showToast(`Bought ${ITEMS[effect.giveItem]?.name ?? effect.giveItem}.`);
+      }
+    } else if ('giveXp' in effect) {
+      worldState.addCounter('xp', effect.giveXp);
+    } else if ('chooseOath' in effect) {
+      this.chooseOath(effect.chooseOath);
+    }
+  }
+
+  private chooseOath(id: string): void {
+    worldState.setFlag('oath', id);
+    worldState.setFlag(`oath_${id}`, true);
+    // A small starting blessing for now (skill trees arrive in step 14).
+    this.player.healFull();
+    const names: Record<string, string> = {
+      oathblade: 'Oathblade',
+      wildstrider: 'Wildstrider',
+      bellsinger: 'Bellsinger',
+    };
+    this.showToast(`You swear the Oath of the ${names[id] ?? id}.`);
   }
 
   private onVineCut(cut: Destructible): void {

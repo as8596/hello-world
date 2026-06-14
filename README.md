@@ -76,10 +76,14 @@ hearts and a **hearth** heals you. **Milestone E is underway**: the north end is
 now the **Belltower** — a combat hall with **three resonance chimes** you ring
 (with the handbell) to open the **boss door**, and beyond it the boss fight.
 **Bramblewerth the Thornwarden** is an armored boss you beat with the signature
-**ring → stun → strike** combo: it telegraphs vine-swipes (and a phase-2
-ground-slam) and periodically *vents* — ring the bell then to stun it open and
-strike its core, while thorn-sprite adds pressure you. Defeat it and **ring the
-great bell** for the payoff — the **waking peal**: a clear-air wave sweeps the
-valley, the Hush-fog lifts, the sleepers rise, and you earn your first full
-heart. The hub services (Maple's shop, the Oath choice, the first quest) are
-the final slice step.
+**ring → stun → strike** combo. Defeat it and **ring the great bell** for the
+payoff — the **waking peal**: a clear-air wave sweeps the valley, the Hush-fog
+lifts, the sleepers rise, you earn your first full heart, and a Warden's
+resonance offers the **Oath choice** (your class). The valley wakes into a hub:
+**Maple** rises as a shopkeeper with **conditional dialogue** (asleep before the
+bell, grateful after), a **shop** (coin earned from foes), and the **first
+quest** pointing east — pinned to the HUD.
+
+**The vertical slice (MVP build steps 1–13) is complete** and plays start to
+finish. Next is post-slice depth (§13 Milestone G): the data-driven skill
+trees, XP/leveling, and the Echo resource.

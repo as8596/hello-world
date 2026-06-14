@@ -25,7 +25,8 @@ export type ObjectType =
   | 'chime'
   | 'door'
   | 'boss'
-  | 'greatbell';
+  | 'greatbell'
+  | 'maple';
 
 export interface ObjectSpec {
   type: ObjectType;

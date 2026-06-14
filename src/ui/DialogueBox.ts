@@ -1,114 +1,131 @@
 import Phaser from 'phaser';
-import { PIXEL_FONT_KEY } from '../systems/PixelFont';
+import { addPixelText, PIXEL_FONT_KEY } from '../systems/PixelFont';
 
 /**
- * DialogueBox — a minimal bottom dialogue panel with a typewriter reveal
- * (DESIGN.md §16). Linear lines for now: advance reveals the rest of the
- * current line, or moves to the next, or closes. Branching choices, portraits,
- * and the full journal are later (P1).
- *
- * Camera-fixed (scrollFactor 0), pixel-font text, built from primitives so it
- * needs no art.
+ * DialogueBox — the bottom dialogue panel (DESIGN.md §16). A dumb renderer
+ * driven by DialogueRunner: typewriter body text, an advance indicator, and a
+ * selectable choice list. Camera-fixed, pixel-font, built from primitives.
  */
 export class DialogueBox {
   private readonly scene: Phaser.Scene;
-  private readonly container: Phaser.GameObjects.Container;
-  private readonly textObj: Phaser.GameObjects.BitmapText;
+  private readonly bg: Phaser.GameObjects.Rectangle;
+  private readonly body: Phaser.GameObjects.BitmapText;
   private readonly indicator: Phaser.GameObjects.BitmapText;
-  private queue: string[] = [];
-  private current = '';
+  private choiceTexts: Phaser.GameObjects.BitmapText[] = [];
+
+  private full = '';
   private revealed = 0;
   private timer?: Phaser.Time.TimerEvent;
   private open = false;
+  private readonly choiceStartY: number;
+  private readonly choiceX: number;
+
+  /** Set by the runner; fires when the body text finishes typing. */
+  onTyped?: () => void;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
     const w = scene.scale.width;
     const h = scene.scale.height;
     const margin = 8;
-    const panelH = 42;
+    const panelH = 54;
     const panelW = w - margin * 2;
+    const panelY = h - panelH - 6;
 
-    const bg = scene.add
-      .rectangle(0, 0, panelW, panelH, 0x10101a, 0.92)
+    this.bg = scene.add
+      .rectangle(margin, panelY, panelW, panelH, 0x10101a, 0.92)
       .setOrigin(0, 0)
-      .setStrokeStyle(1, 0x6fb3ff, 0.8);
-
-    this.textObj = scene.add
-      .bitmapText(8, 8, PIXEL_FONT_KEY, '')
-      .setMaxWidth(panelW - 16)
-      .setTint(0xe8e6d8);
-
-    this.indicator = scene.add
-      .bitmapText(panelW - 12, panelH - 13, PIXEL_FONT_KEY, '>')
-      .setTint(0x6fb3ff)
-      .setVisible(false);
-
-    this.container = scene.add
-      .container(margin, h - panelH - margin, [bg, this.textObj, this.indicator])
+      .setStrokeStyle(1, 0x6fb3ff, 0.8)
       .setScrollFactor(0)
       .setDepth(2000)
       .setVisible(false);
+
+    this.body = addPixelText(scene, margin + 6, panelY + 6, '', { color: 0xe8e6d8, maxWidth: panelW - 16 })
+      .setScrollFactor(0)
+      .setDepth(2001)
+      .setVisible(false);
+
+    this.indicator = scene.add
+      .bitmapText(margin + panelW - 12, panelY + panelH - 11, PIXEL_FONT_KEY, '>')
+      .setTint(0x6fb3ff)
+      .setScrollFactor(0)
+      .setDepth(2001)
+      .setVisible(false);
+
+    this.choiceX = margin + 8;
+    this.choiceStartY = panelY + 26;
   }
 
   get isOpen(): boolean {
     return this.open;
   }
 
-  /** Open the box on a sequence of lines. */
-  openLines(lines: string[]): void {
-    if (lines.length === 0) return;
-    this.queue = [...lines];
+  get isTyping(): boolean {
+    return this.open && this.revealed < this.full.length;
+  }
+
+  openBox(): void {
     this.open = true;
-    this.container.setVisible(true);
-    this.showNext();
+    this.bg.setVisible(true);
+    this.body.setVisible(true);
   }
 
-  /** Reveal the rest of the line, advance to the next, or close. */
-  advance(): void {
-    if (!this.open) return;
-    if (this.revealed < this.current.length) {
-      this.revealAll();
-    } else {
-      this.showNext();
-    }
-  }
-
-  private showNext(): void {
-    const next = this.queue.shift();
-    if (next === undefined) {
-      this.close();
-      return;
-    }
-    this.current = next;
-    this.revealed = 0;
+  close(): void {
+    this.open = false;
+    this.timer?.remove();
+    this.clearChoices();
     this.indicator.setVisible(false);
-    this.textObj.setText('');
+    this.body.setText('').setVisible(false);
+    this.bg.setVisible(false);
+  }
+
+  /** Start the typewriter on a single body string. */
+  renderText(text: string): void {
+    this.clearChoices();
+    this.indicator.setVisible(false);
+    this.full = text;
+    this.revealed = 0;
+    this.body.setText('');
     this.timer?.remove();
     this.timer = this.scene.time.addEvent({
       delay: 22,
       loop: true,
       callback: () => {
         this.revealed++;
-        this.textObj.setText(this.current.slice(0, this.revealed));
-        if (this.revealed >= this.current.length) {
+        this.body.setText(this.full.slice(0, this.revealed));
+        if (this.revealed >= this.full.length) {
           this.timer?.remove();
-          this.indicator.setVisible(true);
+          this.onTyped?.();
         }
       },
     });
   }
 
-  private revealAll(): void {
+  finishTyping(): void {
     this.timer?.remove();
-    this.revealed = this.current.length;
-    this.textObj.setText(this.current);
-    this.indicator.setVisible(true);
+    this.revealed = this.full.length;
+    this.body.setText(this.full);
+    this.onTyped?.();
   }
 
-  private close(): void {
-    this.open = false;
-    this.timer?.remove();
-    this.container.setVisible(false);
+  setAdvanceIndicator(visible: boolean): void {
+    this.indicator.setVisible(visible);
+  }
+
+  renderChoices(labels: string[], selected: number): void {
+    this.clearChoices();
+    labels.forEach((label, i) => {
+      const bt = addPixelText(this.scene, this.choiceX, this.choiceStartY + i * 8, `${i === selected ? '> ' : '  '}${label}`, {
+        color: i === selected ? 0xffe066 : 0x9a9a8a,
+      })
+        .setScrollFactor(0)
+        .setDepth(2001);
+      this.choiceTexts.push(bt);
+    });
+  }
+
+  clearChoices(): void {
+    for (const c of this.choiceTexts) c.destroy();
+    this.choiceTexts = [];
   }
 }
