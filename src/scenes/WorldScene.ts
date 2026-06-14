@@ -27,6 +27,7 @@ import { eventBus } from '../systems/EventBus';
 import { QuestManager } from '../systems/QuestManager';
 import { saveGame } from '../systems/SaveSystem';
 import { worldState } from '../systems/WorldState';
+import { audio } from '../systems/AudioManager';
 import { DialogueBox } from '../ui/DialogueBox';
 import { SceneKeys } from './SceneKeys';
 
@@ -209,6 +210,17 @@ export class WorldScene extends Phaser.Scene {
 
     this.setupNightAmbiance(map.widthPx, map.heightPx);
 
+    // Audio: create the (suspended) context now, unlock it on the first input
+    // (browsers require a gesture), and a mute toggle.
+    audio.init();
+    const unlock = (): void => audio.resume();
+    this.input.keyboard?.once('keydown', unlock);
+    this.input.once('pointerdown', unlock);
+    this.input.keyboard?.on('keydown-M', () => {
+      const muted = audio.toggleMute();
+      this.showToast(muted ? 'Sound off' : 'Sound on');
+    });
+
     this.dialogue = new DialogueBox(this);
     this.dialogueRunner = new DialogueRunner(this.dialogue, worldState, (e) => this.runDialogueEffect(e));
     this.quests = new QuestManager(worldState);
@@ -256,7 +268,10 @@ export class WorldScene extends Phaser.Scene {
 
     // Death handling (the HUD listens to playerHealth in UIScene).
     const offDied = eventBus.on('playerDied', () => this.handlePlayerDeath());
-    const offHurt = eventBus.on('playerHurt', () => this.hurtFlash());
+    const offHurt = eventBus.on('playerHurt', () => {
+      this.hurtFlash();
+      audio.playSfx('playerHurt');
+    });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       offDied();
       offHurt();
@@ -366,6 +381,7 @@ export class WorldScene extends Phaser.Scene {
 
   /** Shared reaction to a melee hit landing: a few frozen frames (§14 P0). */
   private onHitConnected(): void {
+    audio.playSfx('hit');
     if (this.physics.world.isPaused) return;
     this.physics.world.pause();
     this.time.delayedCall(playerConfig.attack.hitStopMs, () => {
@@ -401,6 +417,7 @@ export class WorldScene extends Phaser.Scene {
     const py = this.player.y;
     const r = handbellConfig.radius;
 
+    audio.playSfx('handbell');
     this.spawnShockwave(px, py, r);
     this.screenPulse();
 
@@ -411,11 +428,14 @@ export class WorldScene extends Phaser.Scene {
     }
     // Snapshot: dispel() removes the patch from this.fog mid-loop, which would
     // otherwise skip the next in-range patch (e.g. the middle of three).
+    let dispelledAny = false;
     for (const patch of [...this.fog]) {
       if (patch.active && Phaser.Math.Distance.Between(px, py, patch.x, patch.y) <= r) {
         patch.dispel();
+        dispelledAny = true;
       }
     }
+    if (dispelledAny) audio.playSfx('fog');
     for (const chime of this.chimes) {
       if (!chime.isActivated && Phaser.Math.Distance.Between(px, py, chime.x, chime.y) <= r) {
         chime.activate();
@@ -431,6 +451,7 @@ export class WorldScene extends Phaser.Scene {
 
   /** Each rung chime advances the door; all three opens it (DESIGN.md §12). */
   private onChimeRung(): void {
+    audio.playSfx('chime');
     this.chimesRung++;
     worldState.setCounter('chimes_rung', this.chimesRung);
     const total = this.chimes.length;
@@ -547,6 +568,7 @@ export class WorldScene extends Phaser.Scene {
 
   /** The resonant toll: shake, a held golden flash, and a clear-air wave. */
   private greatBellToll(big: boolean): void {
+    audio.playSfx('greatbell');
     this.cameras.main.shake(big ? 520 : 160, big ? 0.008 : 0.004);
 
     const flash = this.add
@@ -865,6 +887,7 @@ export class WorldScene extends Phaser.Scene {
     worldState.addCounter('heart_fragments');
     worldState.setFlag('heart_fragment_taken', true); // don't respawn it on death/load
     this.player.gainMaxHalfHearts(playerConfig.heartFragmentHalfHearts);
+    audio.playSfx('heart');
     this.showToast('Heart container! Max health up.');
   }
 
@@ -875,6 +898,7 @@ export class WorldScene extends Phaser.Scene {
     worldState.setFlag('has_hearth', true);
     worldState.setCounter('hearth_x', Math.round(x));
     worldState.setCounter('hearth_y', Math.round(y));
+    audio.playSfx('rested');
     saveGame();
     eventBus.emit('rested', { region: 'thistledown' });
     this.showToast('You rest by the hearth. (saved)');

@@ -3,6 +3,7 @@ import type { EnemyDef } from '../data/enemies';
 import { playerConfig } from '../data/playerConfig';
 import { RENDER_SCALE as RS } from '../data/render';
 import { dir8FromVector, type SpriteDir, SPRITE_DIRS } from '../data/spriteDirections';
+import { audio } from '../systems/AudioManager';
 import { eventBus } from '../systems/EventBus';
 import { addPixelText } from '../systems/PixelFont';
 import { TextureKeys } from '../systems/TextureFactory';
@@ -146,6 +147,7 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
 
   /** Armored "no" feedback: a cool spark + brief steel tint, no flinch, no damage. */
   private clink(): void {
+    audio.playSfx('clink');
     this.setTint(0xbfe3ff);
     this.setTintMode(Phaser.TintModes.FILL);
     this.scene.time.delayedCall(60, () => {
@@ -380,6 +382,7 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
   private die(): void {
     this.dying = true;
     this.aiState = 'dead';
+    audio.playSfx('enemyDeath');
     this.endStunVfx();
     this.clearTelegraph();
     (this.body as Phaser.Physics.Arcade.Body).enable = false;

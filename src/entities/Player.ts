@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { handbellConfig } from '../data/handbellConfig';
 import { playerConfig } from '../data/playerConfig';
+import { audio } from '../systems/AudioManager';
 import { eventBus } from '../systems/EventBus';
 import { TextureKeys } from '../systems/TextureFactory';
 import { worldState } from '../systems/WorldState';
@@ -323,6 +324,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.spriteFacing = dir8(dx, dy);
 
     (this.body as Phaser.Physics.Arcade.Body).setVelocity(this.dodgeDir.x * d.speed, this.dodgeDir.y * d.speed);
+    audio.playSfx('dodge');
     this.spawnDashVfx();
     return true;
   }
@@ -394,6 +396,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const a = playerConfig.attack;
     this.attackState = 'windup';
     this.hitTargets.clear();
+    audio.playSfx('attack');
 
     this.scene.time.delayedCall(a.windupMs, () => {
       if (!this.active) return;
