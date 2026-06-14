@@ -69,10 +69,11 @@ export const playerConfig: PlayerConfig = {
   walkFrameRate: 8,
   // A short body near the feet reads better for top-down overlap than the full sprite.
   body: { width: 8, height: 7, offsetX: 4, offsetY: 8 },
+  // Tuned for the 128x128 art (character centered, feet ~90% down the frame).
   sprite: {
-    targetHeight: 26,
+    targetHeight: 34,
     originY: 0.9,
-    bodyWidth: 9,
+    bodyWidth: 10,
     bodyHeight: 6,
   },
   maxHearts: 3,

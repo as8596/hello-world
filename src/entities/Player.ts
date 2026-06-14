@@ -5,13 +5,41 @@ import { eventBus } from '../systems/EventBus';
 import { TextureKeys } from '../systems/TextureFactory';
 
 type Facing = 'down' | 'up' | 'left' | 'right';
+type SpriteDir =
+  | 'north'
+  | 'south'
+  | 'east'
+  | 'west'
+  | 'north-east'
+  | 'north-west'
+  | 'south-east'
+  | 'south-west';
 
-/** The four directional textures looked for at `assets/sprites/player-<dir>.png`. */
-export const PLAYER_DIRECTIONS = ['down', 'up', 'left', 'right'] as const;
+/** Real 8-direction art: texture key `player-<dir>` <- `assets/sprites/<dir>.png`. */
+export const PLAYER_SPRITE_DIRS: { key: SpriteDir; file: string }[] = [
+  { key: 'north', file: 'north.png' },
+  { key: 'south', file: 'south.png' },
+  { key: 'east', file: 'east.png' },
+  { key: 'west', file: 'west.png' },
+  { key: 'north-east', file: 'north-east.png' },
+  { key: 'north-west', file: 'north-west.png' },
+  { key: 'south-east', file: 'south-east.png' },
+  { key: 'south-west', file: 'south-west.png' },
+];
 
-/** True when all four real directional textures were loaded. */
+/** Map an input vector (signs) to one of the 8 compass directions. */
+function dir8(ix: number, iy: number): SpriteDir {
+  const sx = Math.sign(ix);
+  const sy = Math.sign(iy);
+  if (sx === 0) return sy < 0 ? 'north' : 'south';
+  if (sy === 0) return sx > 0 ? 'east' : 'west';
+  if (sy < 0) return sx > 0 ? 'north-east' : 'north-west';
+  return sx > 0 ? 'south-east' : 'south-west';
+}
+
+/** True when all eight real directional textures were loaded. */
 function hasDirectionalSheet(scene: Phaser.Scene): boolean {
-  return PLAYER_DIRECTIONS.every((d) => scene.textures.exists(`player-${d}`));
+  return PLAYER_SPRITE_DIRS.every((d) => scene.textures.exists(`player-${d.key}`));
 }
 
 /** Move `current` toward `target` by at most `maxDelta` — framerate-safe ramp. */
@@ -31,9 +59,10 @@ function approach(current: number, target: number, maxDelta: number): number {
 type AttackState = 'ready' | 'windup' | 'active' | 'recover';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
-  private facing: Facing = 'down';
-  private renderedFacing?: Facing;
-  /** Using real directional art (4 rotations) vs the generated placeholder. */
+  private facing: Facing = 'down'; // 4-way, used for attack aim
+  private spriteFacing: SpriteDir = 'south'; // 8-way, used for the art
+  private renderedSprite?: SpriteDir;
+  /** Using real directional art (8 rotations) vs the generated placeholder. */
   private readonly useSheet: boolean;
   private readonly cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   private readonly wasd: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
@@ -52,7 +81,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     const useSheet = hasDirectionalSheet(scene);
-    super(scene, x, y, useSheet ? 'player-down' : TextureKeys.Player, useSheet ? undefined : 'down-0');
+    super(scene, x, y, useSheet ? 'player-south' : TextureKeys.Player, useSheet ? undefined : 'down-0');
     this.useSheet = useSheet;
 
     scene.add.existing(this);
@@ -61,15 +90,18 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const body = this.body as Phaser.Physics.Arcade.Body;
     if (useSheet) {
       // Scale the real art to a tile-appropriate height, feet near the bottom,
-      // with a small foot collision box (compensated for the sprite scale).
+      // with a small foot collision box centered on the feet (origin), with the
+      // size/offset compensated for the sprite scale.
       const cfg = playerConfig.sprite;
       const srcW = this.width;
       const srcH = this.height;
       const s = cfg.targetHeight / srcH;
       this.setOrigin(0.5, cfg.originY);
       this.setScale(s);
-      body.setSize(cfg.bodyWidth / s, cfg.bodyHeight / s);
-      body.setOffset(srcW / 2 - cfg.bodyWidth / s / 2, srcH - cfg.bodyHeight / s - 1);
+      const bw = cfg.bodyWidth / s;
+      const bh = cfg.bodyHeight / s;
+      body.setSize(bw, bh);
+      body.setOffset(srcW * 0.5 - bw / 2, srcH * cfg.originY - bh / 2);
     } else {
       const { width, height, offsetX, offsetY } = playerConfig.body;
       body.setSize(width, height);
@@ -320,6 +352,17 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       iy = 0;
     }
 
+    // --- Facing (from the raw -1/0/1 input, before normalization) --------
+    const moving = ix !== 0 || iy !== 0;
+    if (moving) {
+      // 4-way for attack aim (dominant axis).
+      if (Math.abs(ix) > Math.abs(iy)) this.facing = ix < 0 ? 'left' : 'right';
+      else if (Math.abs(iy) > Math.abs(ix)) this.facing = iy < 0 ? 'up' : 'down';
+      else this.facing = iy < 0 ? 'up' : 'down'; // diagonal: prefer vertical
+      // 8-way for the art.
+      this.spriteFacing = dir8(ix, iy);
+    }
+
     // Diagonal normalization so diagonals aren't faster (§14 P0).
     if (ix !== 0 && iy !== 0) {
       const inv = 1 / Math.SQRT2;
@@ -339,22 +382,16 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       approach(body.velocity.y, targetVy, rateY),
     );
 
-    // --- Facing + animation ---------------------------------------------
-    const moving = ix !== 0 || iy !== 0;
-    if (moving) {
-      if (Math.abs(ix) > Math.abs(iy)) this.facing = ix < 0 ? 'left' : 'right';
-      else this.facing = iy < 0 ? 'up' : 'down';
-    }
     this.renderFacing(moving);
   }
 
   /** Update the displayed art for the current facing (sheet or placeholder). */
   private renderFacing(moving: boolean): void {
     if (this.useSheet) {
-      // Four distinct rotations, no flip; one static frame per direction.
-      if (this.renderedFacing !== this.facing) {
-        this.renderedFacing = this.facing;
-        this.setTexture(`player-${this.facing}`);
+      // Eight distinct rotations, no flip; one static frame per direction.
+      if (this.renderedSprite !== this.spriteFacing) {
+        this.renderedSprite = this.spriteFacing;
+        this.setTexture(`player-${this.spriteFacing}`);
       }
       return;
     }
