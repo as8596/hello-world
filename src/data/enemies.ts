@@ -58,8 +58,9 @@ export const thornSprite: EnemyDef = {
   aggroRange: 80 * RENDER_SCALE,
   leashRange: 150 * RENDER_SCALE,
   stunnable: true,
-  // 124px rotations -> displayed ~0.75x; body in world px covers its central mass.
-  directional: { keyPrefix: 'thorn', displayScale: 0.75, bodyWidth: 26, bodyHeight: 22 },
+  // 124px rotations -> displayed ~0.75x (visible imp ~46px); body in world px
+  // covers its core so swings connect fairly.
+  directional: { keyPrefix: 'thorn', displayScale: 0.75, bodyWidth: 34, bodyHeight: 30 },
 };
 
 export const ENEMIES: Record<string, EnemyDef> = {
