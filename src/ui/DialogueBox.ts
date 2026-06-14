@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { PIXEL_FONT_KEY } from '../systems/PixelFont';
 
 /**
  * DialogueBox — a minimal bottom dialogue panel with a typewriter reveal
@@ -6,13 +7,14 @@ import Phaser from 'phaser';
  * current line, or moves to the next, or closes. Branching choices, portraits,
  * and the full journal are later (P1).
  *
- * Camera-fixed (scrollFactor 0) and built from primitives so it needs no art.
+ * Camera-fixed (scrollFactor 0), pixel-font text, built from primitives so it
+ * needs no art.
  */
 export class DialogueBox {
   private readonly scene: Phaser.Scene;
   private readonly container: Phaser.GameObjects.Container;
-  private readonly textObj: Phaser.GameObjects.Text;
-  private readonly indicator: Phaser.GameObjects.Text;
+  private readonly textObj: Phaser.GameObjects.BitmapText;
+  private readonly indicator: Phaser.GameObjects.BitmapText;
   private queue: string[] = [];
   private current = '';
   private revealed = 0;
@@ -33,17 +35,13 @@ export class DialogueBox {
       .setStrokeStyle(1, 0x6fb3ff, 0.8);
 
     this.textObj = scene.add
-      .text(8, 7, '', {
-        fontFamily: 'monospace',
-        fontSize: '8px',
-        color: '#e8e6d8',
-        wordWrap: { width: panelW - 16 },
-      })
-      .setOrigin(0, 0);
+      .bitmapText(8, 8, PIXEL_FONT_KEY, '')
+      .setMaxWidth(panelW - 16)
+      .setTint(0xe8e6d8);
 
     this.indicator = scene.add
-      .text(panelW - 12, panelH - 12, '▸', { fontFamily: 'monospace', fontSize: '8px', color: '#6fb3ff' })
-      .setOrigin(0, 0)
+      .bitmapText(panelW - 12, panelH - 13, PIXEL_FONT_KEY, '>')
+      .setTint(0x6fb3ff)
       .setVisible(false);
 
     this.container = scene.add

@@ -4,6 +4,7 @@ import { thistledownMap } from '../data/maps/thistledown';
 import { Destructible } from '../entities/Destructible';
 import { Interactable } from '../entities/Interactable';
 import { Player } from '../entities/Player';
+import { addPixelText } from '../systems/PixelFont';
 import { buildTilemap } from '../systems/TilemapBuilder';
 import { eventBus } from '../systems/EventBus';
 import { worldState } from '../systems/WorldState';
@@ -27,7 +28,8 @@ export class WorldScene extends Phaser.Scene {
   private vines: Destructible[] = [];
   private interactables: Interactable[] = [];
   private interactKeys: Phaser.Input.Keyboard.Key[] = [];
-  private prompt!: Phaser.GameObjects.Text;
+  private promptText!: Phaser.GameObjects.BitmapText;
+  private promptBg!: Phaser.GameObjects.Rectangle;
   private gateRemaining = 0;
 
   constructor() {
@@ -72,16 +74,13 @@ export class WorldScene extends Phaser.Scene {
 
     this.dialogue = new DialogueBox(this);
 
-    this.prompt = this.add
-      .text(0, 0, '', {
-        fontFamily: 'monospace',
-        fontSize: '8px',
-        color: '#10101a',
-        backgroundColor: 'rgba(232,230,216,0.92)',
-      })
-      .setOrigin(0.5, 1)
-      .setPadding(2, 1, 2, 1)
+    this.promptBg = this.add
+      .rectangle(0, 0, 1, 1, 0xe8e6d8, 0.92)
+      .setOrigin(0.5, 0.5)
       .setDepth(1500)
+      .setVisible(false);
+    this.promptText = addPixelText(this, 0, 0, '', { color: 0x10101a })
+      .setDepth(1501)
       .setVisible(false);
 
     const kb = this.input.keyboard!;
@@ -104,7 +103,8 @@ export class WorldScene extends Phaser.Scene {
     // While a dialogue is open, freeze the player and route input to it.
     if (this.dialogue.isOpen) {
       this.player.halt();
-      this.prompt.setVisible(false);
+      this.promptText.setVisible(false);
+      this.promptBg.setVisible(false);
       if (interactPressed) this.dialogue.advance();
       return;
     }
@@ -134,14 +134,18 @@ export class WorldScene extends Phaser.Scene {
 
   private updatePrompt(target: Actionable | null): void {
     if (!target) {
-      this.prompt.setVisible(false);
+      this.promptText.setVisible(false);
+      this.promptBg.setVisible(false);
       return;
     }
-    const label = target instanceof Destructible ? 'E ▸ cut' : `E ▸ ${target.label}`;
-    this.prompt
-      .setText(label)
-      .setPosition(Math.round(target.x), Math.round(target.y - 12))
-      .setVisible(true);
+    const label = target instanceof Destructible ? 'E > cut' : `E > ${target.label}`;
+    this.promptText.setText(label);
+    const w = this.promptText.width;
+    const h = this.promptText.height;
+    const cx = Math.round(target.x);
+    const cy = Math.round(target.y - 12);
+    this.promptText.setPosition(Math.round(cx - w / 2), Math.round(cy - h / 2)).setVisible(true);
+    this.promptBg.setPosition(cx, cy).setSize(w + 4, h + 3).setVisible(true);
   }
 
   private act(target: Actionable): void {
@@ -170,32 +174,35 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private showToast(text: string): void {
-    const toast = this.add
-      .text(this.scale.width / 2, 24, text, {
-        fontFamily: 'monospace',
-        fontSize: '8px',
-        color: '#e8e6d8',
-        backgroundColor: 'rgba(16,16,26,0.85)',
-      })
+    const cx = Math.round(this.scale.width / 2);
+    const cy = 24;
+    const toast = addPixelText(this, 0, 0, text, { color: 0xe8e6d8 }).setScrollFactor(0).setDepth(2101);
+    const w = toast.width;
+    const h = toast.height;
+    toast.setPosition(Math.round(cx - w / 2), Math.round(cy - h / 2));
+    const bg = this.add
+      .rectangle(cx, cy, w + 6, h + 4, 0x10101a, 0.85)
       .setOrigin(0.5)
-      .setPadding(3, 2, 3, 2)
       .setScrollFactor(0)
       .setDepth(2100);
-    this.tweens.add({ targets: toast, alpha: 0, delay: 1600, duration: 800, onComplete: () => toast.destroy() });
+    this.tweens.add({
+      targets: [toast, bg],
+      alpha: 0,
+      delay: 1600,
+      duration: 800,
+      onComplete: () => {
+        toast.destroy();
+        bg.destroy();
+      },
+    });
   }
 
   /** A soft, fading control hint instead of a wall of tutorial text (§14 P1). */
   private addControlHint(): void {
-    const hint = this.add
-      .text(this.scale.width / 2, this.scale.height - 14, 'WASD / Arrows to move  ·  E to interact', {
-        fontFamily: 'monospace',
-        fontSize: '8px',
-        color: '#e8e6d8',
-      })
-      .setOrigin(0.5)
+    const hint = addPixelText(this, 0, 0, 'WASD / Arrows to move - E to interact', { color: 0xe8e6d8 })
       .setScrollFactor(0)
       .setDepth(1000);
-
+    hint.setPosition(Math.round((this.scale.width - hint.width) / 2), this.scale.height - 16);
     this.tweens.add({ targets: hint, alpha: 0, delay: 4500, duration: 1200, onComplete: () => hint.destroy() });
   }
 }
