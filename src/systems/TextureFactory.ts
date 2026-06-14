@@ -22,6 +22,8 @@ export const TextureKeys = {
   Chime: 'chime',
   BossDoor: 'boss_door',
   Bramblewerth: 'bramblewerth',
+  GreatBell: 'great_bell',
+  VillagerAwake: 'villager_awake',
 } as const;
 
 const FRAME = 16; // player frame size, px
@@ -44,6 +46,46 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   generateChime(scene);
   generateBossDoor(scene);
   generateBramblewerth(scene);
+  generateGreatBell(scene);
+  generateVillagerAwake(scene);
+}
+
+/** The great shrine bell — large brass bell on a frame. */
+function generateGreatBell(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.GreatBell)) return;
+  const tex = scene.textures.createCanvas(TextureKeys.GreatBell, TILE, TILE);
+  if (!tex) return;
+  const ctx = tex.getContext();
+  ctx.clearRect(0, 0, TILE, TILE);
+  rect(ctx, 0, 2, 1, 12, 1, '#6b5a3a'); // beam
+  rect(ctx, 0, 7, 2, 2, 1, '#8a6f24'); // hanger
+  rect(ctx, 0, 5, 3, 6, 7, '#c9a23a'); // bell body
+  rect(ctx, 0, 4, 9, 8, 2, '#c9a23a'); // flared rim
+  rect(ctx, 0, 6, 4, 2, 5, '#e3c66a'); // highlight
+  rect(ctx, 0, 4, 11, 8, 1, '#8a6f24'); // rim shadow
+  rect(ctx, 0, 7, 12, 2, 2, '#8a6f24'); // clapper
+  tex.refresh();
+}
+
+/** An awake villager — upright, eyes open (used when the valley wakes). */
+function generateVillagerAwake(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.VillagerAwake)) return;
+  const tex = scene.textures.createCanvas(TextureKeys.VillagerAwake, TILE, TILE);
+  if (!tex) return;
+  const ctx = tex.getContext();
+  ctx.clearRect(0, 0, TILE, TILE);
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillRect(5, 14, 6, 1);
+  rect(ctx, 0, 6, 2, 4, 2, '#5b3a29'); // hair
+  rect(ctx, 0, 6, 3, 4, 4, '#e8c39e'); // head
+  rect(ctx, 0, 7, 5, 1, 1, '#222'); // eyes
+  rect(ctx, 0, 9, 5, 1, 1, '#222');
+  rect(ctx, 0, 5, 7, 6, 6, '#7c6f9c'); // body
+  rect(ctx, 0, 4, 8, 1, 3, '#e8c39e'); // arms
+  rect(ctx, 0, 11, 8, 1, 3, '#e8c39e');
+  rect(ctx, 0, 6, 13, 1, 2, '#4a3f5e'); // legs
+  rect(ctx, 0, 9, 13, 1, 2, '#4a3f5e');
+  tex.refresh();
 }
 
 /** The boss: a 32x32 thorny bramble-beast with a reddish core (the weak point). */

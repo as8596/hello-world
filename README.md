@@ -39,8 +39,8 @@ you want, then **Code → Download ZIP**. Unzip it, `cd` into the folder, and ru
 
 - **WASD** or **Arrow keys** — move
 - **J** / **X** / **click** — swing (cuts vines, hits enemies)
-- **F** / **Q** — ring the handbell (stuns nearby enemies, dispels fog)
-- **E** or **Space** — read sleeping villagers; advance dialogue
+- **F** / **Q** — ring the handbell (stuns nearby enemies, dispels fog, resonates chimes)
+- **E** or **Space** — interact (villagers, hearth, the great bell); advance dialogue
 
 ## Scripts
 
@@ -78,5 +78,8 @@ now the **Belltower** — a combat hall with **three resonance chimes** you ring
 **Bramblewerth the Thornwarden** is an armored boss you beat with the signature
 **ring → stun → strike** combo: it telegraphs vine-swipes (and a phase-2
 ground-slam) and periodically *vents* — ring the bell then to stun it open and
-strike its core, while thorn-sprite adds pressure you. The bell-ringing payoff
-(waking the valley) comes next.
+strike its core, while thorn-sprite adds pressure you. Defeat it and **ring the
+great bell** for the payoff — the **waking peal**: a clear-air wave sweeps the
+valley, the Hush-fog lifts, the sleepers rise, and you earn your first full
+heart. The hub services (Maple's shop, the Oath choice, the first quest) are
+the final slice step.

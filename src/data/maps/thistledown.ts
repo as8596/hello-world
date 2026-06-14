@@ -13,7 +13,8 @@ import { Tile, type TileMapDef } from './types';
  * Terrain:  .  grass     #  tree/wall     w  water
  * Objects:  v  gate vine (sword)   f  Hush-fog (handbell)   h  heart fragment
  *           H  hearth (rest)   N  sleeping villager   S  thorn-sprite
- *           C  resonance chime   D  boss door   X  boss spawn   @  spawn
+ *           C  resonance chime   D  boss door   X  boss spawn
+ *           B  the great bell   @  spawn
  */
 export const thistledownMap: TileMapDef = {
   tileSize: 16,
@@ -33,13 +34,14 @@ export const thistledownMap: TileMapDef = {
     C: { type: 'chime' },
     D: { type: 'door' },
     X: { type: 'boss', enemyId: 'bramblewerth' },
+    B: { type: 'greatbell' },
   },
   floorTile: Tile.Grass,
   spawnChar: '@',
   spawnTile: Tile.Grass,
   rows: [
     '########################',
-    '#####..............#####', // boss room / shrine (the great bell goes here)
+    '#####......B.......#####', // the great bell (shrine)
     '#####..............#####',
     '#####......X.......#####', // Bramblewerth spawns here
     '#####..............#####',

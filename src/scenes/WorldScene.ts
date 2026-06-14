@@ -44,6 +44,9 @@ export class WorldScene extends Phaser.Scene {
   private chimesRung = 0;
   private boss?: Boss;
   private bossSpawn?: { x: number; y: number };
+  private villagers: Interactable[] = [];
+  private greatBell?: Interactable;
+  private waking = false;
   private bossBarBg?: Phaser.GameObjects.Rectangle;
   private bossBarFill?: Phaser.GameObjects.Rectangle;
   private bossName?: Phaser.GameObjects.BitmapText;
@@ -71,6 +74,9 @@ export class WorldScene extends Phaser.Scene {
     this.chimesRung = 0;
     this.boss = undefined;
     this.bossSpawn = undefined;
+    this.villagers = [];
+    this.greatBell = undefined;
+    this.waking = false;
     this.gateRemaining = 0;
     this.fogRemaining = 0;
     this.dyingPlayer = false;
@@ -116,10 +122,19 @@ export class WorldScene extends Phaser.Scene {
         this.bossDoors.push(new BossDoor(this, obj.x, obj.y));
       } else if (obj.type === 'boss') {
         this.bossSpawn = { x: obj.x, y: obj.y }; // spawned when the door opens
+      } else if (obj.type === 'greatbell') {
+        this.greatBell = new Interactable(this, obj.x, obj.y, {
+          texture: TextureKeys.GreatBell,
+          label: 'ring',
+          onInteract: () => this.ringGreatBell(),
+        });
+        this.interactables.push(this.greatBell);
       } else {
         const lines = sleepingVillagerLines[villagerIndex % sleepingVillagerLines.length];
         villagerIndex++;
-        this.interactables.push(new Interactable(this, obj.x, obj.y, { lines }));
+        const villager = new Interactable(this, obj.x, obj.y, { lines });
+        this.interactables.push(villager);
+        this.villagers.push(villager);
       }
     }
 
@@ -195,6 +210,11 @@ export class WorldScene extends Phaser.Scene {
     if (this.dyingPlayer) return;
     // Hit-stop: while physics is paused on a connecting hit, freeze everything.
     if (this.physics.world.isPaused) return;
+    // The waking peal plays out as a cutscene; hold the player.
+    if (this.waking) {
+      this.player.halt();
+      return;
+    }
 
     const now = this.time.now;
     const interactPressed = this.interactKeys.some((k) => Phaser.Input.Keyboard.JustDown(k));
@@ -373,7 +393,85 @@ export class WorldScene extends Phaser.Scene {
   private onBossDefeated(): void {
     worldState.setFlag('bramblewerth_defeated', true);
     this.hideBossBar();
-    this.showToast('The thorns fall still.');
+    this.showToast('The thorns fall still. The great bell may be rung.');
+  }
+
+  // --- The waking peal (DESIGN.md §12 payoff) ------------------------------
+
+  private ringGreatBell(): void {
+    if (!worldState.hasFlag('bramblewerth_defeated')) {
+      this.showToast('The bell stays silent while the thorns dream.');
+      return;
+    }
+    if (this.waking || worldState.hasFlag('bell_thistledown_rung')) {
+      this.greatBellToll(false);
+      return;
+    }
+    this.startWaking();
+  }
+
+  /** Ring the great bell -> wake the valley. The emotional climax (§12, §14). */
+  private startWaking(): void {
+    this.waking = true;
+    this.player.halt();
+    worldState.setFlag('bell_thistledown_rung', true);
+    worldState.addCounter('great_bell_rung');
+    eventBus.emit('greatBellRung', { region: 'thistledown' });
+
+    this.greatBellToll(true);
+
+    // The peal calms the last foes...
+    for (const enemy of this.enemies) {
+      this.tweens.add({ targets: enemy, alpha: 0, scale: 0.4, duration: 500, onComplete: () => enemy.destroy() });
+    }
+    this.enemies = [];
+
+    // ...the Hush-fog lifts everywhere...
+    for (const patch of [...this.fog]) patch.dispel();
+
+    // ...and the sleepers rise, one after another.
+    this.villagers.forEach((villager, i) => {
+      this.time.delayedCall(700 + i * 160, () => {
+        villager.setTexture(TextureKeys.VillagerAwake);
+        this.tweens.add({ targets: villager, y: villager.y - 2, yoyo: true, duration: 180 });
+      });
+    });
+
+    // The bell's reward: your first full heart, and the valley is awake.
+    this.time.delayedCall(1600, () => {
+      this.player.gainMaxHalfHearts(2);
+      worldState.setFlag('thistledown_woken', true);
+      this.showToast('Thistledown wakes.');
+      this.waking = false;
+    });
+  }
+
+  /** The resonant toll: shake, a held golden flash, and a clear-air wave. */
+  private greatBellToll(big: boolean): void {
+    this.cameras.main.shake(big ? 520 : 160, big ? 0.008 : 0.004);
+
+    const flash = this.add
+      .rectangle(0, 0, this.scale.width, this.scale.height, 0xfff2c0, big ? 0.6 : 0.25)
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(2300);
+    this.tweens.add({ targets: flash, alpha: 0, duration: big ? 1400 : 420, ease: 'Cubic.Out', onComplete: () => flash.destroy() });
+
+    if (this.greatBell) {
+      this.tweens.add({ targets: this.greatBell, scaleX: 1.2, scaleY: 1.2, yoyo: true, duration: 200, repeat: big ? 2 : 0 });
+    }
+
+    if (big) {
+      // A clear-air wave sweeping across the whole valley.
+      const ox = this.greatBell?.x ?? this.player.x;
+      const oy = this.greatBell?.y ?? this.player.y;
+      const wave = this.add
+        .circle(ox, oy, 700, 0xfff2c0, 0.12)
+        .setStrokeStyle(4, 0xffffff, 0.9)
+        .setScale(0.02)
+        .setDepth(1900);
+      this.tweens.add({ targets: wave, scale: 1, alpha: 0, duration: 1500, ease: 'Cubic.Out', onComplete: () => wave.destroy() });
+    }
   }
 
   private buildBossBar(): void {

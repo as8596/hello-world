@@ -24,7 +24,8 @@ export type ObjectType =
   | 'hearth'
   | 'chime'
   | 'door'
-  | 'boss';
+  | 'boss'
+  | 'greatbell';
 
 export interface ObjectSpec {
   type: ObjectType;
