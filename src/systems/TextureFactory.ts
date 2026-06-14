@@ -19,6 +19,8 @@ export const TextureKeys = {
   StunStars: 'stun_stars',
   HeartFragment: 'heart_fragment',
   Hearth: 'hearth',
+  Chime: 'chime',
+  BossDoor: 'boss_door',
 } as const;
 
 const FRAME = 16; // player frame size, px
@@ -38,6 +40,42 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   generateStunStars(scene);
   generateHeartFragment(scene);
   generateHearth(scene);
+  generateChime(scene);
+  generateBossDoor(scene);
+}
+
+/** A resonance chime: a standing post with a small bell (tinted gold when rung). */
+function generateChime(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.Chime)) return;
+  const tex = scene.textures.createCanvas(TextureKeys.Chime, TILE, TILE);
+  if (!tex) return;
+  const ctx = tex.getContext();
+  ctx.clearRect(0, 0, TILE, TILE);
+  // Frame / post.
+  rect(ctx, 0, 4, 1, 8, 2, '#6b5a3a');
+  rect(ctx, 0, 11, 1, 2, 11, '#6b5a3a'); // top bar approx
+  rect(ctx, 0, 4, 1, 9, 2, '#6b5a3a');
+  // Bell.
+  rect(ctx, 0, 6, 4, 5, 5, '#c9a23a');
+  rect(ctx, 0, 7, 3, 3, 1, '#e3c66a');
+  rect(ctx, 0, 7, 9, 3, 1, '#8a6f24');
+  rect(ctx, 0, 8, 10, 1, 2, '#8a6f24'); // clapper
+  tex.refresh();
+}
+
+/** An ornate boss door: stone frame with brass bars. */
+function generateBossDoor(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.BossDoor)) return;
+  const tex = scene.textures.createCanvas(TextureKeys.BossDoor, TILE, TILE);
+  if (!tex) return;
+  const ctx = tex.getContext();
+  ctx.clearRect(0, 0, TILE, TILE);
+  rect(ctx, 0, 0, 0, TILE, TILE, '#4a4038'); // stone
+  rect(ctx, 0, 2, 1, 12, 14, '#2c2620'); // recess
+  for (const x of [3, 6, 9, 12] as const) rect(ctx, 0, x, 2, 1, 12, '#b9892f'); // bars
+  rect(ctx, 0, 2, 7, 12, 1, '#b9892f'); // cross band
+  rect(ctx, 0, 7, 6, 2, 2, '#e0b54a'); // boss
+  tex.refresh();
 }
 
 /** A glittering heart fragment pickup. */

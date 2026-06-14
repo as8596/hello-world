@@ -4,6 +4,8 @@ import { ENEMIES } from '../data/enemies';
 import { handbellConfig } from '../data/handbellConfig';
 import { thistledownMap } from '../data/maps/thistledown';
 import { playerConfig } from '../data/playerConfig';
+import { BossDoor } from '../entities/BossDoor';
+import { Chime } from '../entities/Chime';
 import { Destructible } from '../entities/Destructible';
 import { EnemyBase } from '../entities/EnemyBase';
 import { FogPatch } from '../entities/FogPatch';
@@ -35,6 +37,9 @@ export class WorldScene extends Phaser.Scene {
   private interactables: Interactable[] = [];
   private enemies: EnemyBase[] = [];
   private pickups: HeartPickup[] = [];
+  private chimes: Chime[] = [];
+  private bossDoors: BossDoor[] = [];
+  private chimesRung = 0;
   private interactKeys: Phaser.Input.Keyboard.Key[] = [];
   private attackKeys: Phaser.Input.Keyboard.Key[] = [];
   private ringKeys: Phaser.Input.Keyboard.Key[] = [];
@@ -54,6 +59,9 @@ export class WorldScene extends Phaser.Scene {
     this.interactables = [];
     this.enemies = [];
     this.pickups = [];
+    this.chimes = [];
+    this.bossDoors = [];
+    this.chimesRung = 0;
     this.gateRemaining = 0;
     this.fogRemaining = 0;
     this.dyingPlayer = false;
@@ -93,6 +101,10 @@ export class WorldScene extends Phaser.Scene {
             onInteract: () => this.useHearth(),
           }),
         );
+      } else if (obj.type === 'chime') {
+        this.chimes.push(new Chime(this, obj.x, obj.y, { onActivate: () => this.onChimeRung() }));
+      } else if (obj.type === 'door') {
+        this.bossDoors.push(new BossDoor(this, obj.x, obj.y));
       } else {
         const lines = sleepingVillagerLines[villagerIndex % sleepingVillagerLines.length];
         villagerIndex++;
@@ -105,6 +117,7 @@ export class WorldScene extends Phaser.Scene {
     this.physics.add.collider(this.player, map.layer);
     this.physics.add.collider(this.player, this.vines);
     this.physics.add.collider(this.player, this.fog);
+    this.physics.add.collider(this.player, this.bossDoors);
     this.physics.add.collider(this.enemies, map.layer);
     this.physics.add.overlap(this.player, this.enemies, this.onPlayerTouchEnemy, undefined, this);
 
@@ -266,9 +279,31 @@ export class WorldScene extends Phaser.Scene {
         patch.dispel();
       }
     }
+    for (const chime of this.chimes) {
+      if (!chime.isActivated && Phaser.Math.Distance.Between(px, py, chime.x, chime.y) <= r) {
+        chime.activate();
+      }
+    }
 
     worldState.addCounter('bell_rung');
     eventBus.emit('bellRung', { region: 'thistledown' });
+  }
+
+  /** Each rung chime advances the door; all three opens it (DESIGN.md §12). */
+  private onChimeRung(): void {
+    this.chimesRung++;
+    worldState.setCounter('chimes_rung', this.chimesRung);
+    const total = this.chimes.length;
+    if (this.chimesRung < total) {
+      this.showToast(`Resonance chime ${this.chimesRung} / ${total}`);
+      return;
+    }
+    if (!worldState.hasFlag('thistledown_belldoor_open')) {
+      worldState.setFlag('thistledown_belldoor_open', true);
+      eventBus.emit('bellDoorOpened', { region: 'thistledown' });
+      for (const door of this.bossDoors) door.open();
+      this.showToast('The shrine door opens.');
+    }
   }
 
   /** An expanding shockwave ring synced to the ring (§14 P0). */

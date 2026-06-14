@@ -3,15 +3,17 @@ import { Tile, type TileMapDef } from './types';
 /**
  * Thistledown — the vertical-slice overworld (DESIGN.md §12). South (you wake)
  * to north (the belltower). From the bottom up:
- *   - Sleeping Thistledown: a wide village clearing with sleeping villagers.
- *   - A vine GATE across the only path north — cut it to open the lane.
- *   - Thornwood Trail: a forest corridor, a pond, and a vine-sealed side
- *     pocket (a future reward, cut-the-vines later).
- *   - The belltower clearing at the top.
+ *   - Sleeping Thistledown: a village clearing with sleepers + a hearth.
+ *   - A vine GATE across the path north (cut it with the sword).
+ *   - Thornwood Trail: a pond, sprite clearings, and a fog-sealed pocket that
+ *     hides a heart fragment (ring the handbell to dispel the fog).
+ *   - The Belltower: a combat hall with three resonance CHIMES; ring the
+ *     handbell by each to tune the bell and open the boss DOOR to the shrine.
  *
  * Terrain:  .  grass     #  tree/wall     w  water
  * Objects:  v  gate vine (sword)   f  Hush-fog (handbell)   h  heart fragment
- *           H  hearth (rest)   N  sleeping villager   S  thorn-sprite   @  spawn
+ *           H  hearth (rest)   N  sleeping villager   S  thorn-sprite
+ *           C  resonance chime   D  boss door   @  spawn
  */
 export const thistledownMap: TileMapDef = {
   tileSize: 16,
@@ -28,44 +30,48 @@ export const thistledownMap: TileMapDef = {
     H: { type: 'hearth' },
     N: { type: 'villager' },
     S: { type: 'enemy', enemyId: 'thorn_sprite' },
+    C: { type: 'chime' },
+    D: { type: 'door' },
   },
   floorTile: Tile.Grass,
   spawnChar: '@',
   spawnTile: Tile.Grass,
   rows: [
     '########################',
+    '########........########', // boss room (the great bell goes here)
     '########........########',
     '########........########',
-    '########........########',
-    '########........########',
+    '###########DD###########', // boss door
+    '###..................###', // belltower hall (chime arena)
+    '###..................###',
+    '###..C...........C...###', // chimes (left / right)
+    '###..................###',
+    '###.......S..S.......###',
+    '###........C.........###', // chime (center)
+    '###..................###',
     '###########..###########',
     '###########..###########',
-    '###########..###########',
-    '###########..###########',
+    '###########..f....######', // fog-sealed pocket
+    '###########..f..h.######', // heart fragment behind the fog
     '###########..f....######',
-    '###########..f..h.######',
-    '###########..f....######',
     '###########..###########',
-    '########ww......########',
+    '########ww......########', // pond + trail clearing
     '########ww......########',
     '########..S...S.########',
     '########....S...########',
     '###########..###########',
     '###########..###########',
     '###########..###########',
+    '###########vv###########', // vine gate
     '###########..###########',
-    '###########..###########',
-    '###########..###########',
-    '###########vv###########',
-    '###########..###########',
-    '####................####',
+    '####................####', // Sleeping Thistledown (village)
     '####................####',
     '####.....N....N.....####',
     '####...........S....####',
     '####................####',
-    '####...N...H....N...####',
+    '####...N...H....N...####', // villagers + hearth
     '####................####',
-    '####.......@........####',
+    '####.......@........####', // spawn (the Waking Hollow)
     '########################',
   ],
 };
