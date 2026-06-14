@@ -4,6 +4,12 @@
   "frames": 4,
   "dirs": [
     "north",
-    "south"
+    "south",
+    "east",
+    "west",
+    "north-east",
+    "north-west",
+    "south-east",
+    "south-west"
   ]
 }

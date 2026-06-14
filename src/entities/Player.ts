@@ -167,7 +167,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         scene.anims.create({
           key,
           frames: scene.anims.generateFrameNumbers(key, { start: 0, end: manifest.frames - 1 }),
-          frameRate: playerConfig.walkFrameRate,
+          frameRate: playerConfig.runFrameRate,
           repeat: -1,
         });
       }
@@ -522,6 +522,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       const runKey = `player-run-${this.spriteFacing}`;
       if (moving && this.scene.anims.exists(runKey)) {
         this.anims.play(runKey, true);
+        // Lock the leg cadence to distance travelled so the feet never slide:
+        // play one frame per `runPixelsPerFrame` world px. Falls out naturally
+        // for the dash (faster legs) and the accel ramp (slower legs on start).
+        const speed = (this.body as Phaser.Physics.Arcade.Body).velocity.length();
+        const target = speed / playerConfig.runPixelsPerFrame; // desired fps
+        this.anims.timeScale = Phaser.Math.Clamp(target / playerConfig.runFrameRate, 0.45, 3.5);
         this.renderedSprite = undefined; // force the static frame to re-apply on stop
       } else {
         if (this.anims.isPlaying) this.anims.stop();

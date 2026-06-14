@@ -15,6 +15,15 @@ export interface PlayerConfig {
   friction: number;
   /** Walk animation playback rate (fps). */
   walkFrameRate: number;
+  /** Base playback rate (fps) for the real directional run cycles. */
+  runFrameRate: number;
+  /**
+   * World pixels of travel per run-animation frame. The run cadence is locked to
+   * distance (not time), so the feet never slide regardless of move speed — and
+   * the legs speed up naturally during a dash. Tied to the art's stride (~the
+   * foot travel between frames), so it is NOT scaled by RENDER_SCALE.
+   */
+  runPixelsPerFrame: number;
   /** Arcade physics body, relative to the 16x16 frame. */
   body: { width: number; height: number; offsetX: number; offsetY: number };
   /**
@@ -81,10 +90,12 @@ export interface PlayerConfig {
 }
 
 export const playerConfig: PlayerConfig = {
-  maxSpeed: 90 * RENDER_SCALE,
+  maxSpeed: 80 * RENDER_SCALE,
   acceleration: 750 * RENDER_SCALE,
   friction: 950 * RENDER_SCALE,
   walkFrameRate: 8,
+  runFrameRate: 10,
+  runPixelsPerFrame: 20,
   // A short body near the feet reads better for top-down overlap than the full sprite.
   body: { width: 8 * RENDER_SCALE, height: 7 * RENDER_SCALE, offsetX: 4 * RENDER_SCALE, offsetY: 8 * RENDER_SCALE },
   // Native 128px art (character centered, feet ~90% down the frame); the foot
