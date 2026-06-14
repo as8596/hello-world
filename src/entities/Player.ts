@@ -3,6 +3,7 @@ import { handbellConfig } from '../data/handbellConfig';
 import { playerConfig } from '../data/playerConfig';
 import { eventBus } from '../systems/EventBus';
 import { TextureKeys } from '../systems/TextureFactory';
+import { worldState } from '../systems/WorldState';
 
 type Facing = 'down' | 'up' | 'left' | 'right';
 type SpriteDir =
@@ -101,6 +102,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const useSheet = hasDirectionalSheet(scene);
     super(scene, x, y, useSheet ? 'player-south' : TextureKeys.Player, useSheet ? undefined : 'down-0');
     this.useSheet = useSheet;
+
+    // Max HP persists across deaths/loads (heart fragments + the bell reward).
+    this.maxHp = worldState.getCounter('player_max_half_hearts') || playerConfig.maxHearts * 2;
+    this.hp = this.maxHp;
 
     scene.add.existing(this);
     scene.physics.add.existing(this);
@@ -208,6 +213,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   gainMaxHalfHearts(halfHearts: number): void {
     this.maxHp += halfHearts;
     this.hp = this.maxHp;
+    worldState.setCounter('player_max_half_hearts', this.maxHp); // persist (DESIGN.md §22)
     this.emitHealth();
   }
 

@@ -25,6 +25,7 @@ import { buildTilemap } from '../systems/TilemapBuilder';
 import { DialogueRunner } from '../systems/DialogueRunner';
 import { eventBus } from '../systems/EventBus';
 import { QuestManager } from '../systems/QuestManager';
+import { saveGame } from '../systems/SaveSystem';
 import { worldState } from '../systems/WorldState';
 import { DialogueBox } from '../ui/DialogueBox';
 import { SceneKeys } from './SceneKeys';
@@ -106,14 +107,20 @@ export class WorldScene extends Phaser.Scene {
     this.gateRemaining = 0;
     this.fogRemaining = 0;
     this.dyingPlayer = false;
+    this.hearthPositions.length = 0;
+    this.fireflies.length = 0;
 
     const map = buildTilemap(this, thistledownMap);
     this.physics.world.setBounds(0, 0, map.widthPx, map.heightPx);
 
-    // Hand-placed objects.
+    // Hand-placed objects. The map reacts to saved/earned flags so a reload (or
+    // a death-respawn) rebuilds the world in its current state, not from scratch
+    // (DESIGN.md §22): opened gates stay open, the boss stays beaten, etc.
+    const woken = worldState.hasFlag('thistledown_woken');
     let villagerIndex = 0;
     for (const obj of map.objects) {
       if (obj.type === 'vine') {
+        if (obj.group === 'gate' && (woken || worldState.hasFlag('thistledown_lane_opened'))) continue;
         const vine = new Destructible(this, obj.x, obj.y, {
           group: obj.group,
           onCut: (cut) => this.onVineCut(cut),
@@ -121,6 +128,7 @@ export class WorldScene extends Phaser.Scene {
         this.vines.push(vine);
         if (obj.group === 'gate') this.gateRemaining++;
       } else if (obj.type === 'fog') {
+        if (woken || worldState.hasFlag('thistledown_fog_cleared')) continue;
         const patch = new FogPatch(this, obj.x, obj.y, {
           group: obj.group,
           onDispel: (p) => this.onFogDispelled(p),
@@ -128,6 +136,7 @@ export class WorldScene extends Phaser.Scene {
         this.fog.push(patch);
         this.fogRemaining++;
       } else if (obj.type === 'enemy') {
+        if (woken) continue; // the woken valley is a safe hub
         const def = ENEMIES[obj.enemyId ?? ''];
         if (def) {
           this.enemies.push(
@@ -138,6 +147,7 @@ export class WorldScene extends Phaser.Scene {
           );
         }
       } else if (obj.type === 'heart') {
+        if (worldState.hasFlag('heart_fragment_taken')) continue;
         this.pickups.push(new HeartPickup(this, obj.x, obj.y, { onCollect: (p) => this.onHeartCollected(p) }));
       } else if (obj.type === 'hearth') {
         this.hearthPositions.push({ x: obj.x, y: obj.y });
@@ -145,7 +155,7 @@ export class WorldScene extends Phaser.Scene {
           new Interactable(this, obj.x, obj.y, {
             texture: TextureKeys.Hearth,
             label: 'rest',
-            onInteract: () => this.useHearth(),
+            onInteract: () => this.useHearth(obj.x, obj.y),
           }),
         );
       } else if (obj.type === 'chime') {
@@ -174,8 +184,15 @@ export class WorldScene extends Phaser.Scene {
       }
     }
 
+    // A loaded woken valley shows its people already risen.
+    if (woken) for (const v of this.villagers) v.setTexture(TextureKeys.VillagerAwake);
+
     Player.registerAnims(this);
-    this.player = new Player(this, map.spawn.x, map.spawn.y);
+    // Respawn / load at the last hearth rested at, else the Waking Hollow.
+    const spawn = worldState.hasFlag('has_hearth')
+      ? { x: worldState.getCounter('hearth_x'), y: worldState.getCounter('hearth_y') }
+      : map.spawn;
+    this.player = new Player(this, spawn.x, spawn.y);
     this.physics.add.collider(this.player, map.layer);
     this.physics.add.collider(this.player, this.vines);
     this.physics.add.collider(this.player, this.fog);
@@ -250,7 +267,7 @@ export class WorldScene extends Phaser.Scene {
     // to the boss so the fight is retryable without re-ringing the chimes.
     if (worldState.hasFlag('thistledown_belldoor_open')) {
       for (const door of this.bossDoors) door.open();
-      this.spawnBoss();
+      if (!worldState.hasFlag('bramblewerth_defeated')) this.spawnBoss();
     }
 
     worldState.addCounter('world:entered');
@@ -509,6 +526,7 @@ export class WorldScene extends Phaser.Scene {
     this.time.delayedCall(1600, () => {
       this.player.gainMaxHalfHearts(2);
       worldState.setFlag('thistledown_woken', true);
+      saveGame(); // the payoff is a save point (DESIGN.md §22)
       this.showToast('Thistledown wakes.');
       // Dawn: as the curse lifts, so does the night — and the fireflies wink out.
       if (this.nightOverlay) {
@@ -845,16 +863,21 @@ export class WorldScene extends Phaser.Scene {
     const idx = this.pickups.indexOf(pickup);
     if (idx >= 0) this.pickups.splice(idx, 1);
     worldState.addCounter('heart_fragments');
+    worldState.setFlag('heart_fragment_taken', true); // don't respawn it on death/load
     this.player.gainMaxHalfHearts(playerConfig.heartFragmentHalfHearts);
     this.showToast('Heart container! Max health up.');
   }
 
-  /** Rest at a hearth: heal to full and save (save system is a later step). */
-  private useHearth(): void {
+  /** Rest at a hearth: heal to full, set it as the respawn point, and save (§22). */
+  private useHearth(x: number, y: number): void {
     this.player.healFull();
     worldState.setFlag('rested', true);
+    worldState.setFlag('has_hearth', true);
+    worldState.setCounter('hearth_x', Math.round(x));
+    worldState.setCounter('hearth_y', Math.round(y));
+    saveGame();
     eventBus.emit('rested', { region: 'thistledown' });
-    this.showToast('You rest by the hearth.');
+    this.showToast('You rest by the hearth. (saved)');
   }
 
   // --- Interaction --------------------------------------------------------

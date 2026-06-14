@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { loadGame } from '../systems/SaveSystem';
 import { SceneKeys } from './SceneKeys';
 
 /**
@@ -12,6 +13,9 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Rehydrate WorldState from the auto-save before any scene reads it, so the
+    // world builds itself from the saved flags (DESIGN.md §22).
+    loadGame();
     this.scene.start(SceneKeys.Preload);
   }
 }
