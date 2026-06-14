@@ -66,6 +66,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private readonly useSheet: boolean;
   /** Resting display scale (1 — art renders 1:1 on the high-res framebuffer). */
   private baseScale = 1;
+  /**
+   * Vertical offset (px) from the entity origin up to the sprite's center, where
+   * a swing visually reads. The real art puts the origin at the feet
+   * (originY 0.9), so attacks must aim from the body center, not `this.y`. Zero
+   * for the placeholder (origin 0.5), so its behavior is unchanged.
+   */
+  private attackAnchorY = 0;
   private readonly cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   private readonly wasd: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
 
@@ -105,6 +112,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       body.setSize(width, height);
       body.setOffset(offsetX, offsetY);
     }
+    // Aim attacks from the sprite's vertical center, not the origin (= feet on
+    // the real art). Resolves to 0 for the placeholder (origin 0.5).
+    this.attackAnchorY = this.height * (this.originY - 0.5);
     body.setCollideWorldBounds(true);
     this.setDepth(10);
 
@@ -256,7 +266,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const a = playerConfig.attack;
     const o = this.facingOffset();
     const cx = this.x + o.x * a.reach;
-    const cy = this.y + o.y * a.reach;
+    const cy = this.y - this.attackAnchorY + o.y * a.reach;
     return new Phaser.Geom.Rectangle(cx - a.hitboxW / 2, cy - a.hitboxH / 2, a.hitboxW, a.hitboxH);
   }
 
@@ -312,7 +322,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const o = this.facingOffset();
     const angle = this.facing === 'right' ? 0 : this.facing === 'down' ? 90 : this.facing === 'left' ? 180 : 270;
     const slash = this.scene.add
-      .image(this.x + o.x * a.reach, this.y + o.y * a.reach, TextureKeys.Slash)
+      .image(this.x + o.x * a.reach, this.y - this.attackAnchorY + o.y * a.reach, TextureKeys.Slash)
       .setDepth(11)
       .setAngle(angle)
       .setAlpha(0.95);
