@@ -14,6 +14,20 @@ export interface PlayerConfig {
   walkFrameRate: number;
   /** Arcade physics body, relative to the 16x16 frame. */
   body: { width: number; height: number; offsetX: number; offsetY: number };
+  /**
+   * Real directional art (4 rotations). If `public/assets/sprites/player-<dir>.png`
+   * (down/up/left/right) are present they're used automatically; otherwise the
+   * generated placeholder is used. Tune these once you can see it in-game.
+   */
+  sprite: {
+    /** On-screen height in px the art is scaled to. */
+    targetHeight: number;
+    /** Vertical origin (0..1); ~0.9 puts the feet near the bottom. */
+    originY: number;
+    /** World-space foot collision box. */
+    bodyWidth: number;
+    bodyHeight: number;
+  };
   /** Max hearts (Vigor governs this later). Health is tracked in half-hearts. */
   maxHearts: number;
   /** Max-HP gained per heart fragment, in half-hearts (2 = one full heart). */
@@ -55,6 +69,12 @@ export const playerConfig: PlayerConfig = {
   walkFrameRate: 8,
   // A short body near the feet reads better for top-down overlap than the full sprite.
   body: { width: 8, height: 7, offsetX: 4, offsetY: 8 },
+  sprite: {
+    targetHeight: 26,
+    originY: 0.9,
+    bodyWidth: 9,
+    bodyHeight: 6,
+  },
   maxHearts: 3,
   heartFragmentHalfHearts: 2,
   invulnMs: 800,

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { BASE_HEIGHT, BASE_WIDTH } from '../config';
+import { PLAYER_DIRECTIONS } from '../entities/Player';
 import { addPixelText, createPixelFont } from '../systems/PixelFont';
 import { generatePlaceholderTextures } from '../systems/TextureFactory';
 import { SceneKeys } from './SceneKeys';
@@ -20,6 +21,13 @@ export class PreloadScene extends Phaser.Scene {
     generatePlaceholderTextures(this);
     createPixelFont(this);
     this.drawLoadingBar();
+
+    // Optional real player art (4 rotations). Missing files are tolerated —
+    // the Player falls back to the generated placeholder. See PLAYER_DIRECTIONS.
+    this.load.setPath('assets/sprites');
+    for (const dir of PLAYER_DIRECTIONS) this.load.image(`player-${dir}`, `player-${dir}.png`);
+    // A missing optional asset must not fail the boot.
+    this.load.on('loaderror', () => undefined);
   }
 
   create(): void {

@@ -6,6 +6,14 @@ import { TextureKeys } from '../systems/TextureFactory';
 
 type Facing = 'down' | 'up' | 'left' | 'right';
 
+/** The four directional textures looked for at `assets/sprites/player-<dir>.png`. */
+export const PLAYER_DIRECTIONS = ['down', 'up', 'left', 'right'] as const;
+
+/** True when all four real directional textures were loaded. */
+function hasDirectionalSheet(scene: Phaser.Scene): boolean {
+  return PLAYER_DIRECTIONS.every((d) => scene.textures.exists(`player-${d}`));
+}
+
 /** Move `current` toward `target` by at most `maxDelta` — framerate-safe ramp. */
 function approach(current: number, target: number, maxDelta: number): number {
   if (current < target) return Math.min(current + maxDelta, target);
@@ -24,6 +32,9 @@ type AttackState = 'ready' | 'windup' | 'active' | 'recover';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   private facing: Facing = 'down';
+  private renderedFacing?: Facing;
+  /** Using real directional art (4 rotations) vs the generated placeholder. */
+  private readonly useSheet: boolean;
   private readonly cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   private readonly wasd: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
 
@@ -40,15 +51,30 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private bellReadyAt = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
-    super(scene, x, y, TextureKeys.Player, 'down-0');
+    const useSheet = hasDirectionalSheet(scene);
+    super(scene, x, y, useSheet ? 'player-down' : TextureKeys.Player, useSheet ? undefined : 'down-0');
+    this.useSheet = useSheet;
 
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
     const body = this.body as Phaser.Physics.Arcade.Body;
-    const { width, height, offsetX, offsetY } = playerConfig.body;
-    body.setSize(width, height);
-    body.setOffset(offsetX, offsetY);
+    if (useSheet) {
+      // Scale the real art to a tile-appropriate height, feet near the bottom,
+      // with a small foot collision box (compensated for the sprite scale).
+      const cfg = playerConfig.sprite;
+      const srcW = this.width;
+      const srcH = this.height;
+      const s = cfg.targetHeight / srcH;
+      this.setOrigin(0.5, cfg.originY);
+      this.setScale(s);
+      body.setSize(cfg.bodyWidth / s, cfg.bodyHeight / s);
+      body.setOffset(srcW / 2 - cfg.bodyWidth / s / 2, srcH - cfg.bodyHeight / s - 1);
+    } else {
+      const { width, height, offsetX, offsetY } = playerConfig.body;
+      body.setSize(width, height);
+      body.setOffset(offsetX, offsetY);
+    }
     body.setCollideWorldBounds(true);
     this.setDepth(10);
 
@@ -271,12 +297,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   /** Halt and settle on an idle frame (e.g. while a dialogue is open). */
   halt(): void {
-    const body = this.body as Phaser.Physics.Arcade.Body;
-    body.setVelocity(0, 0);
-    const dirKey = this.facing === 'left' || this.facing === 'right' ? 'side' : this.facing;
-    this.anims.stop();
-    this.setFlipX(this.facing === 'left');
-    this.setFrame(`${dirKey}-0`);
+    (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+    this.renderFacing(false);
   }
 
   update(deltaMs: number): void {
@@ -323,7 +345,19 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       if (Math.abs(ix) > Math.abs(iy)) this.facing = ix < 0 ? 'left' : 'right';
       else this.facing = iy < 0 ? 'up' : 'down';
     }
+    this.renderFacing(moving);
+  }
 
+  /** Update the displayed art for the current facing (sheet or placeholder). */
+  private renderFacing(moving: boolean): void {
+    if (this.useSheet) {
+      // Four distinct rotations, no flip; one static frame per direction.
+      if (this.renderedFacing !== this.facing) {
+        this.renderedFacing = this.facing;
+        this.setTexture(`player-${this.facing}`);
+      }
+      return;
+    }
     const dirKey = this.facing === 'left' || this.facing === 'right' ? 'side' : this.facing;
     this.setFlipX(this.facing === 'left');
     if (moving) {
