@@ -13,6 +13,8 @@ export const TextureKeys = {
   Vine: 'vine',
   Villager: 'villager',
   Slash: 'slash',
+  ThornSprite: 'thorn_sprite',
+  Hearts: 'hearts',
 } as const;
 
 const FRAME = 16; // player frame size, px
@@ -26,6 +28,59 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   generatePlayer(scene);
   generateObjects(scene);
   generateSlash(scene);
+  generateThornSprite(scene);
+  generateHearts(scene);
+}
+
+/** A small spiky thorn-creature (transparent corners). */
+function generateThornSprite(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.ThornSprite)) return;
+  const tex = scene.textures.createCanvas(TextureKeys.ThornSprite, TILE, TILE);
+  if (!tex) return;
+  const ctx = tex.getContext();
+  ctx.clearRect(0, 0, TILE, TILE);
+  // Body blob.
+  rect(ctx, 0, 4, 5, 8, 8, '#3a5e2a');
+  rect(ctx, 0, 5, 4, 6, 1, '#3a5e2a');
+  rect(ctx, 0, 3, 6, 1, 6, '#3a5e2a');
+  rect(ctx, 0, 12, 6, 1, 6, '#3a5e2a');
+  rect(ctx, 0, 5, 12, 6, 1, '#2f4d22');
+  // Thorns.
+  for (const [x, y] of [[7, 2], [2, 7], [13, 6], [4, 13], [11, 13]] as const) rect(ctx, 0, x, y, 2, 2, '#27401d');
+  // Eyes.
+  rect(ctx, 0, 6, 8, 1, 2, '#ffe39a');
+  rect(ctx, 0, 9, 8, 1, 2, '#ffe39a');
+  tex.refresh();
+}
+
+/** Heart pips for the HUD: frames 'full', 'half', 'empty'. */
+function generateHearts(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.Hearts)) return;
+  const w = 7;
+  const h = 6;
+  const tex = scene.textures.createCanvas(TextureKeys.Hearts, w * 3, h);
+  if (!tex) return;
+  const ctx = tex.getContext();
+  ctx.clearRect(0, 0, w * 3, h);
+
+  // Heart mask (7x6).
+  const mask = ['.##.##.', '#######', '#######', '.#####.', '..###..', '...#...'];
+  const draw = (ox: number, colorAt: (x: number) => string): void => {
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (mask[y][x] === '#') rect(ctx, 0, ox + x, y, 1, 1, colorAt(x));
+      }
+    }
+  };
+  draw(0, () => '#d24b4b'); // full
+  draw(w, (x) => (x <= 2 ? '#d24b4b' : '#4a2632')); // half
+  draw(w * 2, () => '#4a2632'); // empty
+  tex.refresh();
+
+  tex.add('full', 0, 0, 0, w, h);
+  tex.add('half', 0, w, 0, w, h);
+  tex.add('empty', 0, w * 2, 0, w, h);
+  tex.refresh();
 }
 
 /** A crescent swing VFX, drawn pointing +x; rotated per facing at runtime. */

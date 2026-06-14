@@ -14,8 +14,18 @@ export interface PlayerConfig {
   walkFrameRate: number;
   /** Arcade physics body, relative to the 16x16 frame. */
   body: { width: number; height: number; offsetX: number; offsetY: number };
+  /** Max hearts (Vigor governs this later). Health is tracked in half-hearts. */
+  maxHearts: number;
+  /** Invulnerability window after taking a hit (i-frames, ms). */
+  invulnMs: number;
+  /** Knockback impulse when hurt (px/sec). */
+  hurtKnockback: number;
+  /** How long input is locked after being hurt, so knockback reads (ms). */
+  hurtLockMs: number;
   /** Melee swing tuning (DESIGN.md §9, §14). */
   attack: {
+    /** Damage dealt per connecting swing (Might governs this later). */
+    damage: number;
     /** Telegraph before the hitbox goes live (ms). */
     windupMs: number;
     /** How long the hitbox is live (ms). */
@@ -43,7 +53,12 @@ export const playerConfig: PlayerConfig = {
   walkFrameRate: 8,
   // A short body near the feet reads better for top-down overlap than the full sprite.
   body: { width: 8, height: 7, offsetX: 4, offsetY: 8 },
+  maxHearts: 3,
+  invulnMs: 800,
+  hurtKnockback: 170,
+  hurtLockMs: 180,
   attack: {
+    damage: 1,
     windupMs: 70,
     activeMs: 90,
     recoverMs: 130,

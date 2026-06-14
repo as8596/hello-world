@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { playerConfig } from '../data/playerConfig';
+import { eventBus } from '../systems/EventBus';
 import { TextureKeys } from '../systems/TextureFactory';
 
 type Facing = 'down' | 'up' | 'left' | 'right';
@@ -28,6 +29,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private attackState: AttackState = 'ready';
   private bufferedAttackAt = -Infinity;
   private readonly hitTargets = new Set<unknown>();
+
+  /** Health, tracked in half-hearts (maxHearts * 2). */
+  private readonly maxHp = playerConfig.maxHearts * 2;
+  private hp = playerConfig.maxHearts * 2;
+  private invulnUntil = 0;
+  private controlLockUntil = 0;
+  private dead = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, TextureKeys.Player, 'down-0');
@@ -69,6 +77,68 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     make('player-walk-down', ['down-0', 'down-1']);
     make('player-walk-side', ['side-0', 'side-1']);
     make('player-walk-up', ['up-0', 'up-1']);
+  }
+
+  // --- Health -------------------------------------------------------------
+
+  get heartsHp(): number {
+    return this.hp;
+  }
+
+  get heartsMax(): number {
+    return this.maxHp;
+  }
+
+  get isDead(): boolean {
+    return this.dead;
+  }
+
+  get invulnerable(): boolean {
+    return this.scene.time.now < this.invulnUntil;
+  }
+
+  /** Broadcast current health (e.g. to refresh the HUD on spawn). */
+  emitHealth(): void {
+    eventBus.emit('playerHealth', { hp: this.hp, max: this.maxHp });
+  }
+
+  /**
+   * Take `amount` half-hearts of damage from a source position. No-op while
+   * invulnerable or dead. Applies i-frames, knockback, a hurt blink, and emits
+   * `playerHealth` / `playerDied`. Returns true if the hit landed.
+   */
+  takeHit(amount: number, fromX: number, fromY: number): boolean {
+    if (this.dead || this.invulnerable) return false;
+    const now = this.scene.time.now;
+    this.hp = Math.max(0, this.hp - amount);
+    this.invulnUntil = now + playerConfig.invulnMs;
+    this.controlLockUntil = now + playerConfig.hurtLockMs;
+
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    const angle = Phaser.Math.Angle.Between(fromX, fromY, this.x, this.y);
+    body.setVelocity(
+      Math.cos(angle) * playerConfig.hurtKnockback,
+      Math.sin(angle) * playerConfig.hurtKnockback,
+    );
+
+    this.blink();
+    eventBus.emit('playerHealth', { hp: this.hp, max: this.maxHp });
+    if (this.hp <= 0 && !this.dead) {
+      this.dead = true;
+      eventBus.emit('playerDied', undefined);
+    }
+    return true;
+  }
+
+  private blink(): void {
+    this.scene.tweens.add({
+      targets: this,
+      alpha: 0.35,
+      yoyo: true,
+      repeat: Math.floor(playerConfig.invulnMs / 120),
+      duration: 120,
+      onComplete: () => this.setAlpha(1),
+    });
   }
 
   // --- Attack -------------------------------------------------------------
@@ -184,6 +254,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.cursors.right.isDown || this.wasd.right.isDown) ix += 1;
     if (this.cursors.up.isDown || this.wasd.up.isDown) iy -= 1;
     if (this.cursors.down.isDown || this.wasd.down.isDown) iy += 1;
+
+    // While knockback-locked (just hurt), ignore input so the fling reads;
+    // friction then eases the player to a stop.
+    if (this.scene.time.now < this.controlLockUntil) {
+      ix = 0;
+      iy = 0;
+    }
 
     // Diagonal normalization so diagonals aren't faster (§14 P0).
     if (ix !== 0 && iy !== 0) {

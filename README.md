@@ -64,8 +64,10 @@ public/assets/ sprites / tilesets / maps (placeholder art generated at runtime f
 ## Status
 
 Following the MVP build order in `DESIGN.md` §13. **Milestones A & B are done**
-(it runs, you move, the overworld is a collidable tilemap, and the world reacts
-— read villagers, cut the vine gate to open the lane). **Milestone C is
-underway**: a directional melee swing with wind-up/active/recovery timing,
-input buffering, and hit-stop now cuts the vine gate. Enemies, dodge, the
-handbell, and the bell-ringing payoff come next.
+(it runs, you move, the overworld is a collidable tilemap, the world reacts).
+**Milestone C is underway**: a directional melee swing (wind-up/active/recovery,
+input buffering, hit-stop) cuts vines and fights **thorn-sprites** — enemies
+with a perception + chase/leash FSM, HP, hit-flash, and a spore-burst death.
+You have **hearts**, take contact damage with i-frames + knockback, and on
+death the scene restarts. Dodge, the handbell, and the bell-ringing payoff
+come next.

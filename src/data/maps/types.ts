@@ -15,12 +15,14 @@ export const Tile = {
 export type Tile = (typeof Tile)[keyof typeof Tile];
 
 /** Object kinds that can be hand-placed on the map via legend characters. */
-export type ObjectType = 'vine' | 'villager';
+export type ObjectType = 'vine' | 'villager' | 'enemy';
 
 export interface ObjectSpec {
   type: ObjectType;
   /** Optional grouping tag (e.g. 'gate' vs 'pocket' vines). */
   group?: string;
+  /** For enemies: which EnemyDef id to spawn. */
+  enemyId?: string;
 }
 
 /** A resolved object placement with a pixel-center position. */

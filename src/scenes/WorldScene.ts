@@ -1,11 +1,14 @@
 import Phaser from 'phaser';
 import { sleepingVillagerLines } from '../data/dialogue/villagers';
+import { ENEMIES } from '../data/enemies';
 import { thistledownMap } from '../data/maps/thistledown';
 import { playerConfig } from '../data/playerConfig';
 import { Destructible } from '../entities/Destructible';
+import { EnemyBase } from '../entities/EnemyBase';
 import { Interactable } from '../entities/Interactable';
 import { Player } from '../entities/Player';
 import { addPixelText } from '../systems/PixelFont';
+import { TextureKeys } from '../systems/TextureFactory';
 import { buildTilemap } from '../systems/TilemapBuilder';
 import { eventBus } from '../systems/EventBus';
 import { worldState } from '../systems/WorldState';
@@ -17,22 +20,23 @@ const INTERACT_RADIUS = 22;
 
 /**
  * WorldScene — the playable overworld. Builds the Thistledown tilemap, spawns
- * the player plus hand-placed objects (sword-cuttable vines, readable
- * villagers), and routes everything through the WorldState/EventBus spine.
- * Proves Milestone C.5 ("swinging destroys vines").
+ * the player, vines, villagers, and enemies, and runs the combat loop (sword
+ * vs. enemies/vines, enemy contact damage, hit-stop, death -> restart) through
+ * the WorldState/EventBus spine. Proves Milestone C.6 ("you can fight and be hurt").
  */
 export class WorldScene extends Phaser.Scene {
   private player!: Player;
   private dialogue!: DialogueBox;
   private vines: Destructible[] = [];
   private interactables: Interactable[] = [];
+  private enemies: EnemyBase[] = [];
+  private hearts: Phaser.GameObjects.Image[] = [];
   private interactKeys: Phaser.Input.Keyboard.Key[] = [];
   private attackKeys: Phaser.Input.Keyboard.Key[] = [];
   private promptText!: Phaser.GameObjects.BitmapText;
   private promptBg!: Phaser.GameObjects.Rectangle;
   private gateRemaining = 0;
-  /** Time (scene clock) until which the world is hit-stop frozen. */
-  private freezeUntil = 0;
+  private dyingPlayer = false;
 
   constructor() {
     super(SceneKeys.World);
@@ -41,8 +45,10 @@ export class WorldScene extends Phaser.Scene {
   create(): void {
     this.vines = [];
     this.interactables = [];
+    this.enemies = [];
+    this.hearts = [];
     this.gateRemaining = 0;
-    this.freezeUntil = 0;
+    this.dyingPlayer = false;
 
     const map = buildTilemap(this, thistledownMap);
     this.physics.world.setBounds(0, 0, map.widthPx, map.heightPx);
@@ -57,6 +63,11 @@ export class WorldScene extends Phaser.Scene {
         });
         this.vines.push(vine);
         if (obj.group === 'gate') this.gateRemaining++;
+      } else if (obj.type === 'enemy') {
+        const def = ENEMIES[obj.enemyId ?? ''];
+        if (def) {
+          this.enemies.push(new EnemyBase(this, obj.x, obj.y, def, { onDeath: (e) => this.onEnemyDeath(e) }));
+        }
       } else {
         const lines = sleepingVillagerLines[villagerIndex % sleepingVillagerLines.length];
         villagerIndex++;
@@ -68,12 +79,15 @@ export class WorldScene extends Phaser.Scene {
     this.player = new Player(this, map.spawn.x, map.spawn.y);
     this.physics.add.collider(this.player, map.layer);
     this.physics.add.collider(this.player, this.vines);
+    this.physics.add.collider(this.enemies, map.layer);
+    this.physics.add.overlap(this.player, this.enemies, this.onPlayerTouchEnemy, undefined, this);
 
     // Camera: bounded, follows with a small dead-zone + slight lerp (§14 P1).
     const cam = this.cameras.main;
     cam.setBounds(0, 0, map.widthPx, map.heightPx);
     cam.startFollow(this.player, true, 0.12, 0.12);
     cam.setDeadzone(36, 28);
+    cam.fadeIn(250);
 
     this.dialogue = new DialogueBox(this);
 
@@ -86,6 +100,8 @@ export class WorldScene extends Phaser.Scene {
       .setDepth(1501)
       .setVisible(false);
 
+    this.buildHearts();
+
     const kb = this.input.keyboard!;
     this.interactKeys = [
       kb.addKey(Phaser.Input.Keyboard.KeyCodes.E),
@@ -95,30 +111,32 @@ export class WorldScene extends Phaser.Scene {
       kb.addKey(Phaser.Input.Keyboard.KeyCodes.J),
       kb.addKey(Phaser.Input.Keyboard.KeyCodes.X),
     ];
-    // Mouse/touch also swings.
     this.input.on('pointerdown', () => {
-      if (!this.dialogue.isOpen && this.time.now >= this.freezeUntil) {
+      if (!this.dyingPlayer && !this.dialogue.isOpen && !this.physics.world.isPaused) {
         this.player.queueAttack(this.time.now);
       }
     });
 
     this.addControlHint();
 
-    // Spine smoke-test (DESIGN.md §16).
+    // Spine wiring (DESIGN.md §16): keep the HUD in sync, handle death.
+    const offHealth = eventBus.on('playerHealth', (p) => this.updateHearts((p as { hp: number }).hp));
+    const offDied = eventBus.on('playerDied', () => this.handlePlayerDeath());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      offHealth();
+      offDied();
+    });
+
     worldState.addCounter('world:entered');
-    eventBus.once('world:ready', () => console.log('[Brackenvale] World ready.'));
     eventBus.emit('world:ready', undefined);
   }
 
   update(_time: number, deltaMs: number): void {
+    if (this.dyingPlayer) return;
+    // Hit-stop: while physics is paused on a connecting hit, freeze everything.
+    if (this.physics.world.isPaused) return;
+
     const now = this.time.now;
-
-    // Hit-stop: a few frozen frames on a connecting hit (§14 P0).
-    if (now < this.freezeUntil) {
-      this.player.halt();
-      return;
-    }
-
     const interactPressed = this.interactKeys.some((k) => Phaser.Input.Keyboard.JustDown(k));
     const attackPressed = this.attackKeys.some((k) => Phaser.Input.Keyboard.JustDown(k));
 
@@ -132,6 +150,7 @@ export class WorldScene extends Phaser.Scene {
     }
 
     this.player.update(deltaMs);
+    for (const enemy of this.enemies) enemy.think(this.player.x, this.player.y);
 
     if (attackPressed) this.player.queueAttack(now);
     this.resolveAttackHits();
@@ -141,27 +160,91 @@ export class WorldScene extends Phaser.Scene {
     if (interactPressed && target) this.act(target);
   }
 
-  /** While the swing is live, cut any vine the hitbox overlaps (once per swing). */
+  /** While the swing is live, hit any vine/enemy the hitbox overlaps (once each). */
   private resolveAttackHits(): void {
     if (!this.player.isAttacking) return;
     const rect = this.player.getHitRect();
     if (!rect) return;
+
     for (const vine of this.vines) {
-      if (!vine.active) continue;
       if (
+        vine.active &&
         Phaser.Geom.Intersects.RectangleToRectangle(rect, vine.getBounds()) &&
         this.player.registerHit(vine)
       ) {
-        vine.hit(1);
+        vine.hit(playerConfig.attack.damage);
+        this.onHitConnected();
+      }
+    }
+
+    for (const enemy of this.enemies) {
+      if (
+        !enemy.isDead &&
+        Phaser.Geom.Intersects.RectangleToRectangle(rect, enemy.getBounds()) &&
+        this.player.registerHit(enemy)
+      ) {
+        enemy.takeDamage(playerConfig.attack.damage, this.player.x, this.player.y);
         this.onHitConnected();
       }
     }
   }
 
-  /** Shared reaction to a melee hit landing: hit-stop (knockback once enemies exist). */
+  /** Shared reaction to a melee hit landing: a few frozen frames (§14 P0). */
   private onHitConnected(): void {
-    this.freezeUntil = this.time.now + playerConfig.attack.hitStopMs;
+    if (this.physics.world.isPaused) return;
+    this.physics.world.pause();
+    this.time.delayedCall(playerConfig.attack.hitStopMs, () => {
+      if (this.scene.isActive() && this.physics.world.isPaused) this.physics.world.resume();
+    });
   }
+
+  private onPlayerTouchEnemy: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (_player, enemyObj) => {
+    const enemy = enemyObj as unknown as EnemyBase;
+    if (enemy.isDead) return;
+    if (this.player.takeHit(enemy.def.contactDamage, enemy.x, enemy.y)) {
+      this.cameras.main.shake(110, 0.004); // a little screenshake on taking damage (§14 P1)
+    }
+  };
+
+  private onEnemyDeath(dead: EnemyBase): void {
+    const idx = this.enemies.indexOf(dead);
+    if (idx >= 0) this.enemies.splice(idx, 1);
+    worldState.addCounter('enemies_killed');
+  }
+
+  private handlePlayerDeath(): void {
+    if (this.dyingPlayer) return;
+    this.dyingPlayer = true;
+    if (this.physics.world.isPaused) this.physics.world.resume();
+    this.player.halt();
+    this.cameras.main.fadeOut(450, 0, 0, 0);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.restart());
+  }
+
+  // --- Hearts HUD ---------------------------------------------------------
+
+  private buildHearts(): void {
+    const count = this.player.heartsMax / 2;
+    for (let i = 0; i < count; i++) {
+      this.hearts.push(
+        this.add
+          .image(5 + i * 8, 5, TextureKeys.Hearts, 'full')
+          .setOrigin(0, 0)
+          .setScrollFactor(0)
+          .setDepth(1800),
+      );
+    }
+    this.updateHearts(this.player.heartsHp);
+  }
+
+  private updateHearts(hp: number): void {
+    for (let i = 0; i < this.hearts.length; i++) {
+      const v = Phaser.Math.Clamp(hp - i * 2, 0, 2);
+      this.hearts[i].setFrame(v >= 2 ? 'full' : v === 1 ? 'half' : 'empty');
+    }
+  }
+
+  // --- Interaction --------------------------------------------------------
 
   /** Nearest readable villager within reach, or null. */
   private nearestActionable(): Interactable | null {
