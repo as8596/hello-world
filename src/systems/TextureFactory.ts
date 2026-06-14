@@ -9,41 +9,80 @@ import Phaser from 'phaser';
 
 export const TextureKeys = {
   Player: 'player',
-  Ground: 'ground',
+  Tiles: 'tiles',
 } as const;
 
 const FRAME = 16; // player frame size, px
+const TILE = 16; // tileset tile size, px
 
 type Dir = 'down' | 'side' | 'up';
 
 /** Generate every placeholder texture. Safe to call once during preload. */
 export function generatePlaceholderTextures(scene: Phaser.Scene): void {
-  generateGround(scene);
+  generateTileset(scene);
   generatePlayer(scene);
 }
 
-function generateGround(scene: Phaser.Scene): void {
-  if (scene.textures.exists(TextureKeys.Ground)) return;
-  const size = 16;
-  const tex = scene.textures.createCanvas(TextureKeys.Ground, size, size);
+/**
+ * Tileset laid out left-to-right so tile index matches column:
+ * 0 grass · 1 path · 2 wall/tree · 3 water · 4 vine. Matches the Tile enum.
+ */
+function generateTileset(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.Tiles)) return;
+  const count = 5;
+  const tex = scene.textures.createCanvas(TextureKeys.Tiles, TILE * count, TILE);
   if (!tex) return;
   const ctx = tex.getContext();
 
-  ctx.fillStyle = '#3f6b43';
-  ctx.fillRect(0, 0, size, size);
-  // Subtle checker + a few darker/lighter tufts so motion is visible.
-  ctx.fillStyle = '#3a6240';
-  ctx.fillRect(8, 0, 8, 8);
-  ctx.fillRect(0, 8, 8, 8);
-  ctx.fillStyle = '#34593a';
-  for (const [x, y] of [[2, 3], [11, 5], [6, 11], [13, 13]] as const) {
-    ctx.fillRect(x, y, 1, 2);
-  }
-  ctx.fillStyle = '#4a7d4f';
-  for (const [x, y] of [[5, 6], [12, 2], [3, 12], [9, 9]] as const) {
-    ctx.fillRect(x, y, 1, 1);
-  }
+  drawGrass(ctx, 0 * TILE);
+  drawPath(ctx, 1 * TILE);
+  drawWall(ctx, 2 * TILE);
+  drawWater(ctx, 3 * TILE);
+  drawVine(ctx, 4 * TILE);
+
   tex.refresh();
+}
+
+function rect(ctx: CanvasRenderingContext2D, ox: number, x: number, y: number, w: number, h: number, color: string): void {
+  ctx.fillStyle = color;
+  ctx.fillRect(ox + x, y, w, h);
+}
+
+function drawGrass(ctx: CanvasRenderingContext2D, ox: number): void {
+  rect(ctx, ox, 0, 0, TILE, TILE, '#3f6b43');
+  rect(ctx, ox, 8, 0, 8, 8, '#3a6240');
+  rect(ctx, ox, 0, 8, 8, 8, '#3a6240');
+  for (const [x, y] of [[2, 3], [11, 5], [6, 11], [13, 13]] as const) rect(ctx, ox, x, y, 1, 2, '#34593a');
+  for (const [x, y] of [[5, 6], [12, 2], [3, 12], [9, 9]] as const) rect(ctx, ox, x, y, 1, 1, '#4a7d4f');
+}
+
+function drawPath(ctx: CanvasRenderingContext2D, ox: number): void {
+  rect(ctx, ox, 0, 0, TILE, TILE, '#8a6b45');
+  for (const [x, y] of [[3, 4], [10, 6], [6, 11], [13, 2], [9, 13]] as const) rect(ctx, ox, x, y, 1, 1, '#75582f');
+  for (const [x, y] of [[5, 7], [12, 10], [2, 12]] as const) rect(ctx, ox, x, y, 1, 1, '#a08254');
+}
+
+function drawWall(ctx: CanvasRenderingContext2D, ox: number): void {
+  // A leafy tree/hedge block.
+  rect(ctx, ox, 0, 0, TILE, TILE, '#1f3a26');
+  rect(ctx, ox, 2, 2, 12, 11, '#2c5036');
+  rect(ctx, ox, 4, 1, 8, 3, '#35613f');
+  for (const [x, y] of [[3, 4], [10, 5], [6, 8], [11, 10], [5, 11]] as const) rect(ctx, ox, x, y, 2, 2, '#3f7049');
+  rect(ctx, ox, 7, 13, 2, 3, '#4a3527'); // trunk
+}
+
+function drawWater(ctx: CanvasRenderingContext2D, ox: number): void {
+  rect(ctx, ox, 0, 0, TILE, TILE, '#2f6fb0');
+  rect(ctx, ox, 0, 0, TILE, 8, '#3a7cc0');
+  for (const y of [3, 9, 13] as const) rect(ctx, ox, 2, y, 6, 1, '#6aa6da');
+  for (const y of [6, 11] as const) rect(ctx, ox, 9, y, 5, 1, '#6aa6da');
+}
+
+function drawVine(ctx: CanvasRenderingContext2D, ox: number): void {
+  rect(ctx, ox, 0, 0, TILE, TILE, '#2c4a26');
+  // Tangled brambles.
+  for (const [x, y] of [[2, 2], [6, 4], [10, 2], [13, 6], [4, 9], [8, 11], [12, 12], [3, 13]] as const) rect(ctx, ox, x, y, 2, 2, '#5b7d33');
+  for (const [x, y] of [[5, 6], [9, 8], [11, 4], [2, 11]] as const) rect(ctx, ox, x, y, 1, 1, '#7fa64a');
 }
 
 function generatePlayer(scene: Phaser.Scene): void {

@@ -1,19 +1,15 @@
 import Phaser from 'phaser';
+import { thistledownMap } from '../data/maps/thistledown';
 import { Player } from '../entities/Player';
-import { TextureKeys } from '../systems/TextureFactory';
+import { buildTilemap } from '../systems/TilemapBuilder';
 import { eventBus } from '../systems/EventBus';
 import { worldState } from '../systems/WorldState';
 import { SceneKeys } from './SceneKeys';
 
-// Empty placeholder overworld, several screens wide so camera-follow is
-// meaningful. A real Tiled map + collision layer arrives in step 3.
-const WORLD_WIDTH = 960;
-const WORLD_HEIGHT = 540;
-
 /**
- * WorldScene — the playable overworld. Currently: a tiled ground, a
- * controllable Player with 8-dir delta-time movement, and a camera that
- * follows. Proves Milestone A.2 ("you walk around an empty map").
+ * WorldScene — the playable overworld. Builds the Thistledown tilemap with a
+ * collision layer, spawns the Player on it, and follows with a bounded camera.
+ * Proves Milestone B.3 ("follow the path and can't clip walls").
  */
 export class WorldScene extends Phaser.Scene {
   private player!: Player;
@@ -23,21 +19,18 @@ export class WorldScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    const map = buildTilemap(this, thistledownMap);
 
-    // Tiled ground so movement reads against the world.
-    this.add
-      .tileSprite(0, 0, WORLD_WIDTH, WORLD_HEIGHT, TextureKeys.Ground)
-      .setOrigin(0, 0)
-      .setDepth(-10);
+    this.physics.world.setBounds(0, 0, map.widthPx, map.heightPx);
 
     Player.registerAnims(this);
-    this.player = new Player(this, WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
+    this.player = new Player(this, map.spawn.x, map.spawn.y);
+    this.physics.add.collider(this.player, map.layer);
 
     // Camera: bounded, follows with a small dead-zone + slight lerp (§14 P1),
     // roundPixels for crisp pixels.
     const cam = this.cameras.main;
-    cam.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    cam.setBounds(0, 0, map.widthPx, map.heightPx);
     cam.startFollow(this.player, true, 0.12, 0.12);
     cam.setDeadzone(36, 28);
 

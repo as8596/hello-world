@@ -61,6 +61,8 @@ public/assets/ sprites / tilesets / maps (placeholder art generated at runtime f
 
 ## Status
 
-Following the MVP build order in `DESIGN.md` §13. **Milestone A** is done — the
-game runs and you can walk a character around an empty map with the camera
-following. Combat, the handbell, enemies, and the bell-ringing payoff come next.
+Following the MVP build order in `DESIGN.md` §13. **Milestone A** is done (it
+runs and you can move) and **Milestone B is underway**: the Thistledown
+overworld is now a real tilemap with collision — you follow a carved forest
+path north and can't walk through trees, water, or vines. Interactables,
+combat, the handbell, enemies, and the bell-ringing payoff come next.
