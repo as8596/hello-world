@@ -23,6 +23,19 @@ export interface EnemyDef {
   armored?: boolean;
   /** Handbell can stun it (default true). */
   stunnable?: boolean;
+  /**
+   * Optional real 8-direction art: textures `<keyPrefix>-<dir>` (loaded in
+   * PreloadScene). Used in place of `texture` when all eight are present; the
+   * art faces the way it moves. Sizes are in the art's native pixels.
+   */
+  directional?: {
+    keyPrefix: string;
+    /** Display scale applied to the source art (it's larger than the world size). */
+    displayScale: number;
+    /** Collision/hit body, in world px (centered on the sprite). */
+    bodyWidth: number;
+    bodyHeight: number;
+  };
   attack?: {
     type: 'lunge' | 'overhead' | 'charge' | 'projectile';
     windupMs: number;
@@ -45,6 +58,9 @@ export const thornSprite: EnemyDef = {
   aggroRange: 80 * RENDER_SCALE,
   leashRange: 150 * RENDER_SCALE,
   stunnable: true,
+  // 124px rotations -> displayed ~0.55x so the imp reads as small (~half the
+  // player); body in world px covers its central mass.
+  directional: { keyPrefix: 'thorn', displayScale: 0.55, bodyWidth: 26, bodyHeight: 22 },
 };
 
 export const ENEMIES: Record<string, EnemyDef> = {

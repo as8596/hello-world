@@ -1,0 +1,36 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "f8bea850-6ae6-4408-8fbf-c2db37e211f8",
+        "name": "Pixel art game sprite of",
+        "prompt": "Pixel art game sprite of a \"thorn-sprite,\" a small mischievous forest creature for a 2D action RPG. A palm-sized imp woven from brambles and twigs, with a round mossy body, spindly thorny limbs, and a few sharp thorns curving along its back. Big round glowing eyes (warm amber-green), curious, slightly grumpy expression \u2014 territorial but not scary, like a grumpy garden gnome made of weeds. A tiny thistle tuft or leaf sprouting from its head. Caught in a low, springy crouch as if about to lunge. Cozy storybook fantasy tone. Limited, harmonious palette of mossy greens, thorn-brown, with a small pop of dusty-rose thistle. Soft warm sunlit shading, clean readable silhouette.",
+        "size": {
+          "width": 124,
+          "height": 124
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "high top-down",
+        "created_at": "2026-06-14T18:50:04.950793+00:00"
+      },
+      "folder": "Pixel_art_game_sprite_of",
+      "frames": {
+        "rotations": {
+          "south": "Pixel_art_game_sprite_of/rotations/south.png",
+          "south-east": "Pixel_art_game_sprite_of/rotations/south-east.png",
+          "east": "Pixel_art_game_sprite_of/rotations/east.png",
+          "north-east": "Pixel_art_game_sprite_of/rotations/north-east.png",
+          "north": "Pixel_art_game_sprite_of/rotations/north.png",
+          "north-west": "Pixel_art_game_sprite_of/rotations/north-west.png",
+          "west": "Pixel_art_game_sprite_of/rotations/west.png",
+          "south-west": "Pixel_art_game_sprite_of/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.0",
+  "export_date": "2026-06-14T18:56:29.432105"
+}

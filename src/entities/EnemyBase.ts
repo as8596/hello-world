@@ -2,9 +2,16 @@ import Phaser from 'phaser';
 import type { EnemyDef } from '../data/enemies';
 import { playerConfig } from '../data/playerConfig';
 import { RENDER_SCALE as RS } from '../data/render';
+import { dir8FromVector, type SpriteDir, SPRITE_DIRS } from '../data/spriteDirections';
 import { eventBus } from '../systems/EventBus';
 import { addPixelText } from '../systems/PixelFont';
 import { TextureKeys } from '../systems/TextureFactory';
+
+/** True when every 8-direction texture for this def's directional art is loaded. */
+function hasDirectionalArt(scene: Phaser.Scene, def: EnemyDef): boolean {
+  if (!def.directional) return false;
+  return SPRITE_DIRS.every((d) => scene.textures.exists(`${def.directional!.keyPrefix}-${d}`));
+}
 
 type EnemyState = 'idle' | 'notice' | 'chase' | 'leash' | 'stunned' | 'dead';
 
@@ -37,21 +44,53 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
   private stunBar?: Phaser.GameObjects.Rectangle;
   private wobble?: Phaser.Tweens.Tween;
 
+  /** Using real 8-direction art (faces its heading) vs the placeholder. */
+  private readonly useDir: boolean;
+  private renderedDir?: SpriteDir;
+
   constructor(scene: Phaser.Scene, x: number, y: number, def: EnemyDef, opts: EnemyOptions = {}) {
-    super(scene, x, y, def.texture);
+    const useDir = hasDirectionalArt(scene, def);
+    super(scene, x, y, useDir ? `${def.directional!.keyPrefix}-south` : def.texture);
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
     this.def = def;
+    this.useDir = useDir;
     this.hp = def.hp;
     this.home = { x, y };
     this.onDeath = opts.onDeath;
 
     const body = this.body as Phaser.Physics.Arcade.Body;
-    body.setSize(10 * RS, 10 * RS);
-    body.setOffset(3 * RS, 4 * RS);
+    if (useDir) {
+      const dc = def.directional!;
+      // Smooth the downscaled art so it doesn't shimmer as it moves.
+      for (const d of SPRITE_DIRS) {
+        scene.textures.get(`${dc.keyPrefix}-${d}`).setFilter(Phaser.Textures.FilterMode.LINEAR);
+      }
+      this.setScale(dc.displayScale);
+      // Body in world px; source size compensates for the display scale, centered
+      // (origin stays at the sprite center so the VFX offsets are unchanged).
+      const bw = dc.bodyWidth / dc.displayScale;
+      const bh = dc.bodyHeight / dc.displayScale;
+      body.setSize(bw, bh);
+      body.setOffset(this.width * 0.5 - bw / 2, this.height * 0.5 - bh / 2);
+    } else {
+      body.setSize(10 * RS, 10 * RS);
+      body.setOffset(3 * RS, 4 * RS);
+    }
     body.setCollideWorldBounds(true);
     this.setDepth(7);
+  }
+
+  /** Face the way we're moving (8-direction art only); keep facing when still. */
+  private renderFacing(): void {
+    if (!this.useDir) return;
+    const v = (this.body as Phaser.Physics.Arcade.Body).velocity;
+    if (v.x === 0 && v.y === 0) return;
+    const dir = dir8FromVector(v.x, v.y);
+    if (dir === this.renderedDir) return;
+    this.renderedDir = dir;
+    this.setTexture(`${this.def.directional!.keyPrefix}-${dir}`);
   }
 
   get isDead(): boolean {
@@ -180,6 +219,8 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
       case 'dead':
         break;
     }
+
+    this.renderFacing();
   }
 
   private moveToward(tx: number, ty: number, speed: number): void {

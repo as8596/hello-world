@@ -1,9 +1,10 @@
 /**
  * gif-to-sheets — convert the player's running-animation GIFs into Phaser sprite
  * sheets (Phaser can't load animated GIFs). For each `run-<dir>.gif` in
- * public/assets/sprites/raw/, writes a horizontal strip `player-run-<dir>.png`
- * (all frames in a row) plus a shared `player-run.json` manifest describing the
- * frame size / count, which PreloadScene reads.
+ * public/assets/sprites/player/raw/, writes a horizontal strip
+ * public/assets/sprites/player/run/<dir>.png (all frames in a row) plus a
+ * shared `manifest.json` describing the frame size / count, which PreloadScene
+ * reads.
  *
  * Run: `npm run sprites`. Missing directions are skipped (the game falls back to
  * the static directional art while moving), so this is safe to run partially.
@@ -12,15 +13,16 @@
  * composite onto a persistent canvas following the GIF disposal rules so every
  * emitted frame is the full, correct image.
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GifReader } from 'omggif';
 import { PNG } from 'pngjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SPRITES = join(HERE, '..', 'public', 'assets', 'sprites');
-const RAW = join(SPRITES, 'raw');
+const PLAYER = join(HERE, '..', 'public', 'assets', 'sprites', 'player');
+const RAW = join(PLAYER, 'raw');
+const OUT = join(PLAYER, 'run');
 
 // Compass directions, matching PLAYER_SPRITE_DIRS / the static art file names.
 const DIRS = ['north', 'south', 'east', 'west', 'north-east', 'north-west', 'south-east', 'south-west'];
@@ -83,11 +85,12 @@ let frameW = 0;
 let frameH = 0;
 let frameCount = 0;
 const done = [];
+mkdirSync(OUT, { recursive: true });
 
 for (const dir of DIRS) {
   const inPath = join(RAW, `run-${dir}.gif`);
   if (!existsSync(inPath)) {
-    console.warn(`- skip ${dir}: no ${inPath.replace(RAW + '/', 'raw/')}`);
+    console.warn(`- skip ${dir}: no raw/run-${dir}.gif`);
     continue;
   }
   const { width, height, frames } = decodeGifFrames(readFileSync(inPath));
@@ -102,7 +105,7 @@ for (const dir of DIRS) {
     );
     process.exit(1);
   }
-  writeSheet(width, height, frames, join(SPRITES, `player-run-${dir}.png`));
+  writeSheet(width, height, frames, join(OUT, `${dir}.png`));
   done.push(dir);
   console.log(`✓ ${dir}: ${frames.length} frames @ ${width}x${height}`);
 }
@@ -113,8 +116,8 @@ if (done.length === 0) {
 }
 
 const manifest = { frameWidth: frameW, frameHeight: frameH, frames: frameCount, dirs: done };
-writeFileSync(join(SPRITES, 'player-run.json'), `${JSON.stringify(manifest, null, 2)}\n`);
-console.log(`\nmanifest -> player-run.json: ${JSON.stringify(manifest)}`);
+writeFileSync(join(OUT, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+console.log(`\nmanifest -> player/run/manifest.json: ${JSON.stringify(manifest)}`);
 if (done.length < DIRS.length) {
   console.log(`(${DIRS.length - done.length} direction(s) missing — they'll use static art while moving.)`);
 }

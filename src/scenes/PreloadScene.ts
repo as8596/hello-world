@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { BASE_HEIGHT, BASE_WIDTH } from '../config';
 import { RENDER_SCALE as RS } from '../data/render';
+import { SPRITE_DIRS } from '../data/spriteDirections';
 import { PLAYER_SPRITE_DIRS } from '../entities/Player';
 import { addPixelText, createPixelFont } from '../systems/PixelFont';
 import { generatePlaceholderTextures } from '../systems/TextureFactory';
@@ -23,28 +24,33 @@ export class PreloadScene extends Phaser.Scene {
     createPixelFont(this);
     this.drawLoadingBar();
 
-    // Optional real player art (8 rotations). Missing files are tolerated —
-    // the Player falls back to the generated placeholder.
-    this.load.setPath('assets/sprites');
+    // Optional real player art (8 rotations) in public/assets/sprites/player/.
+    // Missing files are tolerated — the Player falls back to the placeholder.
     for (const d of PLAYER_SPRITE_DIRS) this.load.image(`player-${d.key}`, d.file);
 
-    // Optional running-animation sheets (generated from GIFs by `npm run
+    // Player running-animation sheets (generated from GIFs by `npm run
     // sprites`). The frame size lives in the manifest, so load that first and
     // queue the sheets when it arrives — Phaser processes loads added mid-run.
-    this.load.json('player-run-manifest', 'player-run.json');
+    this.load.json('player-run-manifest', 'assets/sprites/player/run/manifest.json');
     this.load.once(
       'filecomplete-json-player-run-manifest',
       (_key: string, _type: string, data: unknown) => {
         const m = data as { frameWidth: number; frameHeight: number; dirs?: string[] } | undefined;
         if (!m || !Array.isArray(m.dirs)) return;
         for (const dir of m.dirs) {
-          this.load.spritesheet(`player-run-${dir}`, `player-run-${dir}.png`, {
+          this.load.spritesheet(`player-run-${dir}`, `assets/sprites/player/run/${dir}.png`, {
             frameWidth: m.frameWidth,
             frameHeight: m.frameHeight,
           });
         }
       },
     );
+
+    // Optional thorn-sprite 8-direction art. If all eight load, the enemy uses
+    // it in place of the procedural placeholder (EnemyBase / enemies.ts).
+    for (const dir of SPRITE_DIRS) {
+      this.load.image(`thorn-${dir}`, `assets/sprites/thorn-sprite/rotations/${dir}.png`);
+    }
 
     // A missing optional asset must not fail the boot.
     this.load.on('loaderror', () => undefined);

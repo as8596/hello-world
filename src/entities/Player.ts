@@ -15,16 +15,16 @@ type SpriteDir =
   | 'south-east'
   | 'south-west';
 
-/** Real 8-direction art: texture key `player-<dir>` <- `assets/sprites/<dir>.png`. */
+/** Real 8-direction art: texture key `player-<dir>` <- `player/rotations/<dir>.png`. */
 export const PLAYER_SPRITE_DIRS: { key: SpriteDir; file: string }[] = [
-  { key: 'north', file: 'north.png' },
-  { key: 'south', file: 'south.png' },
-  { key: 'east', file: 'east.png' },
-  { key: 'west', file: 'west.png' },
-  { key: 'north-east', file: 'north-east.png' },
-  { key: 'north-west', file: 'north-west.png' },
-  { key: 'south-east', file: 'south-east.png' },
-  { key: 'south-west', file: 'south-west.png' },
+  { key: 'north', file: 'assets/sprites/player/rotations/north.png' },
+  { key: 'south', file: 'assets/sprites/player/rotations/south.png' },
+  { key: 'east', file: 'assets/sprites/player/rotations/east.png' },
+  { key: 'west', file: 'assets/sprites/player/rotations/west.png' },
+  { key: 'north-east', file: 'assets/sprites/player/rotations/north-east.png' },
+  { key: 'north-west', file: 'assets/sprites/player/rotations/north-west.png' },
+  { key: 'south-east', file: 'assets/sprites/player/rotations/south-east.png' },
+  { key: 'south-west', file: 'assets/sprites/player/rotations/south-west.png' },
 ];
 
 /** Map an input vector (signs) to one of the 8 compass directions. */
