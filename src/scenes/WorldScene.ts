@@ -65,6 +65,7 @@ export class WorldScene extends Phaser.Scene {
   private enemies: EnemyBase[] = [];
   private pickups: HeartPickup[] = [];
   private itemPickups: Pickup[] = [];
+  private bellVineExamine?: Interactable;
   private chimes: Chime[] = [];
   private bossDoors: BossDoor[] = [];
   private chimesRung = 0;
@@ -107,6 +108,7 @@ export class WorldScene extends Phaser.Scene {
     this.enemies = [];
     this.pickups = [];
     this.itemPickups = [];
+    this.bellVineExamine = undefined;
     this.chimes = [];
     this.bossDoors = [];
     this.chimesRung = 0;
@@ -151,6 +153,14 @@ export class WorldScene extends Phaser.Scene {
         });
         this.vines.push(vine);
         if (obj.group === 'gate') this.gateRemaining++;
+        // The bell-vine can be examined (E) before you have a blade to cut it.
+        if (obj.group === 'bell' && !worldState.hasFlag('has_blade')) {
+          this.bellVineExamine = new Interactable(this, obj.x, obj.y, {
+            label: 'examine',
+            lines: ['A dense snarl of thorny vines seals the way. Something sharp would cut right through it.'],
+          }).setVisible(false);
+          this.interactables.push(this.bellVineExamine);
+        }
       } else if (obj.type === 'fog') {
         if (woken || worldState.hasFlag('thistledown_fog_cleared')) continue;
         const patch = new FogPatch(this, obj.x, obj.y, {
@@ -986,6 +996,13 @@ export class WorldScene extends Phaser.Scene {
     audio.playSfx('chime');
     this.showToast('You take up the blade.');
     HintSystem.tryShow(this, 'attack', 'J / Click  -  attack');
+    // With a blade in hand you can cut the vines, so drop the "examine" prompt.
+    if (this.bellVineExamine) {
+      const i = this.interactables.indexOf(this.bellVineExamine);
+      if (i >= 0) this.interactables.splice(i, 1);
+      this.bellVineExamine.destroy();
+      this.bellVineExamine = undefined;
+    }
   }
 
   private onHandbellCollected(): void {
