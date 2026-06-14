@@ -144,6 +144,7 @@ export class WorldScene extends Phaser.Scene {
     for (const obj of map.objects) {
       if (obj.type === 'vine') {
         if (obj.group === 'gate' && (woken || worldState.hasFlag('thistledown_lane_opened'))) continue;
+        if (obj.group === 'bell' && (woken || worldState.hasFlag('has_handbell'))) continue; // bell already taken
         const vine = new Destructible(this, obj.x, obj.y, {
           group: obj.group,
           onCut: (cut) => this.onVineCut(cut),
