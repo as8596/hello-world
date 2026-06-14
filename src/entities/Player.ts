@@ -64,6 +64,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private renderedSprite?: SpriteDir;
   /** Using real directional art (8 rotations) vs the generated placeholder. */
   private readonly useSheet: boolean;
+  /** Resting display scale (≈0.27 for the downscaled art, 1 for the placeholder). */
+  private baseScale = 1;
   private readonly cursors: Phaser.Types.Input.Keyboard.CursorKeys;
   private readonly wasd: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
 
@@ -92,10 +94,16 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       // Scale the real art to a tile-appropriate height, feet near the bottom,
       // with a small foot collision box centered on the feet (origin), with the
       // size/offset compensated for the sprite scale.
+      // Linear filtering so the large art downscales smoothly instead of
+      // shimmering/flickering with nearest-neighbor as it moves.
+      for (const d of PLAYER_SPRITE_DIRS) {
+        scene.textures.get(`player-${d.key}`).setFilter(Phaser.Textures.FilterMode.LINEAR);
+      }
       const cfg = playerConfig.sprite;
       const srcW = this.width;
       const srcH = this.height;
       const s = cfg.targetHeight / srcH;
+      this.baseScale = s;
       this.setOrigin(0.5, cfg.originY);
       this.setScale(s);
       const bw = cfg.bodyWidth / s;
@@ -224,13 +232,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   ringBell(now: number): boolean {
     if (this.dead || now < this.bellReadyAt) return false;
     this.bellReadyAt = now + handbellConfig.cooldownMs;
+    // Pop relative to the resting scale (the art is downscaled, not scale 1).
     this.scene.tweens.add({
       targets: this,
-      scaleX: 1.18,
-      scaleY: 1.18,
+      scaleX: this.baseScale * 1.15,
+      scaleY: this.baseScale * 1.15,
       yoyo: true,
       duration: 90,
-      onComplete: () => this.setScale(1),
+      onComplete: () => this.setScale(this.baseScale),
     });
     return true;
   }
