@@ -38,7 +38,8 @@ you want, then **Code → Download ZIP**. Unzip it, `cd` into the folder, and ru
 ### Controls
 
 - **WASD** or **Arrow keys** — move
-- **J** / **X** / **click** — swing (cuts vines)
+- **J** / **X** / **click** — swing (cuts vines, hits enemies)
+- **F** / **Q** — ring the handbell (stuns nearby enemies, dispels fog)
 - **E** or **Space** — read sleeping villagers; advance dialogue
 
 ## Scripts
@@ -65,9 +66,11 @@ public/assets/ sprites / tilesets / maps (placeholder art generated at runtime f
 
 Following the MVP build order in `DESIGN.md` §13. **Milestones A & B are done**
 (it runs, you move, the overworld is a collidable tilemap, the world reacts).
-**Milestone C is underway**: a directional melee swing (wind-up/active/recovery,
-input buffering, hit-stop) cuts vines and fights **thorn-sprites** — enemies
-with a perception + chase/leash FSM, HP, hit-flash, and a spore-burst death.
-You have **hearts**, take contact damage with i-frames + knockback, and on
-death the scene restarts. Dodge, the handbell, and the bell-ringing payoff
-come next.
+**Milestone C** added combat: a directional melee swing (wind-up/active/recovery,
+input buffering, hit-stop) cuts vines and fights **thorn-sprites** (perception +
+chase/leash FSM, HP, hit-flash, spore-burst death); you have **hearts**, take
+contact damage with i-frames + knockback, and death restarts the scene. (Dodge,
+step 7, is deferred.) **Milestone D is underway**: the **Warden's Handbell** —
+ring for an expanding shockwave that stuns nearby enemies (an unmistakable
+wobble/stars state with a timer) and dispels a **Hush-fog** wall, which recedes
+to reveal a sleeper. Heart pickups/UI and the boss come next.

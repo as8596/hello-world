@@ -15,6 +15,8 @@ export const TextureKeys = {
   Slash: 'slash',
   ThornSprite: 'thorn_sprite',
   Hearts: 'hearts',
+  Fog: 'fog',
+  StunStars: 'stun_stars',
 } as const;
 
 const FRAME = 16; // player frame size, px
@@ -30,6 +32,46 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   generateSlash(scene);
   generateThornSprite(scene);
   generateHearts(scene);
+  generateFog(scene);
+  generateStunStars(scene);
+}
+
+/** A soft Hush-fog tile (semi-transparent, wispy). */
+function generateFog(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.Fog)) return;
+  const tex = scene.textures.createCanvas(TextureKeys.Fog, TILE, TILE);
+  if (!tex) return;
+  const ctx = tex.getContext();
+  ctx.clearRect(0, 0, TILE, TILE);
+  ctx.fillStyle = 'rgba(214,221,232,0.55)';
+  ctx.fillRect(1, 1, 14, 14);
+  ctx.fillStyle = 'rgba(232,236,243,0.65)';
+  for (const [x, y] of [[2, 3], [8, 2], [11, 6], [4, 9], [9, 11], [6, 6]] as const) {
+    ctx.fillRect(x, y, 4, 3);
+  }
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  for (const [x, y] of [[3, 5], [10, 8], [6, 10], [12, 3]] as const) ctx.fillRect(x, y, 2, 2);
+  tex.refresh();
+}
+
+/** A little ring of stun stars, shown above a stunned enemy. */
+function generateStunStars(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.StunStars)) return;
+  const w = 16;
+  const h = 7;
+  const tex = scene.textures.createCanvas(TextureKeys.StunStars, w, h);
+  if (!tex) return;
+  const ctx = tex.getContext();
+  ctx.clearRect(0, 0, w, h);
+  const star = (cx: number, cy: number): void => {
+    ctx.fillStyle = '#ffe066';
+    ctx.fillRect(cx, cy - 1, 1, 3);
+    ctx.fillRect(cx - 1, cy, 3, 1);
+  };
+  star(3, 2);
+  star(8, 4);
+  star(13, 2);
+  tex.refresh();
 }
 
 /** A small spiky thorn-creature (transparent corners). */

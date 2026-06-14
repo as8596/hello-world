@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { handbellConfig } from '../data/handbellConfig';
 import { playerConfig } from '../data/playerConfig';
 import { eventBus } from '../systems/EventBus';
 import { TextureKeys } from '../systems/TextureFactory';
@@ -36,6 +37,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private invulnUntil = 0;
   private controlLockUntil = 0;
   private dead = false;
+  private bellReadyAt = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, TextureKeys.Player, 'down-0');
@@ -139,6 +141,26 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       duration: 120,
       onComplete: () => this.setAlpha(1),
     });
+  }
+
+  // --- Handbell -----------------------------------------------------------
+
+  /**
+   * Ring the Warden's Handbell if off cooldown. Returns true if it rang (the
+   * scene then applies the AoE stun + fog dispel). A small pop sells the ring.
+   */
+  ringBell(now: number): boolean {
+    if (this.dead || now < this.bellReadyAt) return false;
+    this.bellReadyAt = now + handbellConfig.cooldownMs;
+    this.scene.tweens.add({
+      targets: this,
+      scaleX: 1.18,
+      scaleY: 1.18,
+      yoyo: true,
+      duration: 90,
+      onComplete: () => this.setScale(1),
+    });
+    return true;
   }
 
   // --- Attack -------------------------------------------------------------

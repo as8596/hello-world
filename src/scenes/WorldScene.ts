@@ -1,10 +1,12 @@
 import Phaser from 'phaser';
 import { sleepingVillagerLines } from '../data/dialogue/villagers';
 import { ENEMIES } from '../data/enemies';
+import { handbellConfig } from '../data/handbellConfig';
 import { thistledownMap } from '../data/maps/thistledown';
 import { playerConfig } from '../data/playerConfig';
 import { Destructible } from '../entities/Destructible';
 import { EnemyBase } from '../entities/EnemyBase';
+import { FogPatch } from '../entities/FogPatch';
 import { Interactable } from '../entities/Interactable';
 import { Player } from '../entities/Player';
 import { addPixelText } from '../systems/PixelFont';
@@ -28,14 +30,17 @@ export class WorldScene extends Phaser.Scene {
   private player!: Player;
   private dialogue!: DialogueBox;
   private vines: Destructible[] = [];
+  private fog: FogPatch[] = [];
   private interactables: Interactable[] = [];
   private enemies: EnemyBase[] = [];
   private hearts: Phaser.GameObjects.Image[] = [];
   private interactKeys: Phaser.Input.Keyboard.Key[] = [];
   private attackKeys: Phaser.Input.Keyboard.Key[] = [];
+  private ringKeys: Phaser.Input.Keyboard.Key[] = [];
   private promptText!: Phaser.GameObjects.BitmapText;
   private promptBg!: Phaser.GameObjects.Rectangle;
   private gateRemaining = 0;
+  private fogRemaining = 0;
   private dyingPlayer = false;
 
   constructor() {
@@ -44,10 +49,12 @@ export class WorldScene extends Phaser.Scene {
 
   create(): void {
     this.vines = [];
+    this.fog = [];
     this.interactables = [];
     this.enemies = [];
     this.hearts = [];
     this.gateRemaining = 0;
+    this.fogRemaining = 0;
     this.dyingPlayer = false;
 
     const map = buildTilemap(this, thistledownMap);
@@ -63,6 +70,13 @@ export class WorldScene extends Phaser.Scene {
         });
         this.vines.push(vine);
         if (obj.group === 'gate') this.gateRemaining++;
+      } else if (obj.type === 'fog') {
+        const patch = new FogPatch(this, obj.x, obj.y, {
+          group: obj.group,
+          onDispel: (p) => this.onFogDispelled(p),
+        });
+        this.fog.push(patch);
+        this.fogRemaining++;
       } else if (obj.type === 'enemy') {
         const def = ENEMIES[obj.enemyId ?? ''];
         if (def) {
@@ -79,6 +93,7 @@ export class WorldScene extends Phaser.Scene {
     this.player = new Player(this, map.spawn.x, map.spawn.y);
     this.physics.add.collider(this.player, map.layer);
     this.physics.add.collider(this.player, this.vines);
+    this.physics.add.collider(this.player, this.fog);
     this.physics.add.collider(this.enemies, map.layer);
     this.physics.add.overlap(this.player, this.enemies, this.onPlayerTouchEnemy, undefined, this);
 
@@ -111,6 +126,10 @@ export class WorldScene extends Phaser.Scene {
       kb.addKey(Phaser.Input.Keyboard.KeyCodes.J),
       kb.addKey(Phaser.Input.Keyboard.KeyCodes.X),
     ];
+    this.ringKeys = [
+      kb.addKey(Phaser.Input.Keyboard.KeyCodes.F),
+      kb.addKey(Phaser.Input.Keyboard.KeyCodes.Q),
+    ];
     this.input.on('pointerdown', () => {
       if (!this.dyingPlayer && !this.dialogue.isOpen && !this.physics.world.isPaused) {
         this.player.queueAttack(this.time.now);
@@ -139,6 +158,7 @@ export class WorldScene extends Phaser.Scene {
     const now = this.time.now;
     const interactPressed = this.interactKeys.some((k) => Phaser.Input.Keyboard.JustDown(k));
     const attackPressed = this.attackKeys.some((k) => Phaser.Input.Keyboard.JustDown(k));
+    const ringPressed = this.ringKeys.some((k) => Phaser.Input.Keyboard.JustDown(k));
 
     // While a dialogue is open, freeze the player and route input to it.
     if (this.dialogue.isOpen) {
@@ -154,6 +174,8 @@ export class WorldScene extends Phaser.Scene {
 
     if (attackPressed) this.player.queueAttack(now);
     this.resolveAttackHits();
+
+    if (ringPressed && this.player.ringBell(now)) this.ringHandbell();
 
     const target = this.nearestActionable();
     this.updatePrompt(target);
@@ -210,6 +232,72 @@ export class WorldScene extends Phaser.Scene {
     const idx = this.enemies.indexOf(dead);
     if (idx >= 0) this.enemies.splice(idx, 1);
     worldState.addCounter('enemies_killed');
+  }
+
+  // --- Handbell -----------------------------------------------------------
+
+  /** Apply the ring: AoE stun + fog dispel within radius, with feedback. */
+  private ringHandbell(): void {
+    const px = this.player.x;
+    const py = this.player.y;
+    const r = handbellConfig.radius;
+
+    this.spawnShockwave(px, py, r);
+    this.screenPulse();
+
+    for (const enemy of this.enemies) {
+      if (!enemy.isDead && Phaser.Math.Distance.Between(px, py, enemy.x, enemy.y) <= r) {
+        enemy.stun(handbellConfig.stunMs);
+      }
+    }
+    for (const patch of this.fog) {
+      if (patch.active && Phaser.Math.Distance.Between(px, py, patch.x, patch.y) <= r) {
+        patch.dispel();
+      }
+    }
+
+    worldState.addCounter('bell_rung');
+    eventBus.emit('bellRung', { region: 'thistledown' });
+  }
+
+  /** An expanding shockwave ring synced to the ring (§14 P0). */
+  private spawnShockwave(x: number, y: number, radius: number): void {
+    const ring = this.add
+      .circle(x, y, radius)
+      .setStrokeStyle(2, 0xfff2c0, 0.9)
+      .setFillStyle(0xfff2c0, 0.08)
+      .setScale(0.05)
+      .setDepth(15);
+    this.tweens.add({
+      targets: ring,
+      scale: 1,
+      alpha: 0,
+      duration: 320,
+      ease: 'Cubic.Out',
+      onComplete: () => ring.destroy(),
+    });
+  }
+
+  /** A gentle, cozy screen pulse on ring (§14 P1). */
+  private screenPulse(): void {
+    const flash = this.add
+      .rectangle(0, 0, this.scale.width, this.scale.height, 0xfff2c0, 0.16)
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(2200);
+    this.tweens.add({ targets: flash, alpha: 0, duration: 220, onComplete: () => flash.destroy() });
+  }
+
+  private onFogDispelled(patch: FogPatch): void {
+    const idx = this.fog.indexOf(patch);
+    if (idx >= 0) this.fog.splice(idx, 1);
+    worldState.addCounter('fog_dispelled');
+
+    this.fogRemaining = Math.max(0, this.fogRemaining - 1);
+    if (this.fogRemaining === 0 && !worldState.hasFlag('thistledown_fog_cleared')) {
+      worldState.setFlag('thistledown_fog_cleared', true);
+      this.showToast('The fog lifts.');
+    }
   }
 
   private handlePlayerDeath(): void {
@@ -322,7 +410,7 @@ export class WorldScene extends Phaser.Scene {
 
   /** A soft, fading control hint instead of a wall of tutorial text (§14 P1). */
   private addControlHint(): void {
-    const hint = addPixelText(this, 0, 0, 'WASD move - J attack - E read', { color: 0xe8e6d8 })
+    const hint = addPixelText(this, 0, 0, 'WASD move - J attack - F bell - E read', { color: 0xe8e6d8 })
       .setScrollFactor(0)
       .setDepth(1000);
     hint.setPosition(Math.round((this.scale.width - hint.width) / 2), this.scale.height - 16);

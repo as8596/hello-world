@@ -3,6 +3,7 @@ import type { EnemyDef } from '../data/enemies';
 import { playerConfig } from '../data/playerConfig';
 import { eventBus } from '../systems/EventBus';
 import { addPixelText } from '../systems/PixelFont';
+import { TextureKeys } from '../systems/TextureFactory';
 
 type EnemyState = 'idle' | 'notice' | 'chase' | 'leash' | 'stunned' | 'dead';
 
@@ -30,6 +31,10 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
   private stunUntil = 0;
   private dying = false;
   private readonly onDeath?: (self: EnemyBase) => void;
+
+  private stunStars?: Phaser.GameObjects.Image;
+  private stunBar?: Phaser.GameObjects.Rectangle;
+  private wobble?: Phaser.Tweens.Tween;
 
   constructor(scene: Phaser.Scene, x: number, y: number, def: EnemyDef, opts: EnemyOptions = {}) {
     super(scene, x, y, def.texture);
@@ -70,12 +75,54 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
     if (this.hp <= 0) this.die();
   }
 
-  /** Handbell stun (used in the handbell step). No-op on un-stunnable foes. */
+  /** Handbell stun: freeze + an unmistakable wobble/stars state with a timer (§14 P0). */
   stun(ms: number): void {
     if (this.dying || this.def.stunnable === false) return;
     this.aiState = 'stunned';
     this.stunUntil = this.scene.time.now + ms;
     (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+    this.showStunVfx(ms);
+  }
+
+  private showStunVfx(ms: number): void {
+    this.endStunVfx();
+
+    this.stunStars = this.scene.add.image(this.x, this.y - 12, TextureKeys.StunStars).setDepth(20);
+    this.scene.tweens.add({
+      targets: this.stunStars,
+      alpha: { from: 0.5, to: 1 },
+      yoyo: true,
+      repeat: -1,
+      duration: 200,
+    });
+
+    // A visible countdown bar that shrinks over the stun duration.
+    this.stunBar = this.scene.add.rectangle(this.x, this.y - 17, 12, 1, 0xffe066).setDepth(20);
+    this.scene.tweens.add({ targets: this.stunBar, scaleX: 0, duration: ms, ease: 'Linear' });
+
+    this.wobble = this.scene.tweens.add({
+      targets: this,
+      angle: { from: -8, to: 8 },
+      yoyo: true,
+      repeat: -1,
+      duration: 90,
+    });
+  }
+
+  private endStunVfx(): void {
+    this.wobble?.stop();
+    this.wobble = undefined;
+    this.setAngle(0);
+    if (this.stunStars) {
+      this.scene.tweens.killTweensOf(this.stunStars);
+      this.stunStars.destroy();
+      this.stunStars = undefined;
+    }
+    if (this.stunBar) {
+      this.scene.tweens.killTweensOf(this.stunBar);
+      this.stunBar.destroy();
+      this.stunBar = undefined;
+    }
   }
 
   /** Per-frame brain. Call from the scene with the player's position. */
@@ -123,7 +170,10 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
 
       case 'stunned':
         body.setVelocity(0, 0);
-        if (now >= this.stunUntil) this.aiState = 'chase';
+        if (now >= this.stunUntil) {
+          this.endStunVfx();
+          this.aiState = 'chase';
+        }
         break;
 
       case 'dead':
@@ -165,6 +215,7 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
   private die(): void {
     this.dying = true;
     this.aiState = 'dead';
+    this.endStunVfx();
     (this.body as Phaser.Physics.Arcade.Body).enable = false;
     this.onDeath?.(this);
     eventBus.emit('enemyKilled', { id: this.def.id, x: this.x, y: this.y });
