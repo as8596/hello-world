@@ -8,9 +8,8 @@ const MAX_TRAIL_WIDTH = 2;
 /** Pick a grass tile variant (rarely a flower) for organic-looking ground. */
 function pickGrass(): number {
   const r = Math.random();
-  if (r < 0.06) return FLOWER_TILE_INDEX;
-  if (r < 0.4) return GRASS_VARIANT_INDICES[1];
-  if (r < 0.65) return GRASS_VARIANT_INDICES[2];
+  if (r < 0.02) return FLOWER_TILE_INDEX; // sparse flowers
+  if (r < 0.38) return GRASS_VARIANT_INDICES[1];
   return GRASS_VARIANT_INDICES[0];
 }
 
@@ -109,6 +108,12 @@ export function buildTilemap(scene: Phaser.Scene, def: TileMapDef): BuiltMap {
   // (TilemapGPULayer isn't a valid ArcadeColliderType).
   const layer = map.createLayer(0, tileset, 0, 0) as Phaser.Tilemaps.TilemapLayer | null;
   if (!layer) throw new Error('Failed to create tilemap layer');
+
+  // Randomly mirror ~half the grass/flower tiles for extra organic variation.
+  const flippable = new Set<number>([...GRASS_VARIANT_INDICES, FLOWER_TILE_INDEX]);
+  layer.forEachTile((tile) => {
+    if (flippable.has(tile.index) && Math.random() < 0.5) tile.flipX = true;
+  });
 
   layer.setCollision(def.blocking);
 

@@ -485,9 +485,9 @@ export function applyTerrainTileset(scene: Phaser.Scene, terrainKey: string): bo
   };
   blit(0, 0, 0); // plain grass    -> Grass
   blit(1, 2, 0); // sand           -> Path
-  blit(GRASS_VARIANT_INDICES[1], 0, 1); // grass variant       (slot 5)
-  blit(GRASS_VARIANT_INDICES[2], 0, 3); // grass variant (light) (slot 6)
-  blit(FLOWER_TILE_INDEX, 1, 2); //       grass + flowers       (slot 7)
+  blit(GRASS_VARIANT_INDICES[1], 0, 1); // grass variant (slot 5)
+  blit(GRASS_VARIANT_INDICES[2], 0, 0); // plain grass   (slot 6 — the striped tile is dropped)
+  blit(FLOWER_TILE_INDEX, 1, 2); //       grass + flowers (slot 7)
   ctx.restore();
   tex.refresh();
   return true;
