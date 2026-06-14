@@ -3,9 +3,9 @@
 ```
 player/
   rotations/  north.png … south-west.png   (8 static directions, keys player-<dir>)
-  run/        north.png … south-west.png   (run-cycle sheets, keys player-run-<dir>)
-              manifest.json                 (frame size/count, key player-run-manifest)
-  raw/        run-<dir>.gif                 (source GIFs for the run cycles)
+  run/        <dir>.png + manifest.json     (run-cycle sheets, keys player-run-<dir>)
+  idle/       <dir>.png + manifest.json     (idle "breathing" sheets, keys player-idle-<dir>)
+  raw/        run-<dir>.gif, idle-<dir>.gif (source GIFs for each animation set)
 ```
 
 ## Static directional art (`rotations/`)
@@ -34,3 +34,10 @@ sheets:
 The game loads any sheets that exist and plays the matching run cycle while
 moving; directions without a sheet use the static frame. Cadence is locked to
 distance travelled (`playerConfig.runPixelsPerFrame`) so the feet don't slide.
+
+## Idle animation (`idle/`, from GIFs)
+
+Same pipeline as `run/`, but the GIFs are named `idle-<dir>.gif` and the cycles
+play (at `playerConfig.idleFrameRate`) while standing still. Directions without
+an idle sheet show the static frame. So far only `idle-south.gif` exists; add
+more directions the same way and re-run `npm run sprites`.

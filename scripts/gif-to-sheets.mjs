@@ -1,13 +1,12 @@
 /**
- * gif-to-sheets — convert the player's running-animation GIFs into Phaser sprite
- * sheets (Phaser can't load animated GIFs). For each `run-<dir>.gif` in
- * public/assets/sprites/player/raw/, writes a horizontal strip
- * public/assets/sprites/player/run/<dir>.png (all frames in a row) plus a
- * shared `manifest.json` describing the frame size / count, which PreloadScene
- * reads.
+ * gif-to-sheets — convert the player's animation GIFs into Phaser sprite sheets
+ * (Phaser can't load animated GIFs). For each animation set (run, idle, …) it
+ * reads `<set>-<dir>.gif` from public/assets/sprites/player/raw/ and writes a
+ * horizontal strip public/assets/sprites/player/<set>/<dir>.png plus a
+ * `manifest.json` (frame size / count / dirs), which PreloadScene reads.
  *
- * Run: `npm run sprites`. Missing directions are skipped (the game falls back to
- * the static directional art while moving), so this is safe to run partially.
+ * Run: `npm run sprites`. Missing directions/sets are skipped (the game falls
+ * back to the static directional art), so this is safe to run partially.
  *
  * GIF frames can be partial (delta-encoded) with per-frame disposal; we
  * composite onto a persistent canvas following the GIF disposal rules so every
@@ -22,7 +21,9 @@ import { PNG } from 'pngjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PLAYER = join(HERE, '..', 'public', 'assets', 'sprites', 'player');
 const RAW = join(PLAYER, 'raw');
-const OUT = join(PLAYER, 'run');
+
+// Animation sets to build: raw/<set>-<dir>.gif -> <set>/<dir>.png + manifest.
+const SETS = ['run', 'idle'];
 
 // Compass directions, matching PLAYER_SPRITE_DIRS / the static art file names.
 const DIRS = ['north', 'south', 'east', 'west', 'north-east', 'north-west', 'south-east', 'south-west'];
@@ -81,43 +82,48 @@ function writeSheet(width, height, frames, outPath) {
   writeFileSync(outPath, PNG.sync.write(sheet));
 }
 
-let frameW = 0;
-let frameH = 0;
-let frameCount = 0;
-const done = [];
-mkdirSync(OUT, { recursive: true });
+/** Build one animation set (e.g. 'run'): raw/<set>-<dir>.gif -> <set>/<dir>.png. */
+function convertSet(set) {
+  const out = join(PLAYER, set);
+  let frameW = 0;
+  let frameH = 0;
+  let frameCount = 0;
+  const done = [];
 
-for (const dir of DIRS) {
-  const inPath = join(RAW, `run-${dir}.gif`);
-  if (!existsSync(inPath)) {
-    console.warn(`- skip ${dir}: no raw/run-${dir}.gif`);
-    continue;
+  for (const dir of DIRS) {
+    const inPath = join(RAW, `${set}-${dir}.gif`);
+    if (!existsSync(inPath)) continue;
+    const { width, height, frames } = decodeGifFrames(readFileSync(inPath));
+    if (!frameW) {
+      frameW = width;
+      frameH = height;
+      frameCount = frames.length;
+    } else if (width !== frameW || height !== frameH || frames.length !== frameCount) {
+      console.error(
+        `! ${set}/${dir}: ${width}x${height} x${frames.length} differs from ${frameW}x${frameH} x${frameCount}. ` +
+          'All directions in a set must share frame size and count.',
+      );
+      process.exit(1);
+    }
+    mkdirSync(out, { recursive: true });
+    writeSheet(width, height, frames, join(out, `${dir}.png`));
+    done.push(dir);
+    console.log(`✓ ${set}/${dir}: ${frames.length} frames @ ${width}x${height}`);
   }
-  const { width, height, frames } = decodeGifFrames(readFileSync(inPath));
-  if (!frameW) {
-    frameW = width;
-    frameH = height;
-    frameCount = frames.length;
-  } else if (width !== frameW || height !== frameH || frames.length !== frameCount) {
-    console.error(
-      `! ${dir}: ${width}x${height} x${frames.length} differs from ${frameW}x${frameH} x${frameCount}. ` +
-        'All directions must share frame size and count.',
-    );
-    process.exit(1);
+
+  if (done.length === 0) {
+    console.log(`- ${set}: no raw/${set}-*.gif files — skipped.`);
+    return false;
   }
-  writeSheet(width, height, frames, join(OUT, `${dir}.png`));
-  done.push(dir);
-  console.log(`✓ ${dir}: ${frames.length} frames @ ${width}x${height}`);
+  const manifest = { frameWidth: frameW, frameHeight: frameH, frames: frameCount, dirs: done };
+  writeFileSync(join(out, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  console.log(`  manifest -> player/${set}/manifest.json: ${JSON.stringify(manifest)}`);
+  return true;
 }
 
-if (done.length === 0) {
-  console.error(`\nNo run-*.gif files in ${RAW}. Add run-<dir>.gif (e.g. run-south.gif) and re-run.`);
+let any = false;
+for (const set of SETS) any = convertSet(set) || any;
+if (!any) {
+  console.error(`\nNo animation GIFs found in ${RAW}. Add <set>-<dir>.gif (e.g. run-south.gif, idle-south.gif).`);
   process.exit(1);
-}
-
-const manifest = { frameWidth: frameW, frameHeight: frameH, frames: frameCount, dirs: done };
-writeFileSync(join(OUT, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
-console.log(`\nmanifest -> player/run/manifest.json: ${JSON.stringify(manifest)}`);
-if (done.length < DIRS.length) {
-  console.log(`(${DIRS.length - done.length} direction(s) missing — they'll use static art while moving.)`);
 }

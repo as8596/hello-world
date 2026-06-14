@@ -1,0 +1,8 @@
+{
+  "frameWidth": 128,
+  "frameHeight": 128,
+  "frames": 4,
+  "dirs": [
+    "south"
+  ]
+}

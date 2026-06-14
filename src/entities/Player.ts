@@ -163,23 +163,26 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     make('player-walk-side', ['side-0', 'side-1']);
     make('player-walk-up', ['up-0', 'up-1']);
 
-    // Optional real directional run cycles (from the GIF sheets). Register one
-    // per direction that actually loaded; the rest fall back to static art.
-    const manifest = scene.cache.json.get('player-run-manifest') as
-      | { frames: number; dirs?: string[] }
-      | undefined;
-    if (manifest && Array.isArray(manifest.dirs)) {
+    // Optional real directional animation cycles (from the GIF sheets). Register
+    // one per direction that actually loaded; the rest fall back to static art.
+    const registerSet = (set: string, frameRate: number): void => {
+      const manifest = scene.cache.json.get(`player-${set}-manifest`) as
+        | { frames: number; dirs?: string[] }
+        | undefined;
+      if (!manifest || !Array.isArray(manifest.dirs)) return;
       for (const dir of manifest.dirs) {
-        const key = `player-run-${dir}`;
+        const key = `player-${set}-${dir}`;
         if (scene.anims.exists(key) || !scene.textures.exists(key)) continue;
         scene.anims.create({
           key,
           frames: scene.anims.generateFrameNumbers(key, { start: 0, end: manifest.frames - 1 }),
-          frameRate: playerConfig.runFrameRate,
+          frameRate,
           repeat: -1,
         });
       }
-    }
+    };
+    registerSet('run', playerConfig.runFrameRate);
+    registerSet('idle', playerConfig.idleFrameRate);
   }
 
   // --- Health -------------------------------------------------------------
@@ -545,6 +548,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       // Eight distinct rotations, no flip. Play the directional run cycle while
       // moving if its sheet loaded; otherwise show the static frame.
       const runKey = `player-run-${this.spriteFacing}`;
+      const idleKey = `player-idle-${this.spriteFacing}`;
       if (moving && this.scene.anims.exists(runKey)) {
         this.anims.play(runKey, true);
         // Lock the leg cadence to distance travelled so the feet never slide:
@@ -554,6 +558,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         const target = speed / playerConfig.runPixelsPerFrame; // desired fps
         this.anims.timeScale = Phaser.Math.Clamp(target / playerConfig.runFrameRate, 0.45, 3.5);
         this.renderedSprite = undefined; // force the static frame to re-apply on stop
+      } else if (!moving && this.scene.anims.exists(idleKey)) {
+        this.anims.timeScale = 1; // the idle breathing plays at its calm rate
+        this.anims.play(idleKey, true);
+        this.renderedSprite = undefined;
       } else {
         if (this.anims.isPlaying) this.anims.stop();
         if (this.renderedSprite !== this.spriteFacing) {

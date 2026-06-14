@@ -17,6 +17,8 @@ export interface PlayerConfig {
   walkFrameRate: number;
   /** Base playback rate (fps) for the real directional run cycles. */
   runFrameRate: number;
+  /** Playback rate (fps) for the idle "breathing" cycles. */
+  idleFrameRate: number;
   /**
    * World pixels of travel per run-animation frame. The run cadence is locked to
    * distance (not time), so the feet never slide regardless of move speed — and
@@ -95,6 +97,7 @@ export const playerConfig: PlayerConfig = {
   friction: 950 * RENDER_SCALE,
   walkFrameRate: 8,
   runFrameRate: 10,
+  idleFrameRate: 6,
   // Effective run cadence = moveSpeed / this. At maxSpeed (320) that's ~8 fps
   // (≈4 steps/s) — a natural run. Lower = faster legs (and tighter no-slide);
   // higher = calmer legs (with a touch of foot-slide).
