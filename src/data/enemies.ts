@@ -58,9 +58,8 @@ export const thornSprite: EnemyDef = {
   aggroRange: 80 * RENDER_SCALE,
   leashRange: 150 * RENDER_SCALE,
   stunnable: true,
-  // 124px rotations -> displayed ~0.55x so the imp reads as small (~half the
-  // player); body in world px covers its central mass.
-  directional: { keyPrefix: 'thorn', displayScale: 0.55, bodyWidth: 26, bodyHeight: 22 },
+  // 124px rotations -> displayed ~0.75x; body in world px covers its central mass.
+  directional: { keyPrefix: 'thorn', displayScale: 0.75, bodyWidth: 26, bodyHeight: 22 },
 };
 
 export const ENEMIES: Record<string, EnemyDef> = {
