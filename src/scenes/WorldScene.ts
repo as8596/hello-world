@@ -130,7 +130,12 @@ export class WorldScene extends Phaser.Scene {
       } else if (obj.type === 'enemy') {
         const def = ENEMIES[obj.enemyId ?? ''];
         if (def) {
-          this.enemies.push(new EnemyBase(this, obj.x, obj.y, def, { onDeath: (e) => this.onEnemyDeath(e) }));
+          this.enemies.push(
+            new EnemyBase(this, obj.x, obj.y, def, {
+              onDeath: (e) => this.onEnemyDeath(e),
+              onPlayerHit: this.hurtPlayerFrom,
+            }),
+          );
         }
       } else if (obj.type === 'heart') {
         this.pickups.push(new HeartPickup(this, obj.x, obj.y, { onCollect: (p) => this.onHeartCollected(p) }));
@@ -323,8 +328,10 @@ export class WorldScene extends Phaser.Scene {
         Phaser.Geom.Intersects.RectangleToRectangle(rect, enemy.getBounds()) &&
         this.player.registerHit(enemy)
       ) {
-        enemy.takeDamage(playerConfig.attack.damage, this.player.x, this.player.y);
-        this.onHitConnected();
+        // Armored foes clink (0 dmg) unless stunned — only a real hit freezes.
+        if (enemy.takeDamage(playerConfig.attack.damage, this.player.x, this.player.y)) {
+          this.onHitConnected();
+        }
       }
     }
 
@@ -351,9 +358,14 @@ export class WorldScene extends Phaser.Scene {
 
   private onPlayerTouchEnemy: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (_player, enemyObj) => {
     const enemy = enemyObj as unknown as EnemyBase;
-    if (enemy.isDead) return;
-    if (this.player.takeHit(enemy.def.contactDamage, enemy.x, enemy.y)) {
-      this.cameras.main.shake(110, 0.004); // a little screenshake on taking damage (§14 P1)
+    if (enemy.isDead || enemy.def.contactDamage <= 0) return; // telegraph-only foes don't touch-damage
+    this.hurtPlayerFrom(enemy.def.contactDamage, enemy.x, enemy.y);
+  };
+
+  /** A telegraphed enemy/boss attack (or contact) landing on the player. */
+  private hurtPlayerFrom = (amount: number, fromX: number, fromY: number): void => {
+    if (this.player.takeHit(amount, fromX, fromY)) {
+      this.cameras.main.shake(120, 0.004); // screenshake on taking damage (§14 P1)
     }
   };
 
@@ -441,7 +453,9 @@ export class WorldScene extends Phaser.Scene {
     if (!def) return;
     const ex = Phaser.Math.Clamp(x, 96 * RS, 288 * RS);
     const ey = Phaser.Math.Clamp(y, 28 * RS, 88 * RS);
-    this.enemies.push(new EnemyBase(this, ex, ey, def, { onDeath: (e) => this.onEnemyDeath(e) }));
+    this.enemies.push(
+      new EnemyBase(this, ex, ey, def, { onDeath: (e) => this.onEnemyDeath(e), onPlayerHit: this.hurtPlayerFrom }),
+    );
   }
 
   private onBossDefeated(): void {

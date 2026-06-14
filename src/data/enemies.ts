@@ -63,6 +63,45 @@ export const thornSprite: EnemyDef = {
   directional: { keyPrefix: 'thorn', displayScale: 0.75, bodyWidth: 34, bodyHeight: 30 },
 };
 
+/** The armored bruiser: only damageable while bell-stunned — teaches ring-to-stun (§9). */
+export const brambleback: EnemyDef = {
+  id: 'brambleback',
+  name: 'Brambleback',
+  texture: TextureKeys.Brambleback,
+  hp: 5,
+  speed: 38 * RENDER_SCALE,
+  contactDamage: 2,
+  vision: 95 * RENDER_SCALE,
+  aggroRange: 78 * RENDER_SCALE,
+  leashRange: 175 * RENDER_SCALE,
+  armored: true,
+  stunnable: true,
+};
+
+/** The dodge-timing teacher: a slow, heavily telegraphed overhead slam. */
+export const mushroomFolk: EnemyDef = {
+  id: 'mushroom_folk',
+  name: 'Mushroom-folk',
+  texture: TextureKeys.MushroomFolk,
+  hp: 3,
+  speed: 42 * RENDER_SCALE,
+  contactDamage: 0, // only the telegraphed overhead hurts (fair, dodgeable)
+  vision: 100 * RENDER_SCALE,
+  aggroRange: 85 * RENDER_SCALE,
+  leashRange: 160 * RENDER_SCALE,
+  stunnable: true,
+  attack: {
+    type: 'overhead',
+    windupMs: 520,
+    activeMs: 150,
+    recoverMs: 450,
+    damage: 2,
+    range: 30 * RENDER_SCALE,
+  },
+};
+
 export const ENEMIES: Record<string, EnemyDef> = {
   thorn_sprite: thornSprite,
+  brambleback: brambleback,
+  mushroom_folk: mushroomFolk,
 };

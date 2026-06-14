@@ -25,6 +25,8 @@ export const TextureKeys = {
   Bramblewerth: 'bramblewerth',
   GreatBell: 'great_bell',
   VillagerAwake: 'villager_awake',
+  Brambleback: 'brambleback',
+  MushroomFolk: 'mushroom_folk',
 } as const;
 
 const FRAME = 16; // player placeholder frame size, design px
@@ -64,6 +66,54 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   generateBramblewerth(scene);
   generateGreatBell(scene);
   generateVillagerAwake(scene);
+  generateBrambleback(scene);
+  generateMushroomFolk(scene);
+}
+
+/** An armored bramble-bruiser: stone plates over a thorn body (the ring-to-stun foe). */
+function generateBrambleback(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.Brambleback)) return;
+  const made = makeTexture(scene, TextureKeys.Brambleback, TILE, TILE);
+  if (!made) return;
+  const { tex, ctx } = made;
+  ctx.fillStyle = 'rgba(0,0,0,0.20)';
+  ctx.fillRect(3, 14, 10, 1); // shadow
+  // Thorn body.
+  rect(ctx, 0, 3, 7, 10, 6, '#2f4d22');
+  rect(ctx, 0, 4, 6, 8, 1, '#2f4d22');
+  // Stone armor plates on the back (the "you can't hit this" read).
+  rect(ctx, 0, 4, 5, 8, 3, '#8a8470');
+  rect(ctx, 0, 5, 4, 6, 2, '#a9a48f');
+  rect(ctx, 0, 4, 5, 1, 3, '#6f6a59'); // plate seams
+  rect(ctx, 0, 8, 5, 1, 3, '#6f6a59');
+  rect(ctx, 0, 11, 5, 1, 3, '#6f6a59');
+  // Thorns poking past the armor.
+  for (const [x, y] of [[2, 8], [13, 8], [4, 12], [11, 12], [7, 3]] as const) rect(ctx, 0, x, y, 2, 2, '#1f3a18');
+  // Low, grumpy eyes.
+  rect(ctx, 0, 5, 11, 1, 1, '#ffd24a');
+  rect(ctx, 0, 10, 11, 1, 1, '#ffd24a');
+  tex.refresh();
+}
+
+/** A toadstool-folk: spotted cap, pale stem — telegraphs a big overhead (dodge teacher). */
+function generateMushroomFolk(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.MushroomFolk)) return;
+  const made = makeTexture(scene, TextureKeys.MushroomFolk, TILE, TILE);
+  if (!made) return;
+  const { tex, ctx } = made;
+  ctx.fillStyle = 'rgba(0,0,0,0.20)';
+  ctx.fillRect(4, 14, 8, 1); // shadow
+  // Stem / body.
+  rect(ctx, 0, 6, 8, 4, 5, '#e6dcc2');
+  rect(ctx, 0, 6, 11, 1, 1, '#222'); // eyes
+  rect(ctx, 0, 9, 11, 1, 1, '#222');
+  // Cap.
+  rect(ctx, 0, 4, 4, 8, 4, '#b8412f');
+  rect(ctx, 0, 3, 6, 10, 2, '#9c3526');
+  rect(ctx, 0, 6, 3, 4, 1, '#cf5a44'); // cap highlight
+  // Spots.
+  for (const [x, y] of [[5, 5], [9, 5], [7, 6], [11, 6]] as const) rect(ctx, 0, x, y, 1, 1, '#f2e7cf');
+  tex.refresh();
 }
 
 /** The great shrine bell — large brass bell on a frame. */

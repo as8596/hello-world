@@ -13,11 +13,13 @@ function hasDirectionalArt(scene: Phaser.Scene, def: EnemyDef): boolean {
   return SPRITE_DIRS.every((d) => scene.textures.exists(`${def.directional!.keyPrefix}-${d}`));
 }
 
-type EnemyState = 'idle' | 'notice' | 'chase' | 'leash' | 'stunned' | 'dead';
+type EnemyState = 'idle' | 'notice' | 'chase' | 'windup' | 'attack' | 'recover' | 'leash' | 'stunned' | 'dead';
 
 export interface EnemyOptions {
   /** Called once when the enemy dies, before its fade-out (e.g. to untrack it). */
   onDeath?: (self: EnemyBase) => void;
+  /** Called when a telegraphed attack connects (the scene applies it to the player). */
+  onPlayerHit?: (amount: number, fromX: number, fromY: number) => void;
 }
 
 /**
@@ -39,6 +41,14 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
   private stunUntil = 0;
   private dying = false;
   private readonly onDeath?: (self: EnemyBase) => void;
+  private readonly onPlayerHit?: (amount: number, fromX: number, fromY: number) => void;
+
+  // Telegraphed-attack (windup → active → recover) state.
+  private attackPhaseUntil = 0;
+  private attackReadyAt = 0;
+  private attackHitDone = false;
+  private readonly attackTarget = { x: 0, y: 0 };
+  private telegraph?: Phaser.GameObjects.Arc;
 
   private stunStars?: Phaser.GameObjects.Image;
   private stunBar?: Phaser.GameObjects.Rectangle;
@@ -59,6 +69,7 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
     this.hp = def.hp;
     this.home = { x, y };
     this.onDeath = opts.onDeath;
+    this.onPlayerHit = opts.onPlayerHit;
 
     const body = this.body as Phaser.Physics.Arcade.Body;
     if (useDir) {
@@ -97,9 +108,26 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
     return this.dying;
   }
 
-  /** Take melee damage from a source position (drives hit-flash + knockback). */
-  takeDamage(amount: number, fromX: number, fromY: number): void {
-    if (this.dying) return;
+  /** True while bell-stunned (the only window an armored foe can be hurt). */
+  get isStunned(): boolean {
+    return this.aiState === 'stunned';
+  }
+
+  /**
+   * Take melee damage from a source position. Armored foes (§9.1) shrug it off
+   * unless bell-stunned — a "clink" + spark teaches "this doesn't work" without
+   * text. Returns true if the hit actually landed (so the caller gates hit-stop).
+   */
+  takeDamage(amount: number, fromX: number, fromY: number): boolean {
+    if (this.dying) return false;
+
+    if (this.def.armored && !this.isStunned) {
+      this.clink();
+      // Getting clinked still wakes an idle armored foe.
+      if (this.aiState === 'idle' || this.aiState === 'notice') this.aiState = 'chase';
+      return false;
+    }
+
     this.hp -= amount;
     this.flash();
 
@@ -113,13 +141,27 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
     if (this.aiState === 'idle' || this.aiState === 'notice') this.aiState = 'chase';
 
     if (this.hp <= 0) this.die();
+    return true;
+  }
+
+  /** Armored "no" feedback: a cool spark + brief steel tint, no flinch, no damage. */
+  private clink(): void {
+    this.setTint(0xbfe3ff);
+    this.setTintMode(Phaser.TintModes.FILL);
+    this.scene.time.delayedCall(60, () => {
+      if (this.active) this.clearTint();
+    });
+    const spark = this.scene.add.circle(this.x, this.y - 4 * RS, 3 * RS, 0xdff2ff, 0.95).setDepth(20);
+    this.scene.tweens.add({ targets: spark, scale: 2.2, alpha: 0, duration: 170, onComplete: () => spark.destroy() });
   }
 
   /** Handbell stun: freeze + an unmistakable wobble/stars state with a timer (§14 P0). */
   stun(ms: number): void {
     if (this.dying || this.def.stunnable === false) return;
+    this.clearTelegraph(); // cancel any wind-up in progress
     this.aiState = 'stunned';
     this.stunUntil = this.scene.time.now + ms;
+    this.attackReadyAt = this.scene.time.now + ms;
     (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
     this.showStunVfx(ms);
   }
@@ -196,7 +238,26 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
           this.aiState = 'leash';
           break;
         }
+        // In range + off cooldown? Telegraph an attack instead of touching.
+        if (this.def.attack && now >= this.attackReadyAt && distPlayer <= this.def.attack.range) {
+          this.enterWindup(now, playerX, playerY);
+          break;
+        }
         this.moveToward(playerX, playerY, this.def.speed);
+        break;
+
+      case 'windup':
+        body.setVelocity(0, 0);
+        if (now >= this.attackPhaseUntil) this.enterAttack(now);
+        break;
+
+      case 'attack':
+        this.runActiveAttack(now, distPlayer);
+        break;
+
+      case 'recover':
+        body.setVelocity(0, 0);
+        if (now >= this.attackPhaseUntil) this.aiState = 'chase';
         break;
 
       case 'leash':
@@ -221,6 +282,68 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
     }
 
     this.renderFacing();
+  }
+
+  /** Begin a telegraphed attack: stop, color/scale up, draw a ground danger ring. */
+  private enterWindup(now: number, px: number, py: number): void {
+    const a = this.def.attack!;
+    this.aiState = 'windup';
+    this.attackPhaseUntil = now + a.windupMs;
+    this.attackHitDone = false;
+    this.attackTarget.x = px;
+    this.attackTarget.y = py;
+    (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+
+    // Colorblind-safe telegraph: color shift + scale-breathe + a filling ground ring.
+    this.setTint(0xff7a4a);
+    this.scene.tweens.add({ targets: this, scale: this.scale * 1.12, yoyo: true, repeat: -1, duration: 120 });
+    this.telegraph = this.scene.add
+      .circle(this.x, this.y, a.range, 0xff6b5a, 0.12)
+      .setStrokeStyle(2 * RS, 0xff6b5a, 0.7)
+      .setDepth(6)
+      .setScale(0.2);
+    this.scene.tweens.add({ targets: this.telegraph, scale: 1, duration: a.windupMs, ease: 'Quad.easeOut' });
+  }
+
+  /** Fire the attack: clear the telegraph, punch the scale, lunge if applicable. */
+  private enterAttack(now: number): void {
+    const a = this.def.attack!;
+    this.clearTelegraph();
+    this.aiState = 'attack';
+    this.attackPhaseUntil = now + a.activeMs;
+    this.attackReadyAt = now + a.activeMs + a.recoverMs;
+    this.scene.tweens.add({ targets: this, scaleX: this.scaleX * 1.15, scaleY: this.scaleY * 0.85, yoyo: true, duration: a.activeMs });
+    if (a.type === 'lunge' || a.type === 'charge') {
+      const angle = Math.atan2(this.attackTarget.y - this.y, this.attackTarget.x - this.x);
+      const speed = this.def.speed * (a.type === 'charge' ? 3 : 2);
+      (this.body as Phaser.Physics.Arcade.Body).setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+    }
+  }
+
+  private runActiveAttack(now: number, distPlayer: number): void {
+    const a = this.def.attack!;
+    if (!this.attackHitDone && distPlayer <= a.range && this.onPlayerHit) {
+      this.attackHitDone = true;
+      this.onPlayerHit(a.damage, this.x, this.y);
+    }
+    if (a.type === 'overhead') (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+    if (now >= this.attackPhaseUntil) {
+      (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+      this.aiState = 'recover';
+      this.attackPhaseUntil = now + a.recoverMs;
+    }
+  }
+
+  /** Tear down an in-progress telegraph (on fire, stun, or death). */
+  private clearTelegraph(): void {
+    this.scene.tweens.killTweensOf(this); // stop the wind-up scale-breathe
+    this.clearTint();
+    this.setScale(this.useDir ? this.def.directional!.displayScale : 1);
+    if (this.telegraph) {
+      this.scene.tweens.killTweensOf(this.telegraph);
+      this.telegraph.destroy();
+      this.telegraph = undefined;
+    }
   }
 
   private moveToward(tx: number, ty: number, speed: number): void {
@@ -258,6 +381,7 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
     this.dying = true;
     this.aiState = 'dead';
     this.endStunVfx();
+    this.clearTelegraph();
     (this.body as Phaser.Physics.Arcade.Body).enable = false;
     this.onDeath?.(this);
     eventBus.emit('enemyKilled', { id: this.def.id, x: this.x, y: this.y });
