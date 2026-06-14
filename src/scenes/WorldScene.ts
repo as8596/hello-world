@@ -40,6 +40,7 @@ const NIGHT_TINT = 0x2a2148;
 const NIGHT_STRENGTH = 0.6;
 const GLOW_TEXTURE = 'warm-glow';
 const FIREFLY_TEXTURE = 'firefly-glow';
+const HURT_VIGNETTE_TEXTURE = 'hurt-vignette';
 
 /**
  * WorldScene — the playable overworld. Builds the Thistledown tilemap, spawns
@@ -82,6 +83,7 @@ export class WorldScene extends Phaser.Scene {
   private readonly hearthPositions: { x: number; y: number }[] = [];
   private nightOverlay?: Phaser.GameObjects.Rectangle;
   private readonly fireflies: Phaser.GameObjects.Image[] = [];
+  private hurtVignette?: Phaser.GameObjects.Image;
 
   constructor() {
     super(SceneKeys.World);
@@ -232,7 +234,11 @@ export class WorldScene extends Phaser.Scene {
 
     // Death handling (the HUD listens to playerHealth in UIScene).
     const offDied = eventBus.on('playerDied', () => this.handlePlayerDeath());
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, offDied);
+    const offHurt = eventBus.on('playerHurt', () => this.hurtFlash());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      offDied();
+      offHurt();
+    });
 
     this.buildBossBar();
     // If the shrine was already opened (e.g. retrying after death), skip straight
@@ -726,6 +732,57 @@ export class WorldScene extends Phaser.Scene {
     }
     ctx.putImageData(img, 0, 0);
     tex.refresh();
+  }
+
+  /** A quick red edge-vignette flash when the player takes damage (§14 P1). */
+  private hurtFlash(): void {
+    this.ensureVignette();
+    const v = this.hurtVignette;
+    if (!v) return;
+    this.tweens.killTweensOf(v);
+    v.setVisible(true).setAlpha(0.75);
+    this.tweens.add({
+      targets: v,
+      alpha: 0,
+      duration: 280,
+      ease: 'Quad.easeOut',
+      onComplete: () => v.setVisible(false),
+    });
+  }
+
+  /** Build the red edge-vignette (transparent center → red at the borders) once. */
+  private ensureVignette(): void {
+    if (this.hurtVignette) return;
+    if (!this.textures.exists(HURT_VIGNETTE_TEXTURE)) {
+      const W = 256;
+      const H = 144;
+      const tex = this.textures.createCanvas(HURT_VIGNETTE_TEXTURE, W, H);
+      if (!tex) return;
+      const ctx = tex.getContext();
+      const img = ctx.createImageData(W, H);
+      const EDGE = 0.26; // vignette occupies the outer ~26% on each side
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const n = Math.min(Math.min(x, W - 1 - x) / (W * EDGE), Math.min(y, H - 1 - y) / (H * EDGE));
+          const a = n >= 1 ? 0 : Math.pow(1 - n, 1.7);
+          const i = (y * W + x) * 4;
+          img.data[i] = 200;
+          img.data[i + 1] = 24;
+          img.data[i + 2] = 24;
+          img.data[i + 3] = Math.round(a * 255);
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      tex.refresh();
+    }
+    this.hurtVignette = this.add
+      .image(0, 0, HURT_VIGNETTE_TEXTURE)
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(2500)
+      .setVisible(false)
+      .setAlpha(0);
+    this.hurtVignette.setDisplaySize(this.scale.width, this.scale.height);
   }
 
   /** A gentle, cozy screen pulse on ring (§14 P1). */

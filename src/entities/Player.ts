@@ -232,6 +232,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.blink();
     eventBus.emit('playerHealth', { hp: this.hp, max: this.maxHp });
+    eventBus.emit('playerHurt', { amount });
     if (this.hp <= 0 && !this.dead) {
       this.dead = true;
       eventBus.emit('playerDied', undefined);
