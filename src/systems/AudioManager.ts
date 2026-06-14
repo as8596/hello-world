@@ -163,8 +163,13 @@ const SFX: Record<SfxName, (ctx: AudioContext, dest: AudioNode) => void> = {
     for (const f of [392, 494, 587]) tone(ctx, d, f, 'sine', t, 1.3, 0.07, 0.05);
   },
   fog: (ctx, d) => noiseBurst(ctx, d, ctx.currentTime, 0.5, 0.05, 'highpass', 2200, 0.5),
-  // A soft, low, slightly-varied foot plant — kept quiet so it sits under everything.
-  footstep: (ctx, d) => noiseBurst(ctx, d, ctx.currentTime, 0.09, 0.045, 'lowpass', 270 + Math.random() * 90, 1.3),
+  // A soft, slightly-varied foot plant: a dull body + a tiny tap so it carries on
+  // small speakers, but still mixed under combat.
+  footstep: (ctx, d) => {
+    const t = ctx.currentTime;
+    noiseBurst(ctx, d, t, 0.1, 0.16, 'lowpass', 520 + Math.random() * 160, 1.1);
+    noiseBurst(ctx, d, t, 0.03, 0.06, 'bandpass', 1900 + Math.random() * 300, 0.9);
+  },
 };
 
 // --- the manager -----------------------------------------------------------
@@ -194,7 +199,13 @@ class AudioManager {
   }
 
   playSfx(name: SfxName): void {
-    if (!this.ctx || !this.master || this.ctx.state !== 'running') return;
+    if (!this.ctx || !this.master) return;
+    // A gesture has happened by the time gameplay sounds fire, so if the context
+    // is still suspended, kick a resume and let the next sound through.
+    if (this.ctx.state !== 'running') {
+      void this.ctx.resume();
+      return;
+    }
     SFX[name](this.ctx, this.master);
   }
 
