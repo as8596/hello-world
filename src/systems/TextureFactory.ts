@@ -478,9 +478,10 @@ export function applyTerrainTileset(scene: Phaser.Scene, terrainKey: string): bo
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0); // generation left the context RENDER_SCALE'd
   ctx.imageSmoothingEnabled = false;
-  // blit(tileset slot, source row, source col)
+  // Each source tile has a baked-in 1px dark border; crop the inner 62×62 art
+  // (offset 1px) and scale it to fill the slot, so tiles have no grid outline.
   const blit = (slot: number, r: number, c: number): void => {
-    ctx.drawImage(src, c * STEP, r * STEP, 64, 64, slot * SLOT, 0, SLOT, SLOT);
+    ctx.drawImage(src, c * STEP + 1, r * STEP + 1, 62, 62, slot * SLOT, 0, SLOT, SLOT);
   };
   blit(0, 0, 0); // plain grass    -> Grass
   blit(1, 2, 0); // sand           -> Path
