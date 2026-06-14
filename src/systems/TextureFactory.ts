@@ -460,6 +460,38 @@ function generateTileset(scene: Phaser.Scene): void {
   tex.refresh();
 }
 
+/**
+ * Replace the walkable tiles (grass + sand) in the generated tileset with real
+ * 64px art from an uploaded grass/sand tileset, keeping the procedural tree-wall
+ * (index 2), water (index 3), and vine (index 4). Call after the terrain image
+ * loads. The source is a 4×4 grid of 64px tiles with 1px spacing.
+ */
+export function applyTerrainTileset(scene: Phaser.Scene, terrainKey: string): boolean {
+  if (!scene.textures.exists(terrainKey) || !scene.textures.exists(TextureKeys.Tiles)) return false;
+  const tex = scene.textures.get(TextureKeys.Tiles);
+  if (!(tex instanceof Phaser.Textures.CanvasTexture)) return false;
+  const src = scene.textures.get(terrainKey).getSourceImage() as CanvasImageSource;
+
+  const SLOT = TILE * RENDER_SCALE; // native tile-slot size in the tileset (64)
+  const STEP = 64 + 1; // source: 64px tiles + 1px spacing
+  const ctx = tex.getContext();
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0); // generation left the context RENDER_SCALE'd
+  ctx.imageSmoothingEnabled = false;
+  // blit(tileset slot, source row, source col)
+  const blit = (slot: number, r: number, c: number): void => {
+    ctx.drawImage(src, c * STEP, r * STEP, 64, 64, slot * SLOT, 0, SLOT, SLOT);
+  };
+  blit(0, 0, 0); // plain grass    -> Grass
+  blit(1, 2, 0); // sand           -> Path
+  blit(GRASS_VARIANT_INDICES[1], 0, 1); // grass variant       (slot 5)
+  blit(GRASS_VARIANT_INDICES[2], 0, 3); // grass variant (light) (slot 6)
+  blit(FLOWER_TILE_INDEX, 1, 2); //       grass + flowers       (slot 7)
+  ctx.restore();
+  tex.refresh();
+  return true;
+}
+
 function rect(ctx: CanvasRenderingContext2D, ox: number, x: number, y: number, w: number, h: number, color: string): void {
   ctx.fillStyle = color;
   ctx.fillRect(ox + x, y, w, h);
