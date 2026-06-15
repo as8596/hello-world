@@ -276,6 +276,16 @@ export class WorldScene extends Phaser.Scene {
       this.showToast(muted ? 'Sound off' : 'Sound on');
     });
 
+    // Escape opens the pause menu: freeze the world and hand input to MenuScene
+    // (which resumes us when dismissed). Skip while dying/transitioning or with
+    // a dialogue open — those own the moment and have their own dismissal.
+    this.input.keyboard?.on('keydown-ESC', () => {
+      if (this.dyingPlayer || this.transitioning || this.dialogueRunner.isActive) return;
+      if (this.scene.isActive(SceneKeys.Menu)) return;
+      this.scene.pause();
+      this.scene.launch(SceneKeys.Menu);
+    });
+
     this.dialogue = new DialogueBox(this);
     this.dialogueRunner = new DialogueRunner(this.dialogue, worldState, (e) => this.runDialogueEffect(e));
     this.quests = new QuestManager(worldState);
