@@ -10,7 +10,7 @@ import { Tile, type TileMapDef } from './types';
  *
  * Terrain:  .  grass   #  tree/reed   w  water
  * Objects:  c cairn   p spring   N Wren(npc)   g gloommoth   b barbhound   h heart
- *           T tree   X exit→village   A entry(from_village)   @ spawn
+ *           H hero standing-stone (lore)   T tree   X exit→village   A entry(from_village)   @ spawn
  */
 export const gladeMap: TileMapDef = {
   tileSize: TILE_SIZE,
@@ -23,6 +23,7 @@ export const gladeMap: TileMapDef = {
   objects: {
     c: { type: 'marker', group: 'cairn', loreId: 'glade_cairn' },
     p: { type: 'marker', group: 'shrine', loreId: 'glade_spring' },
+    H: { type: 'marker', group: 'hero_stone', loreId: 'glade_hero' },
     N: { type: 'npc', npcId: 'wren' },
     g: { type: 'enemy', enemyId: 'gloommoth' },
     b: { type: 'enemy', enemyId: 'barbhound' },
@@ -39,7 +40,7 @@ export const gladeMap: TileMapDef = {
   rows: [
     '############################', // 0
     '###..####.........###....###', // 1  ragged northern treeline
-    '##.....##...........#....c.#', // 2  cairn (top-right)
+    '##..H..##...........#....c.#', // 2  hero standing-stone (NW); cairn (top-right)
     '##..wwww.................A.#', // 3  arrive from the village (east)
     '##.wwwwww...####.........X.#', // 4  big mere + reed island; exit east
     '##.wwwwww...####...........#', // 5

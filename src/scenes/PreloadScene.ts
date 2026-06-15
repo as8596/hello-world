@@ -69,6 +69,12 @@ export class PreloadScene extends Phaser.Scene {
       this.load.image(`rock-${r}`, `assets/sprites/rocks/${r}.png`);
     }
 
+    // Carved stone shrines: four small 64px standing-stones/altars for markers,
+    // and four tall 128px hero shrines (statue / tomb / forge / standing stone)
+    // used as depth-sorted point-of-interest props.
+    for (const s of ['1', '2', '3', '4']) this.load.image(`shrine-small-${s}`, `assets/sprites/shrines/small-${s}.png`);
+    for (const s of ['statue', 'tomb', 'forge', 'stone']) this.load.image(`shrine-hero-${s}`, `assets/sprites/shrines/hero-${s}.png`);
+
     // Animated placeholder fire (roaring flames) for the hearth — a 64px strip.
     this.load.spritesheet('fire', 'assets/sprites/fire.png', { frameWidth: 64, frameHeight: 64 });
 

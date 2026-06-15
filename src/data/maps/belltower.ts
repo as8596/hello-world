@@ -8,7 +8,7 @@ import { Tile, type TileMapDef } from './types';
  * South opening returns to the Thornwood Trail. The shrine (north) is terminal.
  *
  * Terrain:  .  grass   #  tree/wall
- * Objects:  C chime   D boss door   X boss spawn   B great bell   S thorn-sprite
+ * Objects:  C chime   D boss door   X boss spawn   B great bell   H hero shrine(lore)   S thorn-sprite
  *           b brambleback   s exit→trail   6 entry(from_trail)
  */
 export const belltowerMap: TileMapDef = {
@@ -23,6 +23,7 @@ export const belltowerMap: TileMapDef = {
     D: { type: 'door' },
     X: { type: 'boss', enemyId: 'bramblewerth' },
     B: { type: 'greatbell' },
+    H: { type: 'marker', group: 'hero_statue', loreId: 'belltower_hero' },
     S: { type: 'enemy', enemyId: 'thorn_sprite' },
     b: { type: 'enemy', enemyId: 'brambleback' },
     s: { type: 'exit', toArea: 'trail', toEntry: 'from_belltower' },
@@ -34,7 +35,7 @@ export const belltowerMap: TileMapDef = {
   rows: [
     '############################', // 0  — the shrine (north, terminal)
     '######................######', // 1
-    '######................######', // 2
+    '######..........H.....######', // 2  hero shrine (the tower's fallen Warden)
     '######......B.........######', // 3  great bell
     '######................######', // 4
     '######......X.........######', // 5  Bramblewerth spawns here

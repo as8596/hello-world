@@ -70,8 +70,24 @@ const AREA_NAMES: Record<string, string> = {
   warren: 'the Bramble Warren',
 };
 
-/** Marker POI variant (object `group`) → prop texture. */
-const MARKER_TEX: Record<string, string> = { cairn: 'rock-cairn', shrine: 'rock-shrine', well: 'rock-well' };
+/** Flat marker POI variant (object `group`) → small prop texture. */
+const MARKER_TEX: Record<string, string> = {
+  cairn: 'rock-cairn',
+  shrine: 'shrine-small-4', // a carved standing-stone with an offering bowl
+  well: 'rock-well',
+};
+
+/**
+ * Tall hero-shrine POI variant (object `group`) → 128px prop texture. These are
+ * rendered as depth-sorted Buildings (with a candle glow) rather than flat
+ * markers, so the player rounds and is hidden behind them like a house.
+ */
+const HERO_SHRINE_TEX: Record<string, string> = {
+  hero_statue: 'shrine-hero-statue',
+  hero_tomb: 'shrine-hero-tomb',
+  hero_forge: 'shrine-hero-forge',
+  hero_stone: 'shrine-hero-stone',
+};
 
 /** Bush variant (object `group`) → texture key. */
 const BUSH_TEX: Record<string, string> = {
@@ -250,8 +266,22 @@ export class WorldScene extends Phaser.Scene {
         );
       } else if (obj.type === 'marker') {
         const lines = LORE[obj.loreId ?? ''] ?? ['...'];
-        const tex = MARKER_TEX[obj.group ?? ''] ?? TextureKeys.Cairn;
-        this.interactables.push(new Interactable(this, obj.x, obj.y, { texture: tex, label: 'examine', lines }));
+        const heroTex = HERO_SHRINE_TEX[obj.group ?? ''];
+        if (heroTex) {
+          // A tall hero shrine: depth-sorted prop + warm candle glow + a footprint
+          // collider, with an invisible node carrying the examine prompt/lore.
+          this.buildings.push(new Building(this, obj.x, obj.y, heroTex));
+          this.makePickupGlint(obj.x, obj.y + 4 * RS, [255, 178, 92]); // flickering candlelight
+          const foot = this.add.rectangle(obj.x, obj.y - 1 * RS, 22 * RS, 8 * RS).setOrigin(0.5).setVisible(false);
+          this.physics.add.existing(foot, true);
+          this.propColliders.push(foot);
+          const node = new Interactable(this, obj.x, obj.y, { label: 'examine', lines });
+          node.setVisible(false);
+          this.interactables.push(node);
+        } else {
+          const tex = MARKER_TEX[obj.group ?? ''] ?? TextureKeys.Cairn;
+          this.interactables.push(new Interactable(this, obj.x, obj.y, { texture: tex, label: 'examine', lines }));
+        }
       } else if (obj.type === 'signpost') {
         this.interactables.push(
           new Interactable(this, obj.x, obj.y, { texture: TextureKeys.Signpost, label: 'read', onInteract: () => this.readSignpost() }),

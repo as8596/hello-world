@@ -10,7 +10,7 @@ import { Tile, type TileMapDef } from './types';
  *
  * Terrain:  .  grass   #  tree/wall   o  cobble (stone path)
  * Objects:  v gate vine   H hearth   M Maple   N sleeper   S thorn-sprite
- *           C cottage   P stone house   U ruined house   T tree
+ *           C cottage   P stone house   U ruined house   T tree   Q smith's shrine(lore)
  *           d/e/f/j house doors (enter the interiors)
  *           n exit→trail   s exit→hollow   g exit→glade
  *           2 entry(from_trail)   3 entry(from_hollow)   4 entry(from_glade)
@@ -33,6 +33,7 @@ export const villageMap: TileMapDef = {
     P: { type: 'building', group: 'stone' },
     U: { type: 'building', group: 'ruin' },
     T: { type: 'tree' },
+    Q: { type: 'marker', group: 'hero_forge', loreId: 'village_forge' },
     k: { type: 'signpost' },
     // Interactable doors (in front of each house) -> interiors; also the spot you
     // return to when you leave.
@@ -56,7 +57,7 @@ export const villageMap: TileMapDef = {
     '###############vv###############', // 2  vine gate (cut to pass north)
     '##.............o2.............##', // 3  arrive from the trail
     '##.............oo.............##', // 4
-    '##...T.........oo.........T...##', // 5
+    '##...T....Q....oo.........T...##', // 5  a smith's shrine off the west lane
     '##.....C.......oo.......P.....##', // 6  cottage / stone house
     '##.....d.N.....oo.....N.e.....##', // 7  their doors (enter) + sleepers
     '##.........oooooooooo.........##', // 8  the market square (cobbled)

@@ -30,7 +30,7 @@ export const warrenMap: TileMapDef = {
     T: { type: 'tree' },
     Y: { type: 'bush', group: 'thorny' },
     b: { type: 'marker', loreId: 'warren_bones' },
-    k: { type: 'marker', loreId: 'warren_cache' },
+    k: { type: 'marker', group: 'hero_tomb', loreId: 'warren_cache' },
     X: { type: 'exit', toArea: 'trail', toEntry: 'from_warren' },
     A: { type: 'entry', entryId: 'from_trail' },
   },
