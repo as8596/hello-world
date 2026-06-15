@@ -4,7 +4,7 @@ import { RENDER_SCALE as RS } from '../data/render';
 import { SPRITE_DIRS } from '../data/spriteDirections';
 import { PLAYER_SPRITE_DIRS } from '../entities/Player';
 import { addPixelText, createPixelFont } from '../systems/PixelFont';
-import { applyTerrainTileset, generateEdgeDecals, generatePlaceholderTextures } from '../systems/TextureFactory';
+import { applyStoneTileset, applyTerrainTileset, generateEdgeDecals, generatePlaceholderTextures } from '../systems/TextureFactory';
 import { SceneKeys } from './SceneKeys';
 
 /**
@@ -49,6 +49,9 @@ export class PreloadScene extends Phaser.Scene {
     // tiles once loaded (tree-walls + vines stay procedural).
     this.load.image('terrain', 'assets/tilesets/terrain.png');
 
+    // Optional real cobblestone sheet — composited into the cobble tile slots.
+    this.load.image('stone', 'assets/tilesets/stone.png');
+
     // A standalone tree world-object, placed via 'tree' map objects (optional —
     // a missing file just means those objects render nothing).
     this.load.image('tree', 'assets/tree.png');
@@ -83,9 +86,10 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   create(): void {
-    // All loads are done now, so fold the real terrain art into the tileset,
-    // then bake the dithered edge decals from the (now real) grass.
+    // All loads are done now, so fold the real terrain + stone art into the
+    // tileset, then bake the dithered edge decals from the (now real) grass.
     applyTerrainTileset(this, 'terrain');
+    applyStoneTileset(this, 'stone');
     generateEdgeDecals(this);
     this.scene.start(SceneKeys.World);
   }

@@ -683,7 +683,9 @@ export const FLOWER_TILE_INDEX = 7;
  *  terrain sheet's flower row — scattered for variety. */
 export const FLOWER_TILE_INDICES = [7, 11, 12, 13];
 export const COBBLE_TILE_INDEX = 8;
-const TILESET_COUNT = 14;
+/** Cobble-tile slots: clean (8), a clean alt (14), and a mossy/overgrown one (15). */
+export const COBBLE_VARIANT_INDICES = [8, 14, 15];
+const TILESET_COUNT = 16;
 
 function generateTileset(scene: Phaser.Scene): void {
   if (scene.textures.exists(TextureKeys.Tiles)) return;
@@ -706,6 +708,9 @@ function generateTileset(scene: Phaser.Scene): void {
   drawFlowers(ctx, 11 * TILE);
   drawFlowers(ctx, 12 * TILE);
   drawFlowers(ctx, 13 * TILE);
+  // Cobble variants (placeholders until the stone sheet is composited in).
+  drawCobble(ctx, 14 * TILE);
+  drawCobble(ctx, 15 * TILE);
 
   tex.refresh();
 }
@@ -741,6 +746,34 @@ export function applyTerrainTileset(scene: Phaser.Scene, terrainKey: string): bo
   blit(11, 1, 0); //                       red + yellow flowers (slot 11)
   blit(12, 1, 1); //                       blue flowers         (slot 12)
   blit(13, 1, 3); //                       purple lavender      (slot 13)
+  ctx.restore();
+  tex.refresh();
+  return true;
+}
+
+/**
+ * Composite real cobblestone art (from an uploaded 4×4, 64px stone sheet) into
+ * the cobble tile slots, so the village's stone paths use the real tileset. Call
+ * after the stone image loads.
+ */
+export function applyStoneTileset(scene: Phaser.Scene, stoneKey: string): boolean {
+  if (!scene.textures.exists(stoneKey) || !scene.textures.exists(TextureKeys.Tiles)) return false;
+  const tex = scene.textures.get(TextureKeys.Tiles);
+  if (!(tex instanceof Phaser.Textures.CanvasTexture)) return false;
+  const src = scene.textures.get(stoneKey).getSourceImage() as CanvasImageSource;
+
+  const SLOT = TILE * RENDER_SCALE;
+  const STEP = 64 + 1; // source: 64px tiles + 1px spacing
+  const ctx = tex.getContext();
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  const blit = (slot: number, r: number, c: number): void => {
+    ctx.drawImage(src, c * STEP + 1, r * STEP + 1, 62, 62, slot * SLOT, 0, SLOT, SLOT);
+  };
+  blit(COBBLE_VARIANT_INDICES[0], 0, 0); // clean cobbles       (slot 8)
+  blit(COBBLE_VARIANT_INDICES[1], 0, 1); // clean cobbles, alt  (slot 14)
+  blit(COBBLE_VARIANT_INDICES[2], 1, 0); // mossy/overgrown     (slot 15)
   ctx.restore();
   tex.refresh();
   return true;

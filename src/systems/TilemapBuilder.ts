@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { Tile, type MapObjectInstance, type TileMapDef } from '../data/maps/types';
-import { EDGE_DIRS, FLOWER_TILE_INDICES, GRASS_VARIANT_INDICES, TextureKeys } from './TextureFactory';
+import { COBBLE_VARIANT_INDICES, EDGE_DIRS, FLOWER_TILE_INDICES, GRASS_VARIANT_INDICES, TextureKeys } from './TextureFactory';
 
 /** Narrow walkable runs this wide or less become the dirt trail. */
 const MAX_TRAIL_WIDTH = 2;
@@ -117,6 +117,16 @@ function decorate(data: number[][], blocking: number[]): void {
     for (let i = 0; i < row.length; i++) if (row[i] === Tile.Cobble && Math.random() < 0.14) row[i] = pickGrass();
   }
 
+  // Vary the remaining cobbles across the real stone variants (mostly clean,
+  // some mossy) so the paths aren't a flat repeat.
+  for (const row of data) {
+    for (let i = 0; i < row.length; i++) {
+      if (row[i] !== Tile.Cobble) continue;
+      const r = Math.random();
+      row[i] = r < 0.45 ? COBBLE_VARIANT_INDICES[0] : r < 0.78 ? COBBLE_VARIANT_INDICES[1] : COBBLE_VARIANT_INDICES[2];
+    }
+  }
+
   // Flower PATCHES: seed a few spots and grow a blob of one variant from each, so
   // flowers cluster into patches instead of speckling the whole field.
   const H = data.length;
@@ -195,7 +205,7 @@ export function buildTilemap(scene: Phaser.Scene, def: TileMapDef): BuiltMap {
   if (!layer) throw new Error('Failed to create tilemap layer');
 
   // Randomly mirror ~half the grass/flower tiles for extra organic variation.
-  const flippable = new Set<number>([...GRASS_VARIANT_INDICES, ...FLOWER_TILE_INDICES]);
+  const flippable = new Set<number>([...GRASS_VARIANT_INDICES, ...FLOWER_TILE_INDICES, ...COBBLE_VARIANT_INDICES]);
   layer.forEachTile((tile) => {
     if (flippable.has(tile.index) && Math.random() < 0.5) tile.flipX = true;
   });
