@@ -5,6 +5,10 @@
  * and a danger layer (driving bass on the chord root + a dissonant shimmer)
  * fades in with `intensity` while the calm arpeggio ducks back.
  *
+ * The score is a small playlist of SONGS — each its own key, progression, tempo
+ * and set of chiptune lead phrases. The engine plays through a song's phrases
+ * (one per cycle), then segues to the next song, looping the playlist.
+ *
  * Scheduling uses the standard WebAudio lookahead pattern: a coarse setInterval
  * timer queues note events a short way into the future, so playback stays
  * sample-accurate regardless of timer jitter.
@@ -13,8 +17,6 @@
 const STEPS = 32; // the full progression cycle (an eighth-note grid)
 const STEPS_PER_CHORD = 8; // each chord lasts a bar
 const BUS_GAIN = 0.6; // the whole score sits under the SFX
-const BPM = 70;
-const STEP_DUR = 60 / BPM / 2; // eighth note in seconds
 
 interface Chord {
   /** Low drone tones (root + fifth) for the pad. */
@@ -25,47 +27,133 @@ interface Chord {
   bass: number;
 }
 
-// A warm folk progression in A minor: Am – F – C – G (i – VI – III – VII).
-const PROGRESSION: Chord[] = [
-  { pad: [110.0, 164.81], arp: [220.0, 261.63, 329.63, 440.0], bass: 55.0 }, // Am
-  { pad: [87.31, 130.81], arp: [174.61, 220.0, 261.63, 349.23], bass: 43.65 }, // F
-  { pad: [130.81, 196.0], arp: [261.63, 329.63, 392.0, 523.25], bass: 65.41 }, // C
-  { pad: [98.0, 146.83], arp: [196.0, 246.94, 293.66, 392.0], bass: 49.0 }, // G
-];
+/** A lead-melody phrase over the 32-step cycle: [step, freq, dur] events. */
+type Melody = [number, number, number][];
 
-// Several lead-melody phrases over the 32-step cycle: [step, freq, dur]. The
-// engine rotates through them so each progression cycle gets a different chiptune
-// tune (one is sparse, for breathing room). All in A minor over Am–F–C–G.
-const MELODIES: [number, number, number][][] = [
-  // A — gentle
-  [
-    [0, 659.25, 1.8], [6, 523.25, 1.0], // Am: E5 .. C5
-    [8, 587.33, 1.8], [14, 440.0, 1.0], // F:  D5 .. A4
-    [16, 659.25, 1.4], [20, 783.99, 1.4], // C: E5 G5
-    [24, 587.33, 1.4], [28, 493.88, 1.6], // G: D5 B4
+interface Song {
+  /** For readability/debugging — the tune's working title. */
+  name: string;
+  /** Tempo (beats per minute); sets the eighth-note step length. */
+  bpm: number;
+  /** Four chords, one per bar, cycled across the 32 steps. */
+  progression: Chord[];
+  /** Rotating lead phrases; the engine plays one per cycle, then the next song. */
+  melodies: Melody[];
+}
+
+// 1) "Thistledown" — the original warm folk tune in A minor: Am–F–C–G.
+const THISTLEDOWN: Song = {
+  name: 'Thistledown',
+  bpm: 70,
+  progression: [
+    { pad: [110.0, 164.81], arp: [220.0, 261.63, 329.63, 440.0], bass: 55.0 }, // Am
+    { pad: [87.31, 130.81], arp: [174.61, 220.0, 261.63, 349.23], bass: 43.65 }, // F
+    { pad: [130.81, 196.0], arp: [261.63, 329.63, 392.0, 523.25], bass: 65.41 }, // C
+    { pad: [98.0, 146.83], arp: [196.0, 246.94, 293.66, 392.0], bass: 49.0 }, // G
   ],
-  // B — rising runs
-  [
-    [0, 440.0, 0.7], [2, 523.25, 0.7], [4, 659.25, 1.2], // Am: A4 C5 E5
-    [8, 698.46, 0.7], [10, 587.33, 0.7], [12, 523.25, 1.2], // F: F5 D5 C5
-    [16, 659.25, 0.7], [18, 783.99, 0.7], [20, 659.25, 1.2], // C: E5 G5 E5
-    [24, 587.33, 0.7], [26, 493.88, 0.7], [28, 392.0, 1.4], // G: D5 B4 G4
+  melodies: [
+    // gentle
+    [
+      [0, 659.25, 1.8], [6, 523.25, 1.0], // Am: E5 .. C5
+      [8, 587.33, 1.8], [14, 440.0, 1.0], // F:  D5 .. A4
+      [16, 659.25, 1.4], [20, 783.99, 1.4], // C: E5 G5
+      [24, 587.33, 1.4], [28, 493.88, 1.6], // G: D5 B4
+    ],
+    // rising runs
+    [
+      [0, 440.0, 0.7], [2, 523.25, 0.7], [4, 659.25, 1.2], // Am: A4 C5 E5
+      [8, 698.46, 0.7], [10, 587.33, 0.7], [12, 523.25, 1.2], // F: F5 D5 C5
+      [16, 659.25, 0.7], [18, 783.99, 0.7], [20, 659.25, 1.2], // C: E5 G5 E5
+      [24, 587.33, 0.7], [26, 493.88, 0.7], [28, 392.0, 1.4], // G: D5 B4 G4
+    ],
+    // sparse + high (a rest from the busier ones)
+    [
+      [0, 659.25, 2.6], // Am: E5
+      [8, 523.25, 2.6], // F:  C5
+      [16, 783.99, 2.6], // C: G5
+      [24, 493.88, 1.2], [28, 587.33, 1.4], // G: B4 D5
+    ],
+    // playful descents
+    [
+      [0, 880.0, 0.7], [2, 783.99, 0.7], [4, 659.25, 0.7], [6, 523.25, 1.0], // Am: A5 G5 E5 C5
+      [8, 440.0, 0.7], [10, 523.25, 0.7], [12, 698.46, 1.2], // F: A4 C5 F5
+      [16, 783.99, 0.7], [18, 659.25, 0.7], [20, 523.25, 1.0], // C: G5 E5 C5
+      [24, 493.88, 0.7], [26, 587.33, 0.7], [28, 783.99, 1.2], // G: B4 D5 G5
+    ],
   ],
-  // C — sparse + high (a rest from the busier ones)
-  [
-    [0, 659.25, 2.6], // Am: E5
-    [8, 523.25, 2.6], // F:  C5
-    [16, 783.99, 2.6], // C: G5
-    [24, 493.88, 1.2], [28, 587.33, 1.4], // G: B4 D5
+};
+
+// 2) "Sunlit Square" — a brighter, livelier tune in C major: C–G–Am–F (I–V–vi–IV).
+const SUNLIT: Song = {
+  name: 'Sunlit Square',
+  bpm: 78,
+  progression: [
+    { pad: [130.81, 196.0], arp: [261.63, 329.63, 392.0, 523.25], bass: 65.41 }, // C
+    { pad: [98.0, 146.83], arp: [392.0, 493.88, 587.33, 783.99], bass: 49.0 }, // G
+    { pad: [110.0, 164.81], arp: [440.0, 523.25, 659.25, 880.0], bass: 55.0 }, // Am
+    { pad: [87.31, 130.81], arp: [349.23, 440.0, 523.25, 698.46], bass: 43.65 }, // F
   ],
-  // D — playful descents
-  [
-    [0, 880.0, 0.7], [2, 783.99, 0.7], [4, 659.25, 0.7], [6, 523.25, 1.0], // Am: A5 G5 E5 C5
-    [8, 440.0, 0.7], [10, 523.25, 0.7], [12, 698.46, 1.2], // F: A4 C5 F5
-    [16, 783.99, 0.7], [18, 659.25, 0.7], [20, 523.25, 1.0], // C: G5 E5 C5
-    [24, 493.88, 0.7], [26, 587.33, 0.7], [28, 783.99, 1.2], // G: B4 D5 G5
+  melodies: [
+    // gentle, open
+    [
+      [0, 523.25, 1.8], [6, 659.25, 1.0], // C: C5 .. E5
+      [8, 587.33, 1.8], [14, 493.88, 1.0], // G: D5 .. B4
+      [16, 659.25, 1.4], [20, 880.0, 1.4], // Am: E5 A5
+      [24, 698.46, 1.4], [28, 523.25, 1.6], // F: F5 C5
+    ],
+    // rising runs
+    [
+      [0, 392.0, 0.7], [2, 523.25, 0.7], [4, 659.25, 1.2], // C: G4 C5 E5
+      [8, 493.88, 0.7], [10, 587.33, 0.7], [12, 783.99, 1.2], // G: B4 D5 G5
+      [16, 440.0, 0.7], [18, 523.25, 0.7], [20, 659.25, 1.2], // Am: A4 C5 E5
+      [24, 349.23, 0.7], [26, 523.25, 0.7], [28, 698.46, 1.4], // F: F4 C5 F5
+    ],
+    // sparse + high
+    [
+      [0, 783.99, 2.6], // C: G5
+      [8, 587.33, 2.6], // G: D5
+      [16, 659.25, 2.6], // Am: E5
+      [24, 698.46, 1.2], [28, 880.0, 1.4], // F: F5 A5
+    ],
   ],
-];
+};
+
+// 3) "Mistfall" — a pensive, wandering tune in E minor: Em–C–G–D (i–VI–III–VII).
+const MISTFALL: Song = {
+  name: 'Mistfall',
+  bpm: 64,
+  progression: [
+    { pad: [82.41, 123.47], arp: [329.63, 392.0, 493.88, 659.25], bass: 41.2 }, // Em
+    { pad: [130.81, 196.0], arp: [261.63, 329.63, 392.0, 523.25], bass: 65.41 }, // C
+    { pad: [98.0, 146.83], arp: [392.0, 493.88, 587.33, 783.99], bass: 49.0 }, // G
+    { pad: [73.42, 110.0], arp: [293.66, 369.99, 440.0, 587.33], bass: 36.71 }, // D
+  ],
+  melodies: [
+    // gentle, longing
+    [
+      [0, 493.88, 1.8], [6, 392.0, 1.0], // Em: B4 .. G4
+      [8, 523.25, 1.8], [14, 659.25, 1.0], // C: C5 .. E5
+      [16, 587.33, 1.4], [20, 783.99, 1.4], // G: D5 G5
+      [24, 587.33, 1.4], [28, 440.0, 1.6], // D: D5 A4
+    ],
+    // rising runs
+    [
+      [0, 329.63, 0.7], [2, 392.0, 0.7], [4, 493.88, 1.2], // Em: E4 G4 B4
+      [8, 523.25, 0.7], [10, 659.25, 0.7], [12, 783.99, 1.2], // C: C5 E5 G5
+      [16, 587.33, 0.7], [18, 493.88, 0.7], [20, 392.0, 1.2], // G: D5 B4 G4
+      [24, 440.0, 0.7], [26, 587.33, 0.7], [28, 369.99, 1.4], // D: A4 D5 F#4
+    ],
+    // sparse + high
+    [
+      [0, 659.25, 2.6], // Em: E5
+      [8, 523.25, 2.6], // C: C5
+      [16, 783.99, 2.6], // G: G5
+      [24, 587.33, 1.2], [28, 440.0, 1.4], // D: D5 A4
+    ],
+  ],
+};
+
+const SONGS: Song[] = [THISTLEDOWN, SUNLIT, MISTFALL];
 
 export class MusicEngine {
   private readonly ctx: AudioContext;
@@ -79,8 +167,12 @@ export class MusicEngine {
   private timer: number | null = null;
   private nextNoteTime = 0;
   private step = 0;
-  private chord: Chord = PROGRESSION[0];
+  private song: Song = SONGS[0];
+  private songIndex = 0;
+  private stepDur = 60 / SONGS[0].bpm / 2; // eighth note in seconds (per song tempo)
+  private chord: Chord = SONGS[0].progression[0];
   private melodyVariant = 0;
+  private firstCycle = true;
 
   /** Smoothed danger level driving the crossfade; eases toward `target`. */
   private current = 0;
@@ -180,7 +272,7 @@ export class MusicEngine {
     const ahead = this.ctx.currentTime + 0.2;
     while (this.nextNoteTime < ahead) {
       this.scheduleStep(this.step, this.nextNoteTime);
-      this.nextNoteTime += STEP_DUR;
+      this.nextNoteTime += this.stepDur;
       this.step = (this.step + 1) % STEPS;
     }
 
@@ -193,14 +285,37 @@ export class MusicEngine {
     this.padGain.gain.setTargetAtTime(0.5 - 0.1 * this.current, t, 0.4);
   }
 
+  /**
+   * Called at the top of each 32-step cycle. Rotate to the song's next lead
+   * phrase; once it has played all of them, segue to the next song in the
+   * playlist (which switches key, progression and tempo). The very first cycle
+   * keeps phrase 0 so a fresh start opens on the tune's main theme.
+   */
+  private advanceCycle(): void {
+    if (this.firstCycle) {
+      this.firstCycle = false;
+      return;
+    }
+    this.melodyVariant += 1;
+    if (this.melodyVariant >= this.song.melodies.length) {
+      this.songIndex = (this.songIndex + 1) % SONGS.length;
+      this.song = SONGS[this.songIndex];
+      this.stepDur = 60 / this.song.bpm / 2;
+      this.melodyVariant = 0;
+    }
+  }
+
   private scheduleStep(step: number, t: number): void {
+    // At the top of each cycle, advance the playlist: each song plays through its
+    // phrases (one per cycle), then we segue to the next song (new key + tempo).
+    if (step === 0) this.advanceCycle();
+
     // Advance the chord progression (and retune the pad) each bar.
     if (step % STEPS_PER_CHORD === 0) {
-      this.chord = PROGRESSION[Math.floor(step / STEPS_PER_CHORD) % PROGRESSION.length];
+      const prog = this.song.progression;
+      this.chord = prog[Math.floor(step / STEPS_PER_CHORD) % prog.length];
       this.applyChord(t);
     }
-    // At the top of each progression cycle, rotate to a different melody phrase.
-    if (step === 0) this.melodyVariant = (this.melodyVariant + 1) % MELODIES.length;
 
     // Harmony: an ascending arpeggio of the current chord, one tone per beat
     // (every other step) — always consonant, with clear forward motion.
@@ -208,10 +323,10 @@ export class MusicEngine {
       this.pluck(this.chord.arp[(step % STEPS_PER_CHORD) / 2], t, this.calmGain, 0.12, 'triangle', 1.1);
     }
 
-    // Lead melody: the current rotating chiptune phrase, on a square voice above
-    // the arpeggio. Recedes under danger.
+    // Lead melody: the current song's rotating chiptune phrase, on a square voice
+    // above the arpeggio. Recedes under danger.
     if (this.current < 0.85) {
-      const note = MELODIES[this.melodyVariant].find((m) => m[0] === step);
+      const note = this.song.melodies[this.melodyVariant].find((m) => m[0] === step);
       if (note) this.pluck(note[1], t, this.melodyGain, 0.08, 'square', note[2]);
     }
 
