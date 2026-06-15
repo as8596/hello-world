@@ -23,6 +23,7 @@ export type SfxName =
   | 'heart'
   | 'rested'
   | 'fog'
+  | 'doorClose'
   | 'footstep';
 
 // --- tiny synth helpers ----------------------------------------------------
@@ -165,6 +166,13 @@ const SFX: Record<SfxName, (ctx: AudioContext, dest: AudioNode) => void> = {
     for (const f of [392, 494, 587]) tone(ctx, d, f, 'sine', t, 1.3, 0.07, 0.05);
   },
   fog: (ctx, d) => noiseBurst(ctx, d, ctx.currentTime, 0.5, 0.05, 'highpass', 2200, 0.5),
+  // A door pulling shut: a dull wooden body thud, then a small latch click.
+  doorClose: (ctx, d) => {
+    const t = ctx.currentTime;
+    tone(ctx, d, 96, 'sine', t, 0.18, 0.2, 0.001); // low wooden body
+    noiseBurst(ctx, d, t, 0.13, 0.16, 'lowpass', 340, 1.0); // the thud
+    noiseBurst(ctx, d, t + 0.05, 0.04, 0.1, 'bandpass', 2300, 1.3); // latch click
+  },
   // A soft, slightly-varied foot plant: a dull body + a tiny tap so it carries on
   // small speakers, but still mixed under combat.
   footstep: (ctx, d) => {

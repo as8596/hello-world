@@ -157,8 +157,9 @@ export class WorldScene extends Phaser.Scene {
   private attackKeys: Phaser.Input.Keyboard.Key[] = [];
   private ringKeys: Phaser.Input.Keyboard.Key[] = [];
   private dodgeKeys: Phaser.Input.Keyboard.Key[] = [];
-  private promptText!: Phaser.GameObjects.BitmapText;
-  private promptBg!: Phaser.GameObjects.Arc;
+  private promptIcon?: Phaser.GameObjects.Image; // the "E" keycap (preferred)
+  private promptText?: Phaser.GameObjects.BitmapText; // procedural fallback
+  private promptBg?: Phaser.GameObjects.Arc;
   private gateRemaining = 0;
   private fogRemaining = 0;
   private dyingPlayer = false;
@@ -498,17 +499,22 @@ export class WorldScene extends Phaser.Scene {
     this.dialogueRunner = new DialogueRunner(this.dialogue, worldState, (e) => this.runDialogueEffect(e));
     this.quests = new QuestManager(worldState);
 
-    // A small, unobtrusive "E" hover bubble above the nearest interactable.
-    this.promptBg = this.add
-      .circle(0, 0, 5 * RS, 0x10101a, 0.82)
-      .setStrokeStyle(1 * RS, 0x6fb3ff, 0.85)
-      .setDepth(1500)
-      .setVisible(false);
-    this.promptText = addPixelText(this, 0, 0, 'E', { color: 0xe8e6d8 })
-      .setOrigin(0.5)
-      .setScale(0.75)
-      .setDepth(1501)
-      .setVisible(false);
+    // A small, unobtrusive "E" hover prompt above the nearest interactable —
+    // the real keycap art if present, else a procedural bubble.
+    if (this.textures.exists('ui-prompt-e')) {
+      this.promptIcon = this.add.image(0, 0, 'ui-prompt-e').setOrigin(0.5).setDepth(1501).setVisible(false);
+    } else {
+      this.promptBg = this.add
+        .circle(0, 0, 5 * RS, 0x10101a, 0.82)
+        .setStrokeStyle(1 * RS, 0x6fb3ff, 0.85)
+        .setDepth(1500)
+        .setVisible(false);
+      this.promptText = addPixelText(this, 0, 0, 'E', { color: 0xe8e6d8 })
+        .setOrigin(0.5)
+        .setScale(0.75)
+        .setDepth(1501)
+        .setVisible(false);
+    }
 
     // Hearts HUD lives in a parallel overlay scene; launch it once.
     if (!this.scene.isActive(SceneKeys.UI)) this.scene.launch(SceneKeys.UI);
@@ -594,8 +600,7 @@ export class WorldScene extends Phaser.Scene {
     // While a dialogue is open, freeze the player and route input to it.
     if (this.dialogueRunner.isActive) {
       this.player.halt();
-      this.promptText.setVisible(false);
-      this.promptBg.setVisible(false);
+      this.hidePrompt();
       if (this.navUpKeys.some((k) => Phaser.Input.Keyboard.JustDown(k))) this.dialogueRunner.move(-1);
       if (this.navDownKeys.some((k) => Phaser.Input.Keyboard.JustDown(k))) this.dialogueRunner.move(1);
       if (interactPressed) this.dialogueRunner.advance();
@@ -1257,6 +1262,9 @@ export class WorldScene extends Phaser.Scene {
     if (this.transitioning) return;
     this.transitioning = true;
     this.player.halt();
+    // A door pulling shut when entering or leaving a building interior (not on
+    // open-world edges, where you just walk between areas).
+    if (AREAS[this.areaId].interior || AREAS[toArea].interior) audio.playSfx('doorClose');
     this.cameras.main.fadeOut(320, 0, 0, 0);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       worldState.setFlag('area', toArea);
@@ -1448,15 +1456,21 @@ export class WorldScene extends Phaser.Scene {
 
   private updatePrompt(target: Interactable | null): void {
     if (!target) {
-      this.promptText.setVisible(false);
-      this.promptBg.setVisible(false);
+      this.hidePrompt();
       return;
     }
-    // Just a little "E" bubble floating above the interactable — no verb label.
+    // Just a little "E" keycap floating above the interactable — no verb label.
     const cx = Math.round(target.x);
     const cy = Math.round(target.y - 16 * RS);
-    this.promptText.setPosition(cx, cy).setVisible(true);
-    this.promptBg.setPosition(cx, cy).setVisible(true);
+    this.promptIcon?.setPosition(cx, cy).setVisible(true);
+    this.promptText?.setPosition(cx, cy).setVisible(true);
+    this.promptBg?.setPosition(cx, cy).setVisible(true);
+  }
+
+  private hidePrompt(): void {
+    this.promptIcon?.setVisible(false);
+    this.promptText?.setVisible(false);
+    this.promptBg?.setVisible(false);
   }
 
   private act(target: Interactable): void {

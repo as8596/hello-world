@@ -66,6 +66,10 @@ export class PreloadScene extends Phaser.Scene {
     // for the dialogue box in create(). Optional — no portrait just hides the panel.
     this.load.image('portrait-maple-full', 'assets/sprites/portraits/maple.png');
 
+    // UI kit. The "E" keycap is the interact prompt; the framed panels/buttons are
+    // available for restyling menus. Optional — the prompt falls back to a bubble.
+    this.load.image('ui-prompt-e', 'assets/sprites/ui/E.png');
+
     // Bush foliage world-objects (green / dead / thorny / berry), placed in clusters.
     this.load.image('bush-green', 'assets/sprites/bushes/green.png');
     this.load.image('bush-dead', 'assets/sprites/bushes/dead.png');
