@@ -150,7 +150,7 @@ export class MenuScene extends Phaser.Scene {
       },
       {
         label: () => `Music   ${audio.isMusicEnabled() ? 'On' : 'Off'}`,
-        adjust: () => audio.setMusicEnabled(!audio.isMusicEnabled()),
+        adjust: (dir) => audio.setMusicEnabled(dir > 0), // Left = Off, Right = On
         action: () => audio.setMusicEnabled(!audio.isMusicEnabled()),
       },
       { label: () => 'Back', action: () => this.showPage('main') },
@@ -193,6 +193,7 @@ export class MenuScene extends Phaser.Scene {
   private confirm(): void {
     const result = this.items[this.cursor].action?.();
     if (typeof result === 'string') this.flash(result);
+    this.refresh(); // pick up dynamic label changes (e.g. Load row after a Save)
   }
 
   /** ESC steps back: from Options to main, from main it resumes the game. */

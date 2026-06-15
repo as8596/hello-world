@@ -27,6 +27,12 @@ export class Chime extends Phaser.GameObjects.Sprite {
     return this.activated;
   }
 
+  /** Restore the rung look without the pop/ring/sound (for loaded progress). */
+  markRung(): void {
+    this.activated = true;
+    this.setTint(0xffe066);
+  }
+
   activate(): void {
     if (this.activated) return;
     this.activated = true;

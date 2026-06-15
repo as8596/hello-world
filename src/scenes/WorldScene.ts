@@ -284,7 +284,7 @@ export class WorldScene extends Phaser.Scene {
     // (which resumes us when dismissed). Skip while dying/transitioning or with
     // a dialogue open — those own the moment and have their own dismissal.
     this.input.keyboard?.on('keydown-ESC', () => {
-      if (this.dyingPlayer || this.transitioning || this.dialogueRunner.isActive) return;
+      if (this.dyingPlayer || this.transitioning || this.waking || this.dialogueRunner.isActive) return;
       if (this.scene.isActive(SceneKeys.Menu)) return;
       this.scene.pause();
       this.scene.launch(SceneKeys.Menu);
@@ -352,6 +352,12 @@ export class WorldScene extends Phaser.Scene {
     if (worldState.hasFlag('thistledown_belldoor_open')) {
       for (const door of this.bossDoors) door.open();
       if (!worldState.hasFlag('bramblewerth_defeated')) this.spawnBoss();
+    } else {
+      // Otherwise restore any partial chime progress so a load/return mid-puzzle
+      // shows the chimes already rung instead of silently resetting to zero.
+      const rung = Math.min(worldState.getCounter('chimes_rung'), this.chimes.length);
+      for (let i = 0; i < rung; i++) this.chimes[i].markRung();
+      this.chimesRung = rung;
     }
 
     worldState.addCounter('world:entered');

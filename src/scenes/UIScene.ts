@@ -54,11 +54,18 @@ export class UIScene extends Phaser.Scene {
       const { objective } = p as { objective: string };
       this.renderQuest(objective);
     });
+    // The World can rebuild under us (restart on death, or a menu Load) without
+    // restarting this parallel HUD, so re-seed coin + quest from WorldState then.
+    const offReady = eventBus.on('world:ready', () => {
+      this.renderCoin(worldState.getCounter('coin'));
+      this.restorePinnedQuest();
+    });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       offHealth();
       offCoin();
       offStamina();
       offQuest();
+      offReady();
     });
   }
 
@@ -100,6 +107,7 @@ export class UIScene extends Phaser.Scene {
   }
 
   private restorePinnedQuest(): void {
+    this.questText.setVisible(false); // clear any stale pin first (e.g. after a load)
     for (const id of Object.keys(QUESTS)) {
       if (worldState.getFlag(`quest_${id}`) === 'active') this.renderQuest(QUESTS[id].objective);
     }
