@@ -4,6 +4,7 @@ import { BootScene } from './scenes/BootScene';
 import { InventoryScene } from './scenes/InventoryScene';
 import { MenuScene } from './scenes/MenuScene';
 import { PreloadScene } from './scenes/PreloadScene';
+import { ShopScene } from './scenes/ShopScene';
 import { UIScene } from './scenes/UIScene';
 import { WorldScene } from './scenes/WorldScene';
 
@@ -46,5 +47,5 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     },
   },
 
-  scene: [BootScene, PreloadScene, WorldScene, UIScene, MenuScene, InventoryScene],
+  scene: [BootScene, PreloadScene, WorldScene, UIScene, MenuScene, InventoryScene, ShopScene],
 };

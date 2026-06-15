@@ -8,6 +8,8 @@ export interface ItemDef {
   kind: 'consumable' | 'charm';
   value: number;
   desc: string;
+  /** Icon texture key (TextureKeys), for the inventory/shop grid. */
+  texture: string;
 }
 
 export const ITEMS: Record<string, ItemDef> = {
@@ -16,21 +18,24 @@ export const ITEMS: Record<string, ItemDef> = {
     name: 'Bell-pear preserve',
     kind: 'consumable',
     value: 6,
-    desc: 'Restores health.',
+    desc: 'Restores 2 hearts.',
+    texture: 'item-preserve',
   },
   resonant_draught: {
     id: 'resonant_draught',
     name: 'Resonant draught',
     kind: 'consumable',
     value: 8,
-    desc: 'Restores Echoes.',
+    desc: 'Restores your Echoes (stamina).',
+    texture: 'item-draught',
   },
   sproutling_charm: {
     id: 'sproutling_charm',
     name: 'Sproutling charm',
     kind: 'charm',
     value: 14,
-    desc: '+Echo regen.',
+    desc: 'A lucky charm. +Echo regen.',
+    texture: 'item-charm',
   },
 };
 

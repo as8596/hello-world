@@ -36,6 +36,9 @@ export const TextureKeys = {
   HouseCottage: 'house-cottage',
   HouseStone: 'house-stone',
   HouseRuin: 'house-ruin',
+  ItemPreserve: 'item-preserve',
+  ItemDraught: 'item-draught',
+  ItemCharm: 'item-charm',
 } as const;
 
 const FRAME = 16; // player placeholder frame size, design px
@@ -84,6 +87,51 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   generateCairn(scene);
   generateCoin(scene);
   generateHouses(scene);
+  generateShopItems(scene);
+}
+
+/** Small inventory/shop icons for the consumables + charm. */
+function generateShopItems(scene: Phaser.Scene): void {
+  // Bell-pear preserve: a stout jar of amber jam with a cloth lid.
+  if (!scene.textures.exists(TextureKeys.ItemPreserve)) {
+    const m = makeTexture(scene, TextureKeys.ItemPreserve, TILE, TILE);
+    if (m) {
+      const { tex, ctx } = m;
+      rect(ctx, 0, 4, 6, 8, 8, '#b9762a'); // jam
+      rect(ctx, 0, 4, 5, 8, 1, '#d68f3f'); // shine band
+      rect(ctx, 0, 5, 4, 6, 1, '#caa15f'); // glass rim
+      rect(ctx, 0, 4, 3, 8, 2, '#cdd6b0'); // cloth lid
+      rect(ctx, 0, 7, 7, 2, 2, '#7a4a1c'); // fruit chunk
+      tex.refresh();
+    }
+  }
+  // Resonant draught: a round-bottomed flask of teal liquid.
+  if (!scene.textures.exists(TextureKeys.ItemDraught)) {
+    const m = makeTexture(scene, TextureKeys.ItemDraught, TILE, TILE);
+    if (m) {
+      const { tex, ctx } = m;
+      rect(ctx, 0, 7, 2, 2, 3, '#9aa6b0'); // neck
+      rect(ctx, 0, 4, 5, 8, 9, '#2f8f9c'); // body glass
+      rect(ctx, 0, 5, 8, 6, 5, '#46c0cf'); // liquid
+      rect(ctx, 0, 6, 9, 1, 3, '#9fe6ef'); // glint
+      rect(ctx, 0, 6, 2, 4, 1, '#c9b08a'); // cork
+      tex.refresh();
+    }
+  }
+  // Sproutling charm: a green sprout pendant on a cord.
+  if (!scene.textures.exists(TextureKeys.ItemCharm)) {
+    const m = makeTexture(scene, TextureKeys.ItemCharm, TILE, TILE);
+    if (m) {
+      const { tex, ctx } = m;
+      rect(ctx, 0, 7, 2, 2, 6, '#8a6f3a'); // cord
+      rect(ctx, 0, 6, 5, 4, 7, '#6b4a2a'); // wood disc
+      rect(ctx, 0, 7, 6, 2, 5, '#8a6a3e');
+      rect(ctx, 0, 7, 8, 2, 3, '#4a8c3a'); // sprout stem
+      rect(ctx, 0, 6, 6, 1, 2, '#5fae4a'); // leaf
+      rect(ctx, 0, 9, 6, 1, 2, '#5fae4a');
+      tex.refresh();
+    }
+  }
 }
 
 const HOUSE_W = 44;

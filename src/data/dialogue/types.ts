@@ -17,7 +17,8 @@ export type Effect =
   | { giveItem: string; amount?: number }
   | { spendCoin: number }
   | { giveXp: number }
-  | { chooseOath: string };
+  | { chooseOath: string }
+  | { openShop: string }; // open the trade UI for a shop id (e.g. 'maple')
 
 export interface Choice {
   text: string;

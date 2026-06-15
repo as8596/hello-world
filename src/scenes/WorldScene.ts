@@ -1368,7 +1368,18 @@ export class WorldScene extends Phaser.Scene {
       worldState.addCounter('xp', effect.giveXp);
     } else if ('chooseOath' in effect) {
       this.chooseOath(effect.chooseOath);
+    } else if ('openShop' in effect) {
+      this.openShop(effect.openShop);
     }
+  }
+
+  /** Open the trade UI for a shop, once the dialogue has closed this frame. */
+  private openShop(shopId: string): void {
+    this.time.delayedCall(0, () => {
+      if (this.dyingPlayer || this.scene.isActive(SceneKeys.Shop)) return;
+      this.scene.pause();
+      this.scene.launch(SceneKeys.Shop, { shopId });
+    });
   }
 
   private chooseOath(id: string): void {
