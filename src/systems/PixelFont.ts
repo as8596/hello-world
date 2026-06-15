@@ -67,8 +67,8 @@ export type PixelText = Phaser.GameObjects.Text;
 
 /** The bundled pixel font (Google's Pixelify Sans, see assets/fonts/OFL.txt). */
 export const FONT_FAMILY = 'Pixelify Sans';
-/** Render size in px. Tunable — Pixelify is crispest at multiples of its grid. */
-export const FONT_PX = 8 * RENDER_SCALE;
+/** Render size in px (~35% smaller than before). Now drawn 1:1, so it's crisp. */
+export const FONT_PX = 5 * RENDER_SCALE;
 
 /**
  * Load Pixelify Sans (regular + bold) via the FontFace API so `Text` can draw

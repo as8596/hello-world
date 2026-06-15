@@ -65,9 +65,9 @@ interface BuildingDef {
   originY: number;
 }
 const BUILDINGS: Record<string, BuildingDef> = {
-  house: { tex: 'building-house', fallback: TextureKeys.HouseCottage, scale: 1.15, originY: 0.871 },
-  tavern: { tex: 'building-tavern', fallback: TextureKeys.HouseStone, scale: 1.15, originY: 0.868 },
-  alchemy: { tex: 'building-alchemy', fallback: TextureKeys.HouseRuin, scale: 1.15, originY: 0.875 },
+  house: { tex: 'building-house', fallback: TextureKeys.HouseCottage, scale: 1, originY: 0.871 },
+  tavern: { tex: 'building-tavern', fallback: TextureKeys.HouseStone, scale: 1, originY: 0.868 },
+  alchemy: { tex: 'building-alchemy', fallback: TextureKeys.HouseRuin, scale: 1, originY: 0.875 },
 };
 
 /** Display names for the signpost directions. */
