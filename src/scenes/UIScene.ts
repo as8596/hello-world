@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { playerConfig } from '../data/playerConfig';
 import { xpToNext } from '../data/progression';
-import { CAMERA_ZOOM, RENDER_SCALE as RS } from '../data/render';
+import { HUD_SCALE, RENDER_SCALE as RS } from '../data/render';
 import { QUESTS } from '../data/quests';
 import { eventBus } from '../systems/EventBus';
 import { addPixelText } from '../systems/PixelFont';
@@ -31,9 +31,9 @@ export class UIScene extends Phaser.Scene {
   }
 
   create(): void {
-    // Match the world's zoom so the HUD scales with it (anchored at the top-left,
-    // so the top-left cluster stays pinned and just grows).
-    this.cameras.main.setZoom(CAMERA_ZOOM).setOrigin(0, 0);
+    // Scale the HUD up a touch (anchored at the top-left, so the cluster stays
+    // pinned and just grows) so it reads with the zoomed-in world.
+    this.cameras.main.setZoom(HUD_SCALE).setOrigin(0, 0);
 
     this.hearts = [];
     this.currentMax = -1;
@@ -130,9 +130,9 @@ export class UIScene extends Phaser.Scene {
       return;
     }
     this.questText.setText(`* ${objective}`);
-    // Right-anchored: the camera zoom scales coords from the top-left, so divide
-    // the screen width by the zoom to keep the pin against the right edge.
-    const right = this.scale.width / CAMERA_ZOOM;
+    // Right-anchored: the HUD camera scales coords from the top-left, so divide
+    // the screen width by the scale to keep the pin against the right edge.
+    const right = this.scale.width / HUD_SCALE;
     this.questText.setPosition(right - this.questText.width - 5 * RS, 5 * RS).setVisible(true);
   }
 
