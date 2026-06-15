@@ -53,11 +53,21 @@ const GLOW_TEXTURE = 'warm-glow';
 const FIREFLY_TEXTURE = 'firefly-glow';
 const HURT_VIGNETTE_TEXTURE = 'hurt-vignette';
 
-/** Building variant (object `group`) → house texture. */
-const BUILDING_TEX: Record<string, string> = {
-  cottage: TextureKeys.HouseCottage,
-  stone: TextureKeys.HouseStone,
-  ruin: TextureKeys.HouseRuin,
+/**
+ * Building variant (object `group`) → its detailed front-facing sprite, the
+ * procedural fallback if that art is missing, and how to anchor it (these
+ * sprites carry transparent margin, so their foot sits ~0.87 down the canvas).
+ */
+interface BuildingDef {
+  tex: string;
+  fallback: string;
+  scale: number;
+  originY: number;
+}
+const BUILDINGS: Record<string, BuildingDef> = {
+  house: { tex: 'building-house', fallback: TextureKeys.HouseCottage, scale: 1.15, originY: 0.871 },
+  tavern: { tex: 'building-tavern', fallback: TextureKeys.HouseStone, scale: 1.15, originY: 0.868 },
+  alchemy: { tex: 'building-alchemy', fallback: TextureKeys.HouseRuin, scale: 1.15, originY: 0.875 },
 };
 
 /** Display names for the signpost directions. */
@@ -310,8 +320,12 @@ export class WorldScene extends Phaser.Scene {
         this.physics.add.existing(trunk, true);
         this.propColliders.push(trunk);
       } else if (obj.type === 'building') {
-        const tex = BUILDING_TEX[obj.group ?? 'cottage'] ?? TextureKeys.HouseCottage;
-        this.buildings.push(new Building(this, obj.x, obj.y, tex));
+        const def = BUILDINGS[obj.group ?? 'house'] ?? BUILDINGS.house;
+        const useReal = this.textures.exists(def.tex);
+        const tex = useReal ? def.tex : def.fallback;
+        // Detailed sprites get their foot anchor + slight upscale; the procedural
+        // fallback keeps its own native origin/scale.
+        this.buildings.push(new Building(this, obj.x, obj.y, tex, useReal ? { scale: def.scale, originY: def.originY } : {}));
         // A footprint collider at the base — the player rounds the house.
         const foot = this.add.rectangle(obj.x, obj.y - 1 * RS, 26 * RS, 8 * RS).setOrigin(0.5).setVisible(false);
         this.physics.add.existing(foot, true);

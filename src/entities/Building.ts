@@ -14,10 +14,13 @@ export class Building extends Phaser.GameObjects.Image {
   /** World-Y of the base — the sort line against the player. */
   readonly baseY: number;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, texture: string) {
+  constructor(scene: Phaser.Scene, x: number, y: number, texture: string, opts: { scale?: number; originY?: number } = {}) {
     super(scene, x, y, texture);
     scene.add.existing(this);
-    this.setOrigin(0.5, 0.92); // anchor near the wall base
+    // `originY` anchors the art's foot to the base tile (detailed sprites carry
+    // transparent margin, so their foot sits above the canvas bottom).
+    this.setOrigin(0.5, opts.originY ?? 0.92);
+    if (opts.scale && opts.scale !== 1) this.setScale(opts.scale);
     this.baseY = y;
   }
 

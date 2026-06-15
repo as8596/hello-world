@@ -58,6 +58,10 @@ export class PreloadScene extends Phaser.Scene {
     // a missing file just means those objects render nothing).
     this.load.image('tree', 'assets/tree.png');
 
+    // Detailed front-facing village buildings (house / tavern / alchemy shop).
+    // Optional — the procedural house art is the fallback (see BUILDINGS).
+    for (const b of ['house', 'tavern', 'alchemy']) this.load.image(`building-${b}`, `assets/sprites/buildings/${b}.png`);
+
     // Bush foliage world-objects (green / dead / thorny / berry), placed in clusters.
     this.load.image('bush-green', 'assets/sprites/bushes/green.png');
     this.load.image('bush-dead', 'assets/sprites/bushes/dead.png');

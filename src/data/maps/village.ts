@@ -3,14 +3,14 @@ import { Tile, type TileMapDef } from './types';
 
 /**
  * Sleeping Thistledown — the village (DESIGN.md §12). A long-neglected medieval
- * hamlet: overgrown cobble streets thread between a few timbered cottages (one a
- * mossy ruin), a market where Maple keeps shop, a hearth to rest, and sleepers
+ * hamlet: overgrown cobble streets thread between timbered cottages, a tavern and
+ * an alchemist's shop, a market where Maple keeps shop, a hearth to rest, and sleepers
  * curled where they fell during the Hush. A vine GATE seals the north neck into
  * the Thornwood Trail; south returns to the Waking Hollow, west to Mistmere Glade.
  *
  * Terrain:  .  grass   #  tree/wall   o  cobble (stone path)
  * Objects:  v gate vine   H hearth   M Maple   N sleeper   S thorn-sprite
- *           C cottage   P stone house   U ruined house   T tree   Q smith's shrine(lore)
+ *           C house   P tavern   U alchemy shop   T tree   Q smith's shrine(lore)
  *           d/e/f/j house doors (enter the interiors)
  *           n exit→trail   s exit→hollow   g exit→glade
  *           2 entry(from_trail)   3 entry(from_hollow)   4 entry(from_glade)
@@ -29,9 +29,9 @@ export const villageMap: TileMapDef = {
     M: { type: 'maple' },
     N: { type: 'villager' },
     S: { type: 'enemy', enemyId: 'thorn_sprite' },
-    C: { type: 'building', group: 'cottage' },
-    P: { type: 'building', group: 'stone' },
-    U: { type: 'building', group: 'ruin' },
+    C: { type: 'building', group: 'house' },
+    P: { type: 'building', group: 'tavern' },
+    U: { type: 'building', group: 'alchemy' },
     T: { type: 'tree' },
     Q: { type: 'marker', group: 'hero_forge', loreId: 'village_forge' },
     k: { type: 'signpost' },
