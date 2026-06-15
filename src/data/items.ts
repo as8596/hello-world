@@ -37,6 +37,14 @@ export const ITEMS: Record<string, ItemDef> = {
     desc: 'A lucky charm. +Echo regen.',
     texture: 'item-charm',
   },
+  berry: {
+    id: 'berry',
+    name: 'Wild berries',
+    kind: 'consumable',
+    value: 3,
+    desc: 'A sweet handful, gathered from a bush. Restores 1 heart.',
+    texture: 'item-berry',
+  },
 };
 
 /** Maple's store stock for the slice. */

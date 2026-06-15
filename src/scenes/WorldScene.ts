@@ -61,7 +61,12 @@ const BUILDING_TEX: Record<string, string> = {
 };
 
 /** Bush variant (object `group`) → texture key. */
-const BUSH_TEX: Record<string, string> = { green: 'bush-green', dead: 'bush-dead', thorny: 'bush-thorny' };
+const BUSH_TEX: Record<string, string> = {
+  green: 'bush-green',
+  dead: 'bush-dead',
+  thorny: 'bush-thorny',
+  berry: 'bush-berry',
+};
 
 /**
  * WorldScene — the playable overworld. Builds the Thistledown tilemap, spawns
@@ -266,10 +271,7 @@ export class WorldScene extends Phaser.Scene {
         this.physics.add.existing(foot, true);
         this.propColliders.push(foot);
       } else if (obj.type === 'bush') {
-        this.bushes.push(new Bush(this, obj.x, obj.y, BUSH_TEX[obj.group ?? 'green'] ?? BUSH_TEX.green));
-        const base = this.add.rectangle(obj.x, obj.y + 1 * RS, 6 * RS, 3 * RS).setOrigin(0.5).setVisible(false);
-        this.physics.add.existing(base, true);
-        this.propColliders.push(base);
+        this.spawnBush(obj.x, obj.y, obj.group ?? 'green'); // non-blocking decoration
       } else if (obj.type === 'blade') {
         if (woken || worldState.hasFlag('has_blade')) continue;
         const glow = this.makePickupGlint(obj.x, obj.y, [180, 210, 255]); // cool steel glint
@@ -294,6 +296,10 @@ export class WorldScene extends Phaser.Scene {
         });
         if (useFire) hearth.play('fire'); // roaring flames
         this.interactables.push(hearth);
+        // The fire is solid — you rest beside it, not on it.
+        const blaze = this.add.rectangle(obj.x, obj.y + 1 * RS, 9 * RS, 6 * RS).setOrigin(0.5).setVisible(false);
+        this.physics.add.existing(blaze, true);
+        this.propColliders.push(blaze);
       } else if (obj.type === 'chime') {
         this.chimes.push(new Chime(this, obj.x, obj.y, { onActivate: () => this.onChimeRung() }));
       } else if (obj.type === 'door') {
@@ -351,6 +357,9 @@ export class WorldScene extends Phaser.Scene {
         this.villagers.push(villager);
       }
     }
+
+    // Procedural bush clusters scattered over the grass (berry bushes harvestable).
+    for (const b of map.bushes) this.spawnBush(b.x, b.y, b.group);
 
     // A loaded woken valley shows its people already risen (and ambling).
     if (woken) for (const v of this.villagers) v.wake();
@@ -1292,6 +1301,30 @@ export class WorldScene extends Phaser.Scene {
     HintSystem.tryShow(this, 'ring', 'F  -  ring the bell');
   }
 
+  /** Create a bush; a berry bush also gets an E-interactable to harvest. */
+  private spawnBush(x: number, y: number, group: string): void {
+    const bush = new Bush(this, x, y, BUSH_TEX[group] ?? BUSH_TEX.green);
+    this.bushes.push(bush);
+    if (group === 'berry') {
+      const gather = new Interactable(this, x, y, {
+        label: 'gather',
+        onInteract: () => this.harvestBerry(bush, gather),
+      }).setVisible(false);
+      this.interactables.push(gather);
+    }
+  }
+
+  /** Harvest a berry bush: swap to the plain bush, pocket the berries. */
+  private harvestBerry(bush: Bush, gather: Interactable): void {
+    bush.setTexture('bush-green'); // instantly the non-berry version
+    const i = this.interactables.indexOf(gather);
+    if (i >= 0) this.interactables.splice(i, 1);
+    gather.destroy();
+    worldState.addCounter('item_berry', 1);
+    audio.playSfx('heart');
+    this.showToast('You gather a handful of wild berries.');
+  }
+
   private onHeartCollected(pickup: Pickup, takenKey: string): void {
     const idx = this.pickups.indexOf(pickup);
     if (idx >= 0) this.pickups.splice(idx, 1);
@@ -1376,6 +1409,7 @@ export class WorldScene extends Phaser.Scene {
     let ok = false;
     if (item?.kind === 'consumable' && worldState.getCounter(`item_${id}`) > 0) {
       if (id === 'bell_pear_preserve') ok = this.player.heal(4); // two hearts
+      else if (id === 'berry') ok = this.player.heal(2); // one heart
       else if (id === 'resonant_draught') ok = this.player.restoreStamina(playerConfig.maxStamina);
       if (ok) {
         worldState.addCounter(`item_${id}`, -1);

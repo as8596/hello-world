@@ -56,10 +56,11 @@ export class PreloadScene extends Phaser.Scene {
     // a missing file just means those objects render nothing).
     this.load.image('tree', 'assets/tree.png');
 
-    // Bush foliage world-objects (green / dead / thorny), placed via 'bush' objects.
+    // Bush foliage world-objects (green / dead / thorny / berry), placed in clusters.
     this.load.image('bush-green', 'assets/sprites/bushes/green.png');
     this.load.image('bush-dead', 'assets/sprites/bushes/dead.png');
     this.load.image('bush-thorny', 'assets/sprites/bushes/thorny.png');
+    this.load.image('bush-berry', 'assets/sprites/bushes/berry.png');
 
     // Animated placeholder fire (roaring flames) for the hearth — a 64px strip.
     this.load.spritesheet('fire', 'assets/sprites/fire.png', { frameWidth: 64, frameHeight: 64 });
@@ -68,6 +69,7 @@ export class PreloadScene extends Phaser.Scene {
     // procedural placeholder if missing.
     this.load.image('item-blade', 'assets/sprites/items/blade.png');
     this.load.image('item-handbell', 'assets/sprites/items/handbell.png');
+    this.load.image('item-berry', 'assets/sprites/items/berry.png');
 
     // A missing optional asset must not fail the boot.
     this.load.on('loaderror', () => undefined);

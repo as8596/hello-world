@@ -179,13 +179,76 @@ function decorate(data: number[][], blocking: number[]): void {
   }
 }
 
+export interface BushPlacement {
+  x: number;
+  y: number;
+  group: string; // green | dead | thorny | berry
+}
+
 export interface BuiltMap {
   layer: Phaser.Tilemaps.TilemapLayer;
   spawn: { x: number; y: number };
   /** Hand-placed objects (vines, villagers, …) resolved to pixel centers. */
   objects: MapObjectInstance[];
+  /** Procedurally-clustered bush foliage (pixel centers). */
+  bushes: BushPlacement[];
   widthPx: number;
   heightPx: number;
+}
+
+/**
+ * Scatter bush clusters over open grass (like flower patches, but as world
+ * objects): seed a few spots, grow a small blob of one variant, and give green
+ * clusters a chance at a harvestable berry bush. Avoids object/spawn tiles.
+ */
+function generateBushClusters(
+  data: number[][],
+  objects: MapObjectInstance[],
+  spawn: { x: number; y: number },
+  tileSize: number,
+  def: TileMapDef,
+): BushPlacement[] {
+  if (def.interior) return [];
+  const H = data.length;
+  const W = data[0].length;
+  const out: BushPlacement[] = [];
+  const taken = new Set<number>();
+  const key = (x: number, y: number): number => y * W + x;
+  const block = (px: number, py: number): void => {
+    const tx = Math.floor(px / tileSize);
+    const ty = Math.floor(py / tileSize);
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) taken.add(key(tx + dx, ty + dy));
+  };
+  for (const o of objects) block(o.x, o.y); // keep bushes off NPCs/exits/pickups
+  block(spawn.x, spawn.y);
+
+  const canSeed = (x: number, y: number): boolean => isGrass(data[y][x]) && !taken.has(key(x, y));
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (!canSeed(x, y) || Math.random() >= 0.01) continue;
+      const r = Math.random();
+      const group = r < 0.55 ? 'green' : r < 0.78 ? 'dead' : 'thorny';
+      // Grow the cluster: a small blob of grass tiles, one bush each.
+      const frontier: [number, number][] = [[x, y]];
+      const target = 2 + Math.floor(Math.random() * 4); // 2–5 bushes
+      let placed = 0;
+      while (frontier.length > 0 && placed < target) {
+        const i = Math.floor(Math.random() * frontier.length);
+        const [bx, by] = frontier.splice(i, 1)[0];
+        if (taken.has(key(bx, by)) || !isGrass(data[by][bx])) continue;
+        taken.add(key(bx, by));
+        placed++;
+        const isBerry = group === 'green' && Math.random() < 0.3;
+        out.push({ x: bx * tileSize + tileSize / 2, y: by * tileSize + tileSize / 2, group: isBerry ? 'berry' : group });
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+          const nx = bx + dx;
+          const ny = by + dy;
+          if (ny >= 0 && ny < H && nx >= 0 && nx < W && isGrass(data[ny][nx]) && !taken.has(key(nx, ny))) frontier.push([nx, ny]);
+        }
+      }
+    }
+  }
+  return out;
 }
 
 /**
@@ -271,6 +334,7 @@ export function buildTilemap(scene: Phaser.Scene, def: TileMapDef): BuiltMap {
     layer,
     spawn,
     objects,
+    bushes: generateBushClusters(data, objects, spawn, tileSize, def),
     widthPx: width * tileSize,
     heightPx: height * tileSize,
   };
