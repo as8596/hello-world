@@ -7,6 +7,9 @@ export default defineConfig({
   },
   build: {
     target: 'es2022',
-    sourcemap: true,
+    // Production builds skip source maps: they added ~11MB to the Pages deploy
+    // artifact (very slow uploads) and aren't useful for the shipped game. The
+    // dev server keeps its own inline maps, so local debugging is unaffected.
+    sourcemap: false,
   },
 });
