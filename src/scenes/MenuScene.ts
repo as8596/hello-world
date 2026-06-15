@@ -2,10 +2,11 @@ import Phaser from 'phaser';
 import { RENDER_SCALE as RS } from '../data/render';
 import { addPixelText } from '../systems/PixelFont';
 import { audio } from '../systems/AudioManager';
-import { hasSave, loadGame, saveGame } from '../systems/SaveSystem';
+import { clearSave, hasSave, loadGame, saveGame } from '../systems/SaveSystem';
+import { worldState } from '../systems/WorldState';
 import { SceneKeys } from './SceneKeys';
 
-type Page = 'main' | 'options' | 'saveload';
+type Page = 'main' | 'options' | 'saveload' | 'newgame';
 
 interface MenuItem {
   /** Dynamic so toggles/sliders re-render their current value on refresh. */
@@ -17,7 +18,7 @@ interface MenuItem {
 }
 
 const LINE_H = 14 * RS;
-const MAX_ROWS = 4; // the main page has the most rows; size the panel for it
+const MAX_ROWS = 5; // the main page has the most rows; size the panel for it
 
 /**
  * MenuScene — the Escape pause menu. Launched on top of a *paused* WorldScene
@@ -80,7 +81,13 @@ export class MenuScene extends Phaser.Scene {
     this.labels = [];
 
     this.items =
-      page === 'main' ? this.mainItems() : page === 'options' ? this.optionsItems() : this.saveLoadItems();
+      page === 'main'
+        ? this.mainItems()
+        : page === 'options'
+          ? this.optionsItems()
+          : page === 'newgame'
+            ? this.newGameItems()
+            : this.saveLoadItems();
 
     const firstY = this.cy - ((this.items.length - 1) * LINE_H) / 2;
     this.labels = this.items.map((item, i) => {
@@ -99,7 +106,14 @@ export class MenuScene extends Phaser.Scene {
       return t;
     });
 
-    this.title.setText(page === 'main' ? 'PAUSED' : page === 'options' ? 'OPTIONS' : 'SAVE / LOAD');
+    const titles: Record<Page, string> = {
+      main: 'PAUSED',
+      options: 'OPTIONS',
+      saveload: 'SAVE / LOAD',
+      newgame: 'NEW GAME?  (erases all progress)',
+    };
+    this.title.setText(titles[page]);
+    this.title.setScale(page === 'newgame' ? 0.95 : 1.4);
     this.title.setPosition(this.cx, Math.round(this.cy - this.panelH / 2 + LINE_H * 0.75));
 
     this.help.setText(
@@ -119,8 +133,25 @@ export class MenuScene extends Phaser.Scene {
       { label: () => 'Resume', action: () => this.resumeGame() },
       { label: () => 'Save / Load', action: () => this.showPage('saveload') },
       { label: () => 'Options', action: () => this.showPage('options') },
+      { label: () => 'New Game', action: () => this.showPage('newgame') },
       { label: () => 'Exit', action: () => this.exitGame() },
     ];
+  }
+
+  private newGameItems(): MenuItem[] {
+    return [
+      { label: () => 'Yes — start over', action: () => this.newGame() },
+      { label: () => 'Cancel', action: () => this.showPage('main') },
+    ];
+  }
+
+  /** Wipe all progress + the save, and restart the world from the very beginning. */
+  private newGame(): void {
+    clearSave();
+    worldState.restore({ flags: {}, counters: {} }); // erase every flag/counter
+    audio.playSfx('rested');
+    this.scene.get(SceneKeys.World).scene.restart(); // rebuilds at the start area
+    this.scene.stop();
   }
 
   // Checkpoint-style save (DESIGN.md §22): Save snapshots WorldState flags +
