@@ -4,7 +4,7 @@ import { RENDER_SCALE as RS } from '../data/render';
 import { SPRITE_DIRS } from '../data/spriteDirections';
 import { PLAYER_SPRITE_DIRS } from '../entities/Player';
 import { addPixelText, createPixelFont } from '../systems/PixelFont';
-import { applyTerrainTileset, generatePlaceholderTextures } from '../systems/TextureFactory';
+import { applyTerrainTileset, generateEdgeDecals, generatePlaceholderTextures } from '../systems/TextureFactory';
 import { SceneKeys } from './SceneKeys';
 
 /**
@@ -74,8 +74,10 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   create(): void {
-    // All loads are done now, so fold the real terrain art into the tileset.
+    // All loads are done now, so fold the real terrain art into the tileset,
+    // then bake the dithered edge decals from the (now real) grass.
     applyTerrainTileset(this, 'terrain');
+    generateEdgeDecals(this);
     this.scene.start(SceneKeys.World);
   }
 

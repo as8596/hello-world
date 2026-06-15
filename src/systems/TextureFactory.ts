@@ -493,6 +493,84 @@ export function applyTerrainTileset(scene: Phaser.Scene, terrainKey: string): bo
   return true;
 }
 
+/** Edge directions for transition decals. */
+export const EDGE_DIRS = ['n', 's', 'e', 'w'] as const;
+export type EdgeDir = (typeof EDGE_DIRS)[number];
+
+// 4x4 ordered (Bayer) dither matrix, values 0..15.
+const BAYER4 = [
+  [0, 8, 2, 10],
+  [12, 4, 14, 6],
+  [3, 11, 1, 9],
+  [15, 7, 13, 5],
+];
+
+/** Distance (native px) from the named edge of a `size`-px tile. */
+function edgeDepth(dir: EdgeDir, x: number, y: number, size: number): number {
+  if (dir === 'n') return y;
+  if (dir === 's') return size - 1 - y;
+  if (dir === 'e') return size - 1 - x;
+  return x; // 'w'
+}
+
+/**
+ * Generate dithered transition decals: a grass fringe that bleeds over sand/water
+ * edges, and a soft shadow fringe at tree bases. The TilemapBuilder overlays
+ * these on boundary tiles so terrain types feather together instead of meeting
+ * at a hard line. Call after applyTerrainTileset (so the grass art is real).
+ */
+export function generateEdgeDecals(scene: Phaser.Scene): void {
+  const tiles = scene.textures.get(TextureKeys.Tiles);
+  if (!(tiles instanceof Phaser.Textures.CanvasTexture)) return;
+  const SIZE = TILE * RENDER_SCALE; // 64
+  const grass = tiles.getContext().getImageData(0, 0, SIZE, SIZE); // grass slot 0
+
+  const D_FULL = 6; // fully opaque within this many px of the edge
+  const GRASS_FADE = 26; // grass fringe reaches this far in
+  const SHADOW_FADE = 30;
+  const SHADOW_RGB = [18, 30, 20];
+  const SHADOW_A = 90;
+
+  // Keep a pixel at fade progress t (0 = full, 1 = gone) via ordered dither at
+  // the design-pixel resolution (4 native px per design px).
+  const keep = (x: number, y: number, t: number): boolean => {
+    if (t <= 0) return true;
+    if (t >= 1) return false;
+    return (BAYER4[(y >> 2) & 3][(x >> 2) & 3] + 0.5) / 16 > t;
+  };
+
+  const bake = (key: string, dir: EdgeDir, fade: number, paint: (data: Uint8ClampedArray, i: number) => void): void => {
+    if (scene.textures.exists(key)) return;
+    const tex = scene.textures.createCanvas(key, SIZE, SIZE);
+    if (!tex) return;
+    const out = tex.getContext().createImageData(SIZE, SIZE);
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const d = edgeDepth(dir, x, y, SIZE);
+        const t = Math.min(1, Math.max(0, (d - D_FULL) / (fade - D_FULL)));
+        if (keep(x, y, t)) paint(out.data, (y * SIZE + x) * 4);
+      }
+    }
+    tex.getContext().putImageData(out, 0, 0);
+    tex.refresh();
+  };
+
+  for (const dir of EDGE_DIRS) {
+    bake(`grass-edge-${dir}`, dir, GRASS_FADE, (data, i) => {
+      data[i] = grass.data[i];
+      data[i + 1] = grass.data[i + 1];
+      data[i + 2] = grass.data[i + 2];
+      data[i + 3] = grass.data[i + 3];
+    });
+    bake(`shadow-edge-${dir}`, dir, SHADOW_FADE, (data, i) => {
+      data[i] = SHADOW_RGB[0];
+      data[i + 1] = SHADOW_RGB[1];
+      data[i + 2] = SHADOW_RGB[2];
+      data[i + 3] = SHADOW_A;
+    });
+  }
+}
+
 function rect(ctx: CanvasRenderingContext2D, ox: number, x: number, y: number, w: number, h: number, color: string): void {
   ctx.fillStyle = color;
   ctx.fillRect(ox + x, y, w, h);

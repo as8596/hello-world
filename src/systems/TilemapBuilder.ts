@@ -1,12 +1,50 @@
 import Phaser from 'phaser';
 import { Tile, type MapObjectInstance, type TileMapDef } from '../data/maps/types';
-import { FLOWER_TILE_INDEX, GRASS_VARIANT_INDICES, TextureKeys } from './TextureFactory';
+import { EDGE_DIRS, FLOWER_TILE_INDEX, GRASS_VARIANT_INDICES, TextureKeys } from './TextureFactory';
 
 /** Narrow walkable runs this wide or less become the dirt trail. */
 const MAX_TRAIL_WIDTH = 2;
 
 /** Depth of the tree-canopy overlay — just above the player (10) + slash (11). */
 const OVERHEAD_DEPTH = 12;
+/** Depth of the dithered edge decals — above the ground, below everything else. */
+const DECAL_DEPTH = 1;
+
+const GRASS_TILES = new Set<number>([...GRASS_VARIANT_INDICES, FLOWER_TILE_INDEX]);
+const isGrass = (t: number): boolean => GRASS_TILES.has(t);
+
+/** N/S/E/W offsets matching EDGE_DIRS, for neighbour lookups. */
+const EDGE_OFFSETS: Record<string, [number, number]> = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
+
+/**
+ * Overlay dithered transition decals so terrain types feather together: a grass
+ * fringe over sand/water edges that border grass, and a soft shadow at the base
+ * of trees. Decals are static images between the ground and the player.
+ */
+function placeEdgeDecals(scene: Phaser.Scene, data: number[][], tileSize: number): void {
+  const H = data.length;
+  const W = data[0].length;
+  const at = (x: number, y: number): number | undefined => (y >= 0 && y < H && x >= 0 && x < W ? data[y][x] : undefined);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const t = data[y][x];
+      const grass = isGrass(t);
+      const sandOrWater = t === Tile.Path || t === Tile.Water;
+      if (!grass && !sandOrWater) continue; // trees/vines don't receive decals
+      const cx = x * tileSize + tileSize / 2;
+      const cy = y * tileSize + tileSize / 2;
+      for (const dir of EDGE_DIRS) {
+        const [dx, dy] = EDGE_OFFSETS[dir];
+        const n = at(x + dx, y + dy);
+        if (n === undefined) continue;
+        // Soft shadow where this walkable tile meets a tree.
+        if (n === Tile.Wall) scene.add.image(cx, cy, `shadow-edge-${dir}`).setDepth(DECAL_DEPTH);
+        // Grass fringe bleeding onto sand/water from a grass neighbour.
+        else if (sandOrWater && isGrass(n)) scene.add.image(cx, cy, `grass-edge-${dir}`).setDepth(DECAL_DEPTH);
+      }
+    }
+  }
+}
 
 /** Pick a grass tile variant (rarely a flower) for organic-looking ground. */
 function pickGrass(): number {
@@ -133,6 +171,8 @@ export function buildTilemap(scene: Phaser.Scene, def: TileMapDef): BuiltMap {
     }
     overhead.setDepth(OVERHEAD_DEPTH);
   }
+
+  placeEdgeDecals(scene, data, tileSize);
 
   return {
     layer,
