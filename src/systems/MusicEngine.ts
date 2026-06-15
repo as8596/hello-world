@@ -1,22 +1,37 @@
 /**
- * MusicEngine — procedural adaptive score (DESIGN.md §15.2). Like the SFX bank,
- * there are no audio files: a continuous A-minor pad bed underpins everything,
- * and two scheduled layers crossfade with a single `intensity` (0 = exploring,
- * 1 = in danger). Calm = sparse pentatonic plucks; danger = a driving bass pulse
- * and dissonant shimmer fade in while the calm plucks duck back.
+ * MusicEngine — procedural adaptive score (DESIGN.md §15.2). No audio files. A
+ * slow chord progression drives everything: a low pad drones the current chord,
+ * a gentle arpeggio plays its tones (the melody — always in key, not random),
+ * and a danger layer (driving bass on the chord root + a dissonant shimmer)
+ * fades in with `intensity` while the calm arpeggio ducks back.
  *
  * Scheduling uses the standard WebAudio lookahead pattern: a coarse setInterval
- * timer queues note events a short way into the future, so playback stays sample-
- * accurate regardless of timer jitter.
+ * timer queues note events a short way into the future, so playback stays
+ * sample-accurate regardless of timer jitter.
  */
 
 const STEPS = 16; // an eighth-note loop
+const STEPS_PER_CHORD = 8; // the chord changes twice a loop
 const BUS_GAIN = 0.6; // the whole score sits under the SFX
-const BPM = 72;
+const BPM = 70;
 const STEP_DUR = 60 / BPM / 2; // eighth note in seconds
 
-// A-minor pentatonic across two octaves, for the calm melodic wander.
-const PENTA = [220, 261.63, 293.66, 329.63, 392, 440, 523.25, 587.33];
+interface Chord {
+  /** Low drone tones (root + fifth) for the pad. */
+  pad: [number, number];
+  /** Mid chord tones, ascending — the arpeggio/melody. */
+  arp: [number, number, number, number];
+  /** Low root for the danger bass pulse. */
+  bass: number;
+}
+
+// A warm folk progression in A minor: Am – F – C – G (i – VI – III – VII).
+const PROGRESSION: Chord[] = [
+  { pad: [110.0, 164.81], arp: [220.0, 261.63, 329.63, 440.0], bass: 55.0 }, // Am
+  { pad: [87.31, 130.81], arp: [174.61, 220.0, 261.63, 349.23], bass: 43.65 }, // F
+  { pad: [130.81, 196.0], arp: [261.63, 329.63, 392.0, 523.25], bass: 65.41 }, // C
+  { pad: [98.0, 146.83], arp: [196.0, 246.94, 293.66, 392.0], bass: 49.0 }, // G
+];
 
 export class MusicEngine {
   private readonly ctx: AudioContext;
@@ -24,11 +39,13 @@ export class MusicEngine {
   private readonly padGain: GainNode;
   private readonly calmGain: GainNode;
   private readonly tensionGain: GainNode;
+  private readonly padOscs: OscillatorNode[] = [];
 
   private timer: number | null = null;
   private nextNoteTime = 0;
   private step = 0;
-  private melodyIndex = 4;
+  private chordIdx = 0;
+  private chord: Chord = PROGRESSION[0];
 
   /** Smoothed danger level driving the crossfade; eases toward `target`. */
   private current = 0;
@@ -79,15 +96,14 @@ export class MusicEngine {
   private startPad(): void {
     const f = this.ctx.createBiquadFilter();
     f.type = 'lowpass';
-    f.frequency.value = 600;
+    f.frequency.value = 620;
     f.Q.value = 0.7;
     f.connect(this.padGain);
 
-    // A2 + E3 + a soft C4 → a warm, open A-minor drone.
+    // Two voices (root + fifth) retuned per chord — warm, open drone.
     for (const [freq, amp, detune] of [
-      [110, 0.16, 0],
-      [164.81, 0.12, 4],
-      [261.63, 0.06, -3],
+      [this.chord.pad[0], 0.16, 0],
+      [this.chord.pad[1], 0.12, 4],
     ] as const) {
       const o = this.ctx.createOscillator();
       o.type = 'sine';
@@ -97,6 +113,7 @@ export class MusicEngine {
       g.gain.value = amp;
       o.connect(g).connect(f);
       o.start();
+      this.padOscs.push(o);
     }
 
     // Slow filter sweep so the bed breathes instead of sitting static.
@@ -104,9 +121,14 @@ export class MusicEngine {
     lfo.type = 'sine';
     lfo.frequency.value = 0.05;
     const lfoGain = this.ctx.createGain();
-    lfoGain.gain.value = 220;
+    lfoGain.gain.value = 200;
     lfo.connect(lfoGain).connect(f.frequency);
     lfo.start();
+  }
+
+  /** Glide the pad voices to the new chord's root + fifth. */
+  private applyChord(t: number): void {
+    this.padOscs.forEach((o, i) => o.frequency.setTargetAtTime(this.chord.pad[i], t, 0.25));
   }
 
   // --- scheduling ----------------------------------------------------------
@@ -122,26 +144,34 @@ export class MusicEngine {
     // Ease the smoothed intensity and re-balance the layer crossfade.
     this.current += (this.target - this.current) * 0.06;
     const t = this.ctx.currentTime;
-    this.calmGain.gain.setTargetAtTime(0.9 - 0.55 * this.current, t, 0.4);
+    this.calmGain.gain.setTargetAtTime(0.9 - 0.5 * this.current, t, 0.4);
     this.tensionGain.gain.setTargetAtTime(this.current, t, 0.4);
-    this.padGain.gain.setTargetAtTime(0.5 - 0.12 * this.current, t, 0.4);
+    this.padGain.gain.setTargetAtTime(0.5 - 0.1 * this.current, t, 0.4);
   }
 
   private scheduleStep(step: number, t: number): void {
-    // Calm melody: a gentle pentatonic wander on a sparse set of steps.
-    if ((step === 0 || step === 6 || step === 10 || (step % 2 === 0 && Math.random() < 0.25)) && this.current < 0.97) {
-      this.melodyIndex = Math.max(0, Math.min(PENTA.length - 1, this.melodyIndex + (Math.floor(Math.random() * 3) - 1)));
-      this.pluck(PENTA[this.melodyIndex], t, this.calmGain, 0.14, 'triangle', 1.3);
+    // Advance the chord progression (and retune the pad) twice a loop.
+    if (step % STEPS_PER_CHORD === 0) {
+      this.chord = PROGRESSION[this.chordIdx % PROGRESSION.length];
+      this.chordIdx++;
+      this.applyChord(t);
     }
 
-    // Tension only bothers to schedule once it's audible.
+    // Calm melody: an ascending arpeggio of the current chord, one tone per beat
+    // (every other step) — always consonant, with clear forward motion.
+    if (step % 2 === 0 && this.current < 0.97) {
+      const tone = this.chord.arp[(step % STEPS_PER_CHORD) / 2];
+      this.pluck(tone, t, this.calmGain, 0.13, 'triangle', 1.1);
+      // A soft octave-up lead at the top of each chord for a little melody.
+      if (step % STEPS_PER_CHORD === 0) this.pluck(this.chord.arp[3] * 2, t, this.calmGain, 0.05, 'sine', 1.6);
+    }
+
+    // Danger layer — only scheduled once it's audible.
     if (this.current > 0.02) {
-      // A driving bass pulse on the quarter notes, a mid octave on the offbeats.
-      if (step % 4 === 0) this.bass(55, t, 0.16);
-      else if (step % 4 === 2) this.bass(110, t, 0.1);
-      // A dissonant minor-second shimmer for unease, in the back half of the loop.
-      if (step === 8) this.pluck(233.08, t, this.tensionGain, 0.05, 'sawtooth', 0.9);
-      if (step === 12 && Math.random() < 0.5) this.pluck(311.13, t, this.tensionGain, 0.05, 'sawtooth', 0.7);
+      if (step % 4 === 0) this.bass(this.chord.bass, t, 0.16); // pulse on the chord root
+      else if (step % 4 === 2) this.bass(this.chord.bass * 2, t, 0.1);
+      // A dissonant minor-second shimmer above the root, for unease.
+      if (step === 8) this.pluck(this.chord.bass * 4.24, t, this.tensionGain, 0.05, 'sawtooth', 0.9);
     }
   }
 
@@ -153,7 +183,7 @@ export class MusicEngine {
     o.frequency.value = freq;
     const g = this.ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(peak, t + 0.012);
+    g.gain.linearRampToValueAtTime(peak, t + 0.015);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g).connect(dest);
     o.start(t);
