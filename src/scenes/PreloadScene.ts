@@ -89,6 +89,8 @@ export class PreloadScene extends Phaser.Scene {
 
     // Pond world-objects that replace water-tile clusters (banks baked in).
     for (const n of ['1', '2', '3', '4']) this.load.image(`pond-${n}`, `assets/sprites/ponds/pond-${n}.png`);
+    // An animated waterfall pond (9-frame strip from a GIF).
+    this.load.spritesheet('pond-waterfall', 'assets/sprites/ponds/pond-waterfall.png', { frameWidth: 128, frameHeight: 128 });
 
     // Rock set-dressing + cairn/shrine/well point-of-interest props (64px each).
     for (const r of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'cluster', 'mossy', 'large', 'cairn', 'shrine', 'well', 'arch']) {
@@ -181,6 +183,9 @@ export class PreloadScene extends Phaser.Scene {
       this.anims.create({ key: 'fire', frames: this.anims.generateFrameNumbers('fire', {}), frameRate: 10, repeat: -1 });
     }
     this.registerDirAnims('maple-walk');
+    if (this.textures.exists('pond-waterfall') && !this.anims.exists('pond-waterfall')) {
+      this.anims.create({ key: 'pond-waterfall', frames: this.anims.generateFrameNumbers('pond-waterfall', {}), frameRate: 7, repeat: -1 });
+    }
     // Bake a head-and-shoulders bust from each full portrait for the dialogue box.
     this.bakePortrait('portrait-maple-full', 'portrait-maple', 221, 28, 224);
     // Bake the HUD heart atlas (full / half / empty) from the universal heart icon.

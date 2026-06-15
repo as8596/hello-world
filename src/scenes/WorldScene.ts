@@ -91,6 +91,8 @@ const POND_VARIANTS: { tex: string; wcx: number; wcy: number; ww: number; wh: nu
   { tex: 'pond-3', wcx: 63, wcy: 59, ww: 87, wh: 91 },
   { tex: 'pond-4', wcx: 62, wcy: 62, ww: 84, wh: 60 },
 ];
+/** The animated waterfall pond — placed at the glade's Mistmere. */
+const POND_WATERFALL = { tex: 'pond-waterfall', wcx: 62, wcy: 60 };
 
 /** Flat marker POI variant (object `group`) → small prop texture. */
 const MARKER_TEX: Record<string, string> = {
@@ -432,9 +434,9 @@ export class WorldScene extends Phaser.Scene {
       }
     }
 
-    // Ponds replacing water blobs: scale each so its water fills the blob, with
-    // the baked banks overhanging onto the surrounding grass.
-    map.ponds.forEach((p, i) => this.spawnPond(p, i));
+    // Ponds replacing water blobs (native resolution). The glade's first pond
+    // (the Mistmere) gets the animated waterfall.
+    map.ponds.forEach((p, i) => this.spawnPond(p, i, this.areaId === 'glade' && i === 0));
 
     // Procedural bush clusters + scattered rocks (set-dressing).
     for (const b of map.bushes) this.spawnBush(b.x, b.y, b.group);
@@ -1393,14 +1395,16 @@ export class WorldScene extends Phaser.Scene {
    * centre lands on the blob centre — the banks overhang onto the grass. Drawn at
    * a low depth (a ground feature the player rounds, never stands on).
    */
-  private spawnPond(p: { cx: number; cy: number; wPx: number; hPx: number }, index: number): void {
-    const v = POND_VARIANTS[index % POND_VARIANTS.length];
+  private spawnPond(p: { cx: number; cy: number; wPx: number; hPx: number }, index: number, waterfall = false): void {
+    const useFall = waterfall && this.anims.exists('pond-waterfall');
+    const v = useFall ? POND_WATERFALL : POND_VARIANTS[index % POND_VARIANTS.length];
     if (!this.textures.exists(v.tex)) return;
     // Native resolution (no upscaling): just centre the art's water region on the
     // water blob. The blobs are sized ~2×2 tiles to match the 128px ponds.
     const x = p.cx - (v.wcx - 64);
     const y = p.cy - (v.wcy - 64);
-    this.add.image(x, y, v.tex).setOrigin(0.5).setDepth(2);
+    if (useFall) this.add.sprite(x, y, v.tex).play('pond-waterfall').setOrigin(0.5).setDepth(2);
+    else this.add.image(x, y, v.tex).setOrigin(0.5).setDepth(2);
   }
 
   /** Create a bush; a berry bush also gets an E-interactable to harvest. */
