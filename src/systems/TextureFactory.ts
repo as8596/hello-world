@@ -531,15 +531,18 @@ export function generateEdgeDecals(scene: Phaser.Scene): void {
   const SHADOW_RGB = [18, 30, 20];
   const SHADOW_A = 90;
 
-  // Keep a pixel at fade progress t (0 = full, 1 = gone) via ordered dither at
-  // the design-pixel resolution (4 native px per design px).
-  const keep = (x: number, y: number, t: number): boolean => {
-    if (t <= 0) return true;
-    if (t >= 1) return false;
-    return (BAYER4[(y >> 2) & 3][(x >> 2) & 3] + 0.5) / 16 > t;
+  // Anti-aliased ordered dither: instead of a hard on/off threshold, return a
+  // continuous 0..1 coverage (a smooth ramp across each dither dot's edge) at
+  // fade progress t (0 = full, 1 = gone). The partial alpha softens the dither.
+  const AA = 0.5; // width of the soft band around each dither threshold
+  const coverage = (x: number, y: number, t: number): number => {
+    if (t <= 0) return 1;
+    if (t >= 1) return 0;
+    const threshold = (BAYER4[(y >> 2) & 3][(x >> 2) & 3] + 0.5) / 16;
+    return Math.min(1, Math.max(0, (threshold - t) / AA + 0.5));
   };
 
-  const bake = (key: string, dir: EdgeDir, fade: number, paint: (data: Uint8ClampedArray, i: number) => void): void => {
+  const bake = (key: string, dir: EdgeDir, fade: number, color: (i: number) => [number, number, number, number]): void => {
     if (scene.textures.exists(key)) return;
     const tex = scene.textures.createCanvas(key, SIZE, SIZE);
     if (!tex) return;
@@ -548,7 +551,14 @@ export function generateEdgeDecals(scene: Phaser.Scene): void {
       for (let x = 0; x < SIZE; x++) {
         const d = edgeDepth(dir, x, y, SIZE);
         const t = Math.min(1, Math.max(0, (d - D_FULL) / (fade - D_FULL)));
-        if (keep(x, y, t)) paint(out.data, (y * SIZE + x) * 4);
+        const cov = coverage(x, y, t);
+        if (cov <= 0.01) continue;
+        const i = (y * SIZE + x) * 4;
+        const [r, g, b, a] = color(i);
+        out.data[i] = r;
+        out.data[i + 1] = g;
+        out.data[i + 2] = b;
+        out.data[i + 3] = Math.round(a * cov);
       }
     }
     tex.getContext().putImageData(out, 0, 0);
@@ -556,18 +566,8 @@ export function generateEdgeDecals(scene: Phaser.Scene): void {
   };
 
   for (const dir of EDGE_DIRS) {
-    bake(`grass-edge-${dir}`, dir, GRASS_FADE, (data, i) => {
-      data[i] = grass.data[i];
-      data[i + 1] = grass.data[i + 1];
-      data[i + 2] = grass.data[i + 2];
-      data[i + 3] = grass.data[i + 3];
-    });
-    bake(`shadow-edge-${dir}`, dir, SHADOW_FADE, (data, i) => {
-      data[i] = SHADOW_RGB[0];
-      data[i + 1] = SHADOW_RGB[1];
-      data[i + 2] = SHADOW_RGB[2];
-      data[i + 3] = SHADOW_A;
-    });
+    bake(`grass-edge-${dir}`, dir, GRASS_FADE, (i) => [grass.data[i], grass.data[i + 1], grass.data[i + 2], grass.data[i + 3]]);
+    bake(`shadow-edge-${dir}`, dir, SHADOW_FADE, () => [SHADOW_RGB[0], SHADOW_RGB[1], SHADOW_RGB[2], SHADOW_A]);
   }
 }
 
