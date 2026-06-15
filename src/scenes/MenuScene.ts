@@ -123,6 +123,10 @@ export class MenuScene extends Phaser.Scene {
     ];
   }
 
+  // Checkpoint-style save (DESIGN.md §22): Save snapshots WorldState flags +
+  // counters, NOT the player's exact position/HP. Load therefore rebuilds the
+  // world and respawns at the last hearth (or area entrance) at full health —
+  // intentional, matching the auto-save + death-respawn model.
   private saveLoadItems(): MenuItem[] {
     return [
       { label: () => 'Save', action: () => (saveGame() ? 'Game saved' : 'Save failed') },
