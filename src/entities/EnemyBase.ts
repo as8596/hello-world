@@ -130,6 +130,20 @@ export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
     return this.aiState === 'stunned';
   }
 
+  /** True while actively engaged with the player (drives the combat music). */
+  get isHostile(): boolean {
+    switch (this.aiState) {
+      case 'notice':
+      case 'chase':
+      case 'windup':
+      case 'attack':
+      case 'recover':
+        return true;
+      default:
+        return false;
+    }
+  }
+
   /**
    * Take melee damage from a source position. Armored foes (§9.1) shrug it off
    * unless bell-stunned — a "clink" + spark teaches "this doesn't work" without

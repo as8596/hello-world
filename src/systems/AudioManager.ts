@@ -8,6 +8,8 @@
  * `resume()` is called on the first key/pointer input.
  */
 
+import { MusicEngine } from './MusicEngine';
+
 export type SfxName =
   | 'handbell'
   | 'greatbell'
@@ -177,6 +179,7 @@ const SFX: Record<SfxName, (ctx: AudioContext, dest: AudioNode) => void> = {
 class AudioManager {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
+  private music: MusicEngine | null = null;
   private muted = false;
   private volume = 0.5;
 
@@ -226,6 +229,28 @@ class AudioManager {
     if (this.master && this.ctx && !this.muted) {
       this.master.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.02);
     }
+  }
+
+  /**
+   * Begin the adaptive score. Safe to call repeatedly (the engine starts once);
+   * it routes through `master`, so mute/volume affect it like the SFX. The
+   * scheduler queues notes into the future, so it tolerates the context still
+   * being suspended — sound starts once the first gesture resumes it.
+   */
+  startMusic(): void {
+    this.init();
+    if (!this.ctx || !this.master) return;
+    if (!this.music) this.music = new MusicEngine(this.ctx, this.master);
+    this.music.start();
+  }
+
+  stopMusic(): void {
+    this.music?.stop();
+  }
+
+  /** Drive the calm↔danger crossfade (0 = exploring, 1 = in danger). */
+  setMusicIntensity(v: number): void {
+    this.music?.setIntensity(v);
   }
 }
 

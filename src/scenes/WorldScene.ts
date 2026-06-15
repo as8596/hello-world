@@ -276,6 +276,9 @@ export class WorldScene extends Phaser.Scene {
       this.showToast(muted ? 'Sound off' : 'Sound on');
     });
 
+    // The adaptive score runs for the whole session; intensity is driven below.
+    audio.startMusic();
+
     // Escape opens the pause menu: freeze the world and hand input to MenuScene
     // (which resumes us when dismissed). Skip while dying/transitioning or with
     // a dialogue open — those own the moment and have their own dismissal.
@@ -389,6 +392,7 @@ export class WorldScene extends Phaser.Scene {
       this.boss.think(this.player.x, this.player.y);
       this.updateBossBar();
     }
+    audio.setMusicIntensity(this.dangerLevel());
 
     if (attackPressed) this.player.queueAttack(now);
     this.resolveAttackHits();
@@ -1174,6 +1178,29 @@ export class WorldScene extends Phaser.Scene {
         bg.destroy();
       },
     });
+  }
+
+  /**
+   * Raw danger level (0..1) for the adaptive score. The boss fight pins it high;
+   * otherwise it rises with the nearest *engaged* enemy (closer = tenser), with a
+   * faint floor of unease near unbroken fog. The MusicEngine smooths the result,
+   * so an instantaneous drop (enemy dies) fades out rather than cutting.
+   */
+  private dangerLevel(): number {
+    if (this.boss && this.boss.active && !this.boss.isDying) return 1;
+    const px = this.player.x;
+    const py = this.player.y;
+    let level = 0;
+    for (const e of this.enemies) {
+      if (e.isDead || !e.isHostile) continue;
+      const d = Phaser.Math.Distance.Between(px, py, e.x, e.y);
+      const prox = Phaser.Math.Clamp(1 - d / (e.def.aggroRange * 1.5), 0.35, 1);
+      if (prox > level) level = prox;
+    }
+    if (level < 0.25 && this.fog.some((f) => f.active && Phaser.Math.Distance.Between(px, py, f.x, f.y) <= 80 * RS)) {
+      level = 0.25;
+    }
+    return level;
   }
 
   /**
