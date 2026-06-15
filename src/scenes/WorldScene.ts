@@ -228,7 +228,7 @@ export class WorldScene extends Phaser.Scene {
     // Which area are we in? (set by a transition / load; defaults to the start.)
     const savedArea = worldState.getFlag('area');
     this.areaId = isAreaId(savedArea) ? savedArea : START_AREA;
-    const map = buildTilemap(this, AREAS[this.areaId]);
+    const map = buildTilemap(this, AREAS[this.areaId], this.areaId);
     this.physics.world.setBounds(0, 0, map.widthPx, map.heightPx);
 
     // Hand-placed objects. The map reacts to saved/earned flags so a reload (or
@@ -1536,9 +1536,18 @@ export class WorldScene extends Phaser.Scene {
     const item = ITEMS[id];
     let ok = false;
     if (item?.kind === 'consumable' && worldState.getCounter(`item_${id}`) > 0) {
-      if (id === 'bell_pear_preserve') ok = this.player.heal(4); // two hearts
-      else if (id === 'berry') ok = this.player.heal(2); // one heart
-      else if (id === 'resonant_draught') ok = this.player.restoreStamina(playerConfig.maxStamina);
+      // Heals are in half-hearts (heal(2) === one heart).
+      const HEARTS: Record<string, number> = {
+        bell_pear_preserve: 4,
+        berry: 2,
+        bread: 2,
+        salted_fish: 4,
+        pickled_roots: 4,
+        meat_stew: 6,
+        health_potion: 8,
+      };
+      if (HEARTS[id]) ok = this.player.heal(HEARTS[id]);
+      else if (id === 'resonant_draught' || id === 'herbs') ok = this.player.restoreStamina(playerConfig.maxStamina);
       if (ok) {
         worldState.addCounter(`item_${id}`, -1);
         audio.playSfx('heart');

@@ -11,6 +11,34 @@ const OVERHEAD_DEPTH = 12;
 const DECAL_DEPTH = 1;
 
 const GRASS_TILES = new Set<number>([...GRASS_VARIANT_INDICES, ...FLOWER_TILE_INDICES]);
+
+/**
+ * Deterministic RNG for decoration. Seeded per-area at the top of buildTilemap so
+ * bushes/rocks/grass/flowers land in the *same* spots on every (re)build — the
+ * world is fixed and persistent without storing any positions. `rnd()` replaces
+ * Math.random throughout this module.
+ */
+let rng: () => number = Math.random;
+function rnd(): number {
+  return rng();
+}
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hashSeed(s: string): number {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
 const isGrass = (t: number): boolean => GRASS_TILES.has(t);
 
 const COBBLE_TILES = new Set<number>(COBBLE_VARIANT_INDICES);
@@ -71,7 +99,7 @@ function growGrassPatch(data: number[][], sx: number, sy: number, target: number
   const frontier: [number, number][] = [[sx, sy]];
   let placed = 0;
   while (frontier.length > 0 && placed < target) {
-    const i = Math.floor(Math.random() * frontier.length);
+    const i = Math.floor(rnd() * frontier.length);
     const [x, y] = frontier.splice(i, 1)[0];
     if (!isPlainGrass(data[y][x])) continue;
     data[y][x] = VARIANT_GRASS;
@@ -95,7 +123,7 @@ function growFlowerPatch(data: number[][], sx: number, sy: number, variant: numb
   const frontier: [number, number][] = [[sx, sy]];
   let placed = 0;
   while (frontier.length > 0 && placed < target) {
-    const i = Math.floor(Math.random() * frontier.length);
+    const i = Math.floor(rnd() * frontier.length);
     const [x, y] = frontier.splice(i, 1)[0];
     if (!GRASS_VARIANT_SET.has(data[y][x])) continue; // already flowered / not grass
     data[y][x] = variant;
@@ -142,8 +170,8 @@ function decorate(data: number[][], blocking: number[]): void {
   }
   for (let y = 0; y < data.length; y++) {
     for (let x = 0; x < data[y].length; x++) {
-      if (isPlainGrass(data[y][x]) && Math.random() < 0.025) {
-        growGrassPatch(data, x, y, 6 + Math.floor(Math.random() * 10)); // ~6–15 tiles
+      if (isPlainGrass(data[y][x]) && rnd() < 0.025) {
+        growGrassPatch(data, x, y, 6 + Math.floor(rnd() * 10)); // ~6–15 tiles
       }
     }
   }
@@ -151,7 +179,7 @@ function decorate(data: number[][], blocking: number[]): void {
   // Overgrown stone: a fraction of cobbles have cracked and gone to grass/weeds,
   // so the medieval paths read as long-neglected and unkempt.
   for (const row of data) {
-    for (let i = 0; i < row.length; i++) if (row[i] === Tile.Cobble && Math.random() < 0.14) row[i] = pickGrass();
+    for (let i = 0; i < row.length; i++) if (row[i] === Tile.Cobble && rnd() < 0.14) row[i] = pickGrass();
   }
 
   // Vary the remaining cobbles across the real stone variants (grey/grey-alt/tan/
@@ -159,7 +187,7 @@ function decorate(data: number[][], blocking: number[]): void {
   for (const row of data) {
     for (let i = 0; i < row.length; i++) {
       if (row[i] !== Tile.Cobble) continue;
-      const r = Math.random();
+      const r = rnd();
       const v = r < 0.34 ? 0 : r < 0.62 ? 1 : r < 0.76 ? 2 : r < 0.88 ? 3 : 4;
       row[i] = COBBLE_VARIANT_INDICES[v];
     }
@@ -171,9 +199,9 @@ function decorate(data: number[][], blocking: number[]): void {
   const W = data[0].length;
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      if (GRASS_VARIANT_SET.has(data[y][x]) && Math.random() < 0.012) {
-        const variant = FLOWER_TILE_INDICES[Math.floor(Math.random() * FLOWER_TILE_INDICES.length)];
-        growFlowerPatch(data, x, y, variant, 3 + Math.floor(Math.random() * 7)); // ~3–9 tiles
+      if (GRASS_VARIANT_SET.has(data[y][x]) && rnd() < 0.012) {
+        const variant = FLOWER_TILE_INDICES[Math.floor(rnd() * FLOWER_TILE_INDICES.length)];
+        growFlowerPatch(data, x, y, variant, 3 + Math.floor(rnd() * 7)); // ~3–9 tiles
       }
     }
   }
@@ -301,9 +329,9 @@ function generateRockScatter(data: number[][], taken: Set<number>, tileSize: num
   const out: RockPlacement[] = [];
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      if (!isGrass(data[y][x]) || taken.has(y * W + x) || Math.random() >= 0.009) continue;
+      if (!isGrass(data[y][x]) || taken.has(y * W + x) || rnd() >= 0.009) continue;
       taken.add(y * W + x);
-      const texture = Math.random() < 0.08 ? 'rock-large' : ROCK_VARIANTS[Math.floor(Math.random() * ROCK_VARIANTS.length)];
+      const texture = rnd() < 0.08 ? 'rock-large' : ROCK_VARIANTS[Math.floor(rnd() * ROCK_VARIANTS.length)];
       out.push({ x: x * tileSize + tileSize / 2, y: y * tileSize + tileSize / 2, texture });
     }
   }
@@ -324,20 +352,20 @@ function generateBushClusters(data: number[][], taken: Set<number>, tileSize: nu
   const canSeed = (x: number, y: number): boolean => isGrass(data[y][x]) && !taken.has(key(x, y));
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      if (!canSeed(x, y) || Math.random() >= 0.01) continue;
-      const r = Math.random();
+      if (!canSeed(x, y) || rnd() >= 0.01) continue;
+      const r = rnd();
       const group = r < 0.55 ? 'green' : r < 0.78 ? 'dead' : 'thorny';
       // Grow the cluster: a small blob of grass tiles, one bush each.
       const frontier: [number, number][] = [[x, y]];
-      const target = 2 + Math.floor(Math.random() * 4); // 2–5 bushes
+      const target = 2 + Math.floor(rnd() * 4); // 2–5 bushes
       let placed = 0;
       while (frontier.length > 0 && placed < target) {
-        const i = Math.floor(Math.random() * frontier.length);
+        const i = Math.floor(rnd() * frontier.length);
         const [bx, by] = frontier.splice(i, 1)[0];
         if (taken.has(key(bx, by)) || !isGrass(data[by][bx])) continue;
         taken.add(key(bx, by));
         placed++;
-        const isBerry = group === 'green' && Math.random() < 0.3;
+        const isBerry = group === 'green' && rnd() < 0.3;
         out.push({ x: bx * tileSize + tileSize / 2, y: by * tileSize + tileSize / 2, group: isBerry ? 'berry' : group });
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
           const nx = bx + dx;
@@ -356,7 +384,10 @@ function generateBushClusters(data: number[][], taken: Set<number>, tileSize: nu
  * entry in the returned `objects`/`spawn`. Returns the layer (for colliders),
  * the spawn point, the objects, and the map's pixel dimensions.
  */
-export function buildTilemap(scene: Phaser.Scene, def: TileMapDef): BuiltMap {
+export function buildTilemap(scene: Phaser.Scene, def: TileMapDef, seed = 'brackenvale'): BuiltMap {
+  // Seed decoration from the area id so every (re)build of this area lays out
+  // identically — the world stays fixed and persistent across visits/reloads.
+  rng = mulberry32(hashSeed(seed));
   const { tileSize, rows, legend, spawnChar, spawnTile } = def;
   const floorTile = def.floorTile ?? Tile.Grass;
   const objectDefs = def.objects ?? {};
@@ -407,7 +438,7 @@ export function buildTilemap(scene: Phaser.Scene, def: TileMapDef): BuiltMap {
   // Randomly mirror ~half the grass/flower tiles for extra organic variation.
   const flippable = new Set<number>([...GRASS_VARIANT_INDICES, ...FLOWER_TILE_INDICES, ...COBBLE_VARIANT_INDICES]);
   layer.forEachTile((tile) => {
-    if (flippable.has(tile.index) && Math.random() < 0.5) tile.flipX = true;
+    if (flippable.has(tile.index) && rnd() < 0.5) tile.flipX = true;
   });
 
   layer.setCollision(def.blocking);

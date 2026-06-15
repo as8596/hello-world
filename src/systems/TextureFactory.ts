@@ -40,6 +40,7 @@ export const TextureKeys = {
   ItemPreserve: 'item-preserve',
   ItemDraught: 'item-draught',
   ItemCharm: 'item-charm',
+  ItemUnknown: 'item-unknown',
 } as const;
 
 const FRAME = 16; // player placeholder frame size, design px
@@ -92,6 +93,11 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   generateShopItems(scene);
 }
 
+/** An item's icon texture if it has loaded, else the generic parcel placeholder. */
+export function itemIcon(scene: Phaser.Scene, key: string): string {
+  return scene.textures.exists(key) ? key : TextureKeys.ItemUnknown;
+}
+
 /** Small inventory/shop icons for the consumables + charm. */
 function generateShopItems(scene: Phaser.Scene): void {
   // Bell-pear preserve: a stout jar of amber jam with a cloth lid.
@@ -117,6 +123,18 @@ function generateShopItems(scene: Phaser.Scene): void {
       rect(ctx, 0, 5, 8, 6, 5, '#46c0cf'); // liquid
       rect(ctx, 0, 6, 9, 1, 3, '#9fe6ef'); // glint
       rect(ctx, 0, 6, 2, 4, 1, '#c9b08a'); // cork
+      tex.refresh();
+    }
+  }
+  // Generic placeholder: a tied parcel, shown when an item's real icon is absent.
+  if (!scene.textures.exists(TextureKeys.ItemUnknown)) {
+    const m = makeTexture(scene, TextureKeys.ItemUnknown, TILE, TILE);
+    if (m) {
+      const { tex, ctx } = m;
+      rect(ctx, 0, 3, 4, 10, 9, '#9a8253'); // parcel paper
+      rect(ctx, 0, 3, 4, 10, 1, '#b89c66'); // top highlight
+      rect(ctx, 0, 7, 4, 2, 9, '#6e5a36'); // horizontal tie
+      rect(ctx, 0, 8, 4, 1, 9, '#6e5a36'); // vertical tie
       tex.refresh();
     }
   }

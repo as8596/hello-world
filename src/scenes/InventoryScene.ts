@@ -5,6 +5,7 @@ import { RENDER_SCALE as RS } from '../data/render';
 import { audio } from '../systems/AudioManager';
 import { eventBus } from '../systems/EventBus';
 import { addPixelText, type PixelText } from '../systems/PixelFont';
+import { itemIcon } from '../systems/TextureFactory';
 import { worldState } from '../systems/WorldState';
 import { SceneKeys } from './SceneKeys';
 
@@ -123,7 +124,7 @@ export class InventoryScene extends Phaser.Scene {
       if (i >= SLOTS) return; // overflow guard (paging comes with bigger inventories)
       const { x, y } = this.slotPos(i);
       const item = ITEMS[id];
-      const icon = this.add.image(x, y, item.texture).setScale(1.5).setScrollFactor(0);
+      const icon = this.add.image(x, y, itemIcon(this, item.texture)).setScale(1.5).setScrollFactor(0);
       icon.setInteractive({ useHandCursor: true });
       icon.on('pointerover', () => {
         this.cursor = i;
@@ -161,7 +162,7 @@ export class InventoryScene extends Phaser.Scene {
     }
     const sel = has ? ITEMS[this.ids[this.cursor]] : undefined;
     this.detail.setText(
-      sel ? `${sel.name}\n${sel.desc}  ${sel.kind === 'charm' ? '(passive)' : '(Enter to use)'}` : '( no items )',
+      sel ? `${sel.name}\n${sel.desc}  ${sel.kind === 'consumable' ? '(Enter to use)' : sel.kind === 'charm' ? '(passive)' : '(carried)'}` : '( no items )',
     );
     this.detail.setPosition(this.cx, Math.round(this.cy + this.panelH / 2 - LINE_H * 2.5));
   }

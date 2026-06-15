@@ -72,9 +72,11 @@ export class PreloadScene extends Phaser.Scene {
     // for the dialogue box in create(). Optional — no portrait just hides the panel.
     this.load.image('portrait-maple-full', 'assets/sprites/portraits/maple.png');
 
-    // UI kit. The "E" keycap is the interact prompt; the framed panels/buttons are
-    // available for restyling menus. Optional — the prompt falls back to a bubble.
+    // UI kit. The "E" keycap is the interact prompt; the framed window/button are
+    // used by the shop list. Optional — each falls back to a drawn rectangle.
     this.load.image('ui-prompt-e', 'assets/sprites/ui/E.png');
+    this.load.image('ui-window', 'assets/sprites/ui/Window.png');
+    this.load.image('ui-button', 'assets/sprites/ui/Button.png');
 
     // Bush foliage world-objects (green / dead / thorny / berry), placed in clusters.
     this.load.image('bush-green', 'assets/sprites/bushes/green.png');
@@ -104,6 +106,12 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('item-blade', 'assets/sprites/items/blade.png');
     this.load.image('item-handbell', 'assets/sprites/items/handbell.png');
     this.load.image('item-berry', 'assets/sprites/items/berry.png');
+
+    // Maple's shop wares (icons land shortly — missing files fall back to a
+    // placeholder via itemIcon()).
+    for (const f of ['fishing-rod', 'salted-fish', 'meat-stew', 'health-potion', 'bread', 'pickled-roots', 'rope', 'firewood', 'flint-steel', 'herbs']) {
+      this.load.image(`item-${f}`, `assets/sprites/items/${f}.png`);
+    }
 
     // A missing optional asset must not fail the boot.
     this.load.on('loaderror', () => undefined);
