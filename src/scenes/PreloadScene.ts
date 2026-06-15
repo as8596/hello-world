@@ -56,6 +56,9 @@ export class PreloadScene extends Phaser.Scene {
     // a missing file just means those objects render nothing).
     this.load.image('tree', 'assets/tree.png');
 
+    // Animated placeholder fire (roaring flames) for the hearth — a 64px strip.
+    this.load.spritesheet('fire', 'assets/sprites/fire.png', { frameWidth: 64, frameHeight: 64 });
+
     // Optional real item art (blade + handbell pickups); falls back to the
     // procedural placeholder if missing.
     this.load.image('item-blade', 'assets/sprites/items/blade.png');
@@ -91,6 +94,10 @@ export class PreloadScene extends Phaser.Scene {
     applyTerrainTileset(this, 'terrain');
     applyStoneTileset(this, 'stone');
     generateEdgeDecals(this);
+    // Register the looping fire animation (global) if its sheet loaded.
+    if (this.textures.exists('fire') && !this.anims.exists('fire')) {
+      this.anims.create({ key: 'fire', frames: this.anims.generateFrameNumbers('fire', {}), frameRate: 10, repeat: -1 });
+    }
     this.scene.start(SceneKeys.World);
   }
 

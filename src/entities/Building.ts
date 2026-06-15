@@ -21,8 +21,11 @@ export class Building extends Phaser.GameObjects.Image {
     this.baseY = y;
   }
 
-  /** Re-sort the house: above the player when they're north of the base. */
-  syncDepth(playerY: number): void {
-    this.setDepth(playerY < this.baseY ? OVER_PLAYER : BEHIND_PLAYER);
+  /** Re-sort the house and fade it when the player is hidden behind it. */
+  syncDepth(playerX: number, playerY: number): void {
+    const over = playerY < this.baseY;
+    this.setDepth(over ? OVER_PLAYER : BEHIND_PLAYER);
+    const hidden = over && this.getBounds().contains(playerX, playerY);
+    this.setAlpha(this.alpha + ((hidden ? 0.5 : 1) - this.alpha) * 0.2);
   }
 }

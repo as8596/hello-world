@@ -275,13 +275,14 @@ export class WorldScene extends Phaser.Scene {
         );
       } else if (obj.type === 'hearth') {
         this.hearthPositions.push({ x: obj.x, y: obj.y });
-        this.interactables.push(
-          new Interactable(this, obj.x, obj.y, {
-            texture: TextureKeys.Hearth,
-            label: 'rest',
-            onInteract: () => this.useHearth(obj.x, obj.y),
-          }),
-        );
+        const useFire = this.anims.exists('fire');
+        const hearth = new Interactable(this, obj.x, obj.y, {
+          texture: useFire ? 'fire' : TextureKeys.Hearth,
+          label: 'rest',
+          onInteract: () => this.useHearth(obj.x, obj.y),
+        });
+        if (useFire) hearth.play('fire'); // roaring flames
+        this.interactables.push(hearth);
       } else if (obj.type === 'chime') {
         this.chimes.push(new Chime(this, obj.x, obj.y, { onActivate: () => this.onChimeRung() }));
       } else if (obj.type === 'door') {
@@ -537,8 +538,8 @@ export class WorldScene extends Phaser.Scene {
     this.collectNearbyPickups();
     this.maybeShowContextHints();
     this.checkTriggers();
-    for (const tree of this.trees) tree.syncDepth(this.player.y);
-    for (const building of this.buildings) building.syncDepth(this.player.y);
+    for (const tree of this.trees) tree.syncDepth(this.player.x, this.player.y);
+    for (const building of this.buildings) building.syncDepth(this.player.x, this.player.y);
     for (const v of this.villagers) v.wander(now, deltaMs, false); // alive once woken
     if (this.checkAreaTransition()) return;
 

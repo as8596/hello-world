@@ -23,8 +23,12 @@ export class Tree extends Phaser.GameObjects.Image {
     this.baseY = y;
   }
 
-  /** Re-sort the canopy: above the player when they're north of the trunk. */
-  syncDepth(playerY: number): void {
-    this.setDepth(playerY < this.baseY ? OVER_PLAYER : BEHIND_PLAYER);
+  /** Re-sort the canopy and fade it when the player is hidden behind it. */
+  syncDepth(playerX: number, playerY: number): void {
+    const over = playerY < this.baseY;
+    this.setDepth(over ? OVER_PLAYER : BEHIND_PLAYER);
+    // Go semi-transparent while the player is tucked behind us, so they show through.
+    const hidden = over && this.getBounds().contains(playerX, playerY);
+    this.setAlpha(this.alpha + ((hidden ? 0.5 : 1) - this.alpha) * 0.2);
   }
 }
