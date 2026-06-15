@@ -21,6 +21,14 @@ function voiceFor(speaker?: string): number {
   return 300 + (h % 180); // 300..479 Hz
 }
 
+/** Speaker → baked bust texture key for the dialogue portrait (if any). */
+const PORTRAITS: Record<string, string> = {
+  Maple: 'portrait-maple',
+};
+function portraitFor(speaker?: string): string | undefined {
+  return speaker ? PORTRAITS[speaker] : undefined;
+}
+
 /**
  * DialogueRunner — plays a data-driven NpcDef through the DialogueBox (§16):
  * picks the first entry whose conditions pass, runs node effects, types the
@@ -97,8 +105,11 @@ export class DialogueRunner {
     this.mode = 'text';
     for (const effect of node.effects ?? []) this.runEffect(effect);
     this.box.openBox();
-    const text = node.speaker ? `${node.speaker}: ${node.text}` : node.text;
-    this.box.renderText(text, voiceFor(node.speaker));
+    this.box.renderText(node.text, {
+      speaker: node.speaker,
+      voiceHz: voiceFor(node.speaker),
+      portrait: portraitFor(node.speaker),
+    });
   }
 
   private onTextDone(): void {

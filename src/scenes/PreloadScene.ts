@@ -62,6 +62,10 @@ export class PreloadScene extends Phaser.Scene {
     // Optional — the procedural house art is the fallback (see BUILDINGS).
     for (const b of ['house', 'tavern', 'alchemy']) this.load.image(`building-${b}`, `assets/sprites/buildings/${b}.png`);
 
+    // Character portraits (full art); a head-and-shoulders bust is baked from each
+    // for the dialogue box in create(). Optional — no portrait just hides the panel.
+    this.load.image('portrait-maple-full', 'assets/sprites/portraits/maple.png');
+
     // Bush foliage world-objects (green / dead / thorny / berry), placed in clusters.
     this.load.image('bush-green', 'assets/sprites/bushes/green.png');
     this.load.image('bush-dead', 'assets/sprites/bushes/dead.png');
@@ -154,7 +158,25 @@ export class PreloadScene extends Phaser.Scene {
       this.anims.create({ key: 'fire', frames: this.anims.generateFrameNumbers('fire', {}), frameRate: 10, repeat: -1 });
     }
     this.registerDirAnims('maple-walk');
+    // Bake a head-and-shoulders bust from each full portrait for the dialogue box.
+    this.bakePortrait('portrait-maple-full', 'portrait-maple', 221, 28, 224);
     this.scene.start(SceneKeys.World);
+  }
+
+  /**
+   * Crop a square bust out of a full-body portrait into its own texture, so the
+   * dialogue box can show a clean head-and-shoulders frame. No-op if the source
+   * is missing (the box just renders without a portrait).
+   */
+  private bakePortrait(srcKey: string, destKey: string, sx: number, sy: number, side: number): void {
+    if (!this.textures.exists(srcKey) || this.textures.exists(destKey)) return;
+    const src = this.textures.get(srcKey).getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+    const tex = this.textures.createCanvas(destKey, side, side);
+    if (!tex) return;
+    const ctx = tex.getContext();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(src, sx, sy, side, side, 0, 0, side, side);
+    tex.refresh();
   }
 
   private drawLoadingBar(): void {

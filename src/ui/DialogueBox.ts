@@ -3,9 +3,13 @@ import { CAMERA_ZOOM, RENDER_SCALE as RS } from '../data/render';
 import { audio } from '../systems/AudioManager';
 import { addPixelText, PIXEL_FONT_KEY } from '../systems/PixelFont';
 
+/** Speaker-name colour — a warm gold so it pops off the body text. */
+const NAME_COLOR = 0xffd23f;
+
 /**
  * DialogueBox — the bottom dialogue panel (DESIGN.md §16). A dumb renderer
- * driven by DialogueRunner: typewriter body text, an advance indicator, and a
+ * driven by DialogueRunner: an optional speaker portrait on the left, an
+ * emphasised speaker name, typewriter body text, an advance indicator, and a
  * selectable choice list. Built from primitives in a container that counter-
  * scales the world camera's zoom, so it renders at native size + screen-fixed
  * (the world is zoomed; UI shouldn't be).
@@ -13,6 +17,9 @@ import { addPixelText, PIXEL_FONT_KEY } from '../systems/PixelFont';
 export class DialogueBox {
   private readonly scene: Phaser.Scene;
   private readonly root: Phaser.GameObjects.Container;
+  private readonly portrait: Phaser.GameObjects.Image;
+  private readonly portraitFrame: Phaser.GameObjects.Rectangle;
+  private readonly nameParts: Phaser.GameObjects.BitmapText[]; // main + faux-bold copies
   private readonly body: Phaser.GameObjects.BitmapText;
   private readonly indicator: Phaser.GameObjects.BitmapText;
   private choiceTexts: Phaser.GameObjects.BitmapText[] = [];
@@ -22,8 +29,14 @@ export class DialogueBox {
   private voiceHz = 360;
   private timer?: Phaser.Time.TimerEvent;
   private open = false;
-  private readonly choiceStartY: number;
-  private readonly choiceX: number;
+
+  private readonly panelW: number;
+  private readonly panelH: number;
+  private readonly pad = 5 * RS;
+  private readonly portraitBox: number;
+  /** Current left edge of the text column (shifts right when a portrait shows). */
+  private textX: number;
+  private choicesY = 28 * RS;
 
   /** Set by the runner; fires when the body text finishes typing. */
   onTyped?: () => void;
@@ -33,9 +46,11 @@ export class DialogueBox {
     const w = scene.scale.width;
     const h = scene.scale.height;
     const margin = 8 * RS;
-    const panelH = 54 * RS;
-    const panelW = w - margin * 2;
-    const panelY = h - panelH - 6 * RS;
+    this.panelH = 54 * RS;
+    this.panelW = w - margin * 2;
+    const panelY = h - this.panelH - 6 * RS;
+    this.portraitBox = this.panelH - this.pad * 2;
+    this.textX = 6 * RS;
 
     // The world camera zooms about its centre; place a scroll-fixed container at
     // the inverse-transformed panel anchor and scale it 1/zoom so its children
@@ -51,18 +66,33 @@ export class DialogueBox {
       .setVisible(false);
 
     const bg = scene.add
-      .rectangle(0, 0, panelW, panelH, 0x10101a, 0.92)
+      .rectangle(0, 0, this.panelW, this.panelH, 0x10101a, 0.92)
       .setOrigin(0, 0)
       .setStrokeStyle(1 * RS, 0x6fb3ff, 0.8);
-    this.body = addPixelText(scene, 6 * RS, 6 * RS, '', { color: 0xe8e6d8, maxWidth: panelW - 16 * RS });
+
+    // Portrait panel (left). Hidden until a speaker with portrait art appears.
+    this.portrait = scene.add.image(this.pad, this.pad, '__DEFAULT').setOrigin(0, 0).setVisible(false);
+    this.portraitFrame = scene.add
+      .rectangle(this.pad, this.pad, this.portraitBox, this.portraitBox)
+      .setOrigin(0, 0)
+      .setFillStyle(0, 0)
+      .setStrokeStyle(1 * RS, 0x6fb3ff, 0.9)
+      .setVisible(false);
+
+    // Speaker name — gold, with two offset copies for a faux-bold weight.
+    this.nameParts = [
+      addPixelText(scene, 0, 0, '', { color: NAME_COLOR }),
+      addPixelText(scene, 0, 0, '', { color: NAME_COLOR }),
+      addPixelText(scene, 0, 0, '', { color: NAME_COLOR }),
+    ];
+
+    this.body = addPixelText(scene, this.textX, 6 * RS, '', { color: 0xe8e6d8, maxWidth: this.panelW - this.textX - 6 * RS });
     this.indicator = scene.add
-      .bitmapText(panelW - 12 * RS, panelH - 11 * RS, PIXEL_FONT_KEY, '>')
+      .bitmapText(this.panelW - 12 * RS, this.panelH - 11 * RS, PIXEL_FONT_KEY, '>')
       .setTint(0x6fb3ff)
       .setVisible(false);
-    this.root.add([bg, this.body, this.indicator]);
 
-    this.choiceX = 8 * RS;
-    this.choiceStartY = 26 * RS;
+    this.root.add([bg, this.portrait, this.portraitFrame, ...this.nameParts, this.body, this.indicator]);
   }
 
   get isOpen(): boolean {
@@ -84,16 +114,31 @@ export class DialogueBox {
     this.clearChoices();
     this.indicator.setVisible(false);
     this.body.setText('');
+    this.setName(undefined);
+    this.setPortrait(undefined);
     this.root.setVisible(false);
   }
 
-  /** Start the typewriter on a single body string. `voiceHz` tints the talk blip. */
-  renderText(text: string, voiceHz = 360): void {
+  /**
+   * Start the typewriter on a body string. `opts.speaker` drives the emphasised
+   * name label and `opts.voiceHz` the talk-blip; `opts.portrait` shows a bust.
+   */
+  renderText(text: string, opts: { speaker?: string; voiceHz?: number; portrait?: string } = {}): void {
     this.clearChoices();
     this.indicator.setVisible(false);
+    this.voiceHz = opts.voiceHz ?? 360;
+
+    this.setPortrait(opts.portrait);
+    this.textX = this.portrait.visible ? this.pad + this.portraitBox + 6 * RS : 6 * RS;
+    this.setName(opts.speaker);
+
+    // Body sits below the name (if any), in the column right of the portrait.
+    const bodyY = opts.speaker ? this.nameParts[0].y + this.nameParts[0].height + 3 * RS : 6 * RS;
+    this.body.setPosition(this.textX, bodyY).setMaxWidth(this.panelW - this.textX - 6 * RS);
+    this.choicesY = Math.max(this.choicesY, bodyY);
+
     this.full = text;
     this.revealed = 0;
-    this.voiceHz = voiceHz;
     this.body.setText('');
     this.timer?.remove();
     this.timer = this.scene.time.addEvent({
@@ -127,8 +172,10 @@ export class DialogueBox {
 
   renderChoices(labels: string[], selected: number): void {
     this.clearChoices();
+    // Stack choices under the body, in the same text column as the portrait allows.
+    const startY = Math.min(this.choicesY, this.panelH - labels.length * 8 * RS - 4 * RS);
     labels.forEach((label, i) => {
-      const bt = addPixelText(this.scene, this.choiceX, this.choiceStartY + i * 8 * RS, `${i === selected ? '> ' : '  '}${label}`, {
+      const bt = addPixelText(this.scene, this.textX, startY + i * 8 * RS, `${i === selected ? '> ' : '  '}${label}`, {
         color: i === selected ? 0xffe066 : 0x9a9a8a,
       });
       this.root.add(bt);
@@ -139,5 +186,35 @@ export class DialogueBox {
   clearChoices(): void {
     for (const c of this.choiceTexts) c.destroy();
     this.choiceTexts = [];
+  }
+
+  // --- internals -----------------------------------------------------------
+
+  /** Show/scale a speaker bust in the left panel, or hide it if none. */
+  private setPortrait(key?: string): void {
+    if (key && this.scene.textures.exists(key)) {
+      const src = this.scene.textures.get(key).getSourceImage();
+      this.portrait.setTexture(key).setScale(this.portraitBox / src.width).setVisible(true);
+      this.portraitFrame.setVisible(true);
+    } else {
+      this.portrait.setVisible(false);
+      this.portraitFrame.setVisible(false);
+    }
+  }
+
+  /** Set the emphasised speaker name (gold, faux-bold), or clear it. */
+  private setName(speaker?: string): void {
+    const offsets: [number, number][] = [
+      [1, 0],
+      [0, 1],
+      [0, 0],
+    ];
+    this.nameParts.forEach((t, i) => {
+      if (!speaker) {
+        t.setVisible(false);
+        return;
+      }
+      t.setText(speaker).setPosition(this.textX + offsets[i][0], 5 * RS + offsets[i][1]).setVisible(true);
+    });
   }
 }

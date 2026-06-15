@@ -77,7 +77,20 @@ export class Villager extends Interactable {
   /** Gentle wander: drift to a random nearby point, pause, repeat. `frozen` (e.g.
    *  a dialogue is open) holds them still. */
   wander(now: number, deltaMs: number, frozen: boolean): void {
-    if (!this.awake || frozen) return;
+    if (!this.awake) return;
+    if (frozen) {
+      // Hold still while a dialogue is open — drop out of the walk cycle into a
+      // standing pose instead of freezing on a mid-stride frame.
+      if (this.moving) {
+        this.moving = false;
+        if (this.hasWalk) {
+          this.stop();
+          this.setTexture(`${this.dirPrefix}-${this.renderedDir}`);
+        }
+      }
+      this.nextAt = now + Phaser.Math.Between(800, 2000); // settle before ambling again
+      return;
+    }
     if (this.moving) {
       const dx = this.targetX - this.x;
       const dy = this.targetY - this.y;
