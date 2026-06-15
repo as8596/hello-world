@@ -16,6 +16,11 @@ const isGrass = (t: number): boolean => GRASS_TILES.has(t);
 const COBBLE_TILES = new Set<number>(COBBLE_VARIANT_INDICES);
 const isCobble = (t: number): boolean => COBBLE_TILES.has(t);
 
+// The distinct grass variant (slot 5) vs the plain grass (slots 0/6); the
+// variant feathers onto the plain at their borders to blend the grass.
+const VARIANT_GRASS = GRASS_VARIANT_INDICES[1];
+const isPlainGrass = (t: number): boolean => t === GRASS_VARIANT_INDICES[0] || t === GRASS_VARIANT_INDICES[2];
+
 /** N/S/E/W offsets matching EDGE_DIRS, for neighbour lookups. */
 const EDGE_OFFSETS: Record<string, [number, number]> = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
 
@@ -45,6 +50,8 @@ function placeEdgeDecals(scene: Phaser.Scene, data: number[][], tileSize: number
         if (n === Tile.Wall) scene.add.image(cx, cy, `shadow-edge-${dir}`).setDepth(DECAL_DEPTH);
         // Grass fringe bleeding onto sand/water/stone from a grass neighbour.
         else if (receivesGrass && isGrass(n)) scene.add.image(cx, cy, `grass-edge-${dir}`).setDepth(DECAL_DEPTH);
+        // Grass-to-grass: the variant grass feathers onto plain grass it borders.
+        else if (grass && isPlainGrass(t) && n === VARIANT_GRASS) scene.add.image(cx, cy, `grassvar-edge-${dir}`).setDepth(DECAL_DEPTH);
       }
     }
   }
@@ -52,11 +59,29 @@ function placeEdgeDecals(scene: Phaser.Scene, data: number[][], tileSize: number
 
 const GRASS_VARIANT_SET = new Set<number>(GRASS_VARIANT_INDICES);
 
-/** Pick a (flowerless) grass tile variant for organic ground. */
+/** Plain grass; the distinct variant is grown in patches (then dithered in). */
 function pickGrass(): number {
-  const r = Math.random();
-  if (r < 0.36) return GRASS_VARIANT_INDICES[1];
   return GRASS_VARIANT_INDICES[0];
+}
+
+/** Grow a blob of the variant grass over plain grass, for soft meadow patches. */
+function growGrassPatch(data: number[][], sx: number, sy: number, target: number): void {
+  const H = data.length;
+  const W = data[0].length;
+  const frontier: [number, number][] = [[sx, sy]];
+  let placed = 0;
+  while (frontier.length > 0 && placed < target) {
+    const i = Math.floor(Math.random() * frontier.length);
+    const [x, y] = frontier.splice(i, 1)[0];
+    if (!isPlainGrass(data[y][x])) continue;
+    data[y][x] = VARIANT_GRASS;
+    placed++;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (ny >= 0 && ny < H && nx >= 0 && nx < W && isPlainGrass(data[ny][nx])) frontier.push([nx, ny]);
+    }
+  }
 }
 
 /**
@@ -110,9 +135,17 @@ function decorate(data: number[][], blocking: number[]): void {
     }
   }
 
-  // Scatter grass variants over the rest.
+  // Lay plain grass, then grow soft patches of the variant grass over it (the
+  // `grassvar-edge` decals later feather these patches into the plain grass).
   for (const row of data) {
     for (let i = 0; i < row.length; i++) if (row[i] === Tile.Grass) row[i] = pickGrass();
+  }
+  for (let y = 0; y < data.length; y++) {
+    for (let x = 0; x < data[y].length; x++) {
+      if (isPlainGrass(data[y][x]) && Math.random() < 0.025) {
+        growGrassPatch(data, x, y, 6 + Math.floor(Math.random() * 10)); // ~6–15 tiles
+      }
+    }
   }
 
   // Overgrown stone: a fraction of cobbles have cracked and gone to grass/weeds,

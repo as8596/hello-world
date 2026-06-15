@@ -815,9 +815,11 @@ export function generateEdgeDecals(scene: Phaser.Scene): void {
   if (!(tiles instanceof Phaser.Textures.CanvasTexture)) return;
   const SIZE = TILE * RENDER_SCALE; // 64
   const grass = tiles.getContext().getImageData(0, 0, SIZE, SIZE); // grass slot 0
+  const grassVar = tiles.getContext().getImageData(GRASS_VARIANT_INDICES[1] * SIZE, 0, SIZE, SIZE); // grass slot 5
 
   const D_FULL = 6; // fully opaque within this many px of the edge
   const GRASS_FADE = 26; // grass fringe reaches this far in
+  const GRASSVAR_FADE = 22; // a thinner blend between the grass variants
   const SHADOW_FADE = 30;
   const SHADOW_RGB = [18, 30, 20];
   const SHADOW_A = 90;
@@ -858,6 +860,8 @@ export function generateEdgeDecals(scene: Phaser.Scene): void {
 
   for (const dir of EDGE_DIRS) {
     bake(`grass-edge-${dir}`, dir, GRASS_FADE, (i) => [grass.data[i], grass.data[i + 1], grass.data[i + 2], grass.data[i + 3]]);
+    // The variant grass dithered, to feather between grass tiles themselves.
+    bake(`grassvar-edge-${dir}`, dir, GRASSVAR_FADE, (i) => [grassVar.data[i], grassVar.data[i + 1], grassVar.data[i + 2], grassVar.data[i + 3]]);
     bake(`shadow-edge-${dir}`, dir, SHADOW_FADE, () => [SHADOW_RGB[0], SHADOW_RGB[1], SHADOW_RGB[2], SHADOW_A]);
   }
 }
