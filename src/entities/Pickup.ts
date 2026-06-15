@@ -5,6 +5,8 @@ export interface PickupOptions {
   onCollect?: (self: Pickup) => void;
   /** Optional glint glow that fades out alongside the pickup. */
   glow?: Phaser.GameObjects.Image;
+  /** Resting display scale (default 1). The glint/collect pops scale relative to it. */
+  scale?: number;
 }
 
 /**
@@ -15,6 +17,7 @@ export interface PickupOptions {
 export class Pickup extends Phaser.GameObjects.Sprite {
   private readonly onCollect?: (self: Pickup) => void;
   private readonly glow?: Phaser.GameObjects.Image;
+  private readonly baseScale: number;
   private collected = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number, texture: string, opts: PickupOptions = {}) {
@@ -22,11 +25,21 @@ export class Pickup extends Phaser.GameObjects.Sprite {
     scene.add.existing(this);
     this.onCollect = opts.onCollect;
     this.glow = opts.glow;
+    this.baseScale = opts.scale ?? 1;
+    this.setScale(this.baseScale);
     this.setDepth(6);
 
     scene.tweens.add({ targets: this, y: y - 2 * RS, yoyo: true, repeat: -1, duration: 800, ease: 'Sine.InOut' });
-    // A subtle scale/alpha glint to draw attention.
-    scene.tweens.add({ targets: this, scale: 1.12, alpha: 0.85, yoyo: true, repeat: -1, duration: 900, ease: 'Sine.InOut' });
+    // A subtle scale/alpha glint to draw attention (relative to the rest scale).
+    scene.tweens.add({
+      targets: this,
+      scale: this.baseScale * 1.12,
+      alpha: 0.85,
+      yoyo: true,
+      repeat: -1,
+      duration: 900,
+      ease: 'Sine.InOut',
+    });
   }
 
   collect(): void {
@@ -42,7 +55,7 @@ export class Pickup extends Phaser.GameObjects.Sprite {
       targets: this,
       y: this.y - 8 * RS,
       alpha: 0,
-      scale: 1.6,
+      scale: this.baseScale * 1.6,
       duration: 260,
       onComplete: () => this.destroy(),
     });

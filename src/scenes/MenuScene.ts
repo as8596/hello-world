@@ -56,14 +56,16 @@ export class MenuScene extends Phaser.Scene {
     // Dim the world behind us so the menu reads as a modal overlay.
     this.add.rectangle(0, 0, W, H, 0x10101a, 0.72).setOrigin(0, 0).setScrollFactor(0);
     this.add
-      .rectangle(this.cx, this.cy, 132 * RS, this.panelH, 0x1a1a2a, 0.95)
+      .rectangle(this.cx, this.cy, 150 * RS, this.panelH, 0x1a1a2a, 0.95)
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setStrokeStyle(RS, 0x6fb3ff, 0.9);
 
-    this.title = addPixelText(this, 0, 0, '', { color: 0x6fb3ff }).setScale(1.4).setScrollFactor(0);
-    this.help = addPixelText(this, 0, 0, '', { color: 0x6b6b80 }).setScrollFactor(0);
-    this.feedback = addPixelText(this, 0, 0, '', { color: 0xffcf6f }).setScrollFactor(0).setAlpha(0);
+    // Centre everything with origin 0.5 so labels stay centred as their text (and
+    // scale) changes — no manual width math to drift out of sync.
+    this.title = addPixelText(this, 0, 0, '', { color: 0x6fb3ff }).setOrigin(0.5).setScale(1.4).setScrollFactor(0);
+    this.help = addPixelText(this, 0, 0, '', { color: 0x6b6b80 }).setOrigin(0.5).setScale(0.62).setScrollFactor(0);
+    this.feedback = addPixelText(this, 0, 0, '', { color: 0xffcf6f }).setOrigin(0.5).setScrollFactor(0).setAlpha(0);
 
     this.bindKeys();
     this.showPage('main');
@@ -80,10 +82,10 @@ export class MenuScene extends Phaser.Scene {
     this.items =
       page === 'main' ? this.mainItems() : page === 'options' ? this.optionsItems() : this.saveLoadItems();
 
-    const firstY = this.cy - ((this.items.length - 1) * LINE_H) / 2 + LINE_H * 0.2;
+    const firstY = this.cy - ((this.items.length - 1) * LINE_H) / 2;
     this.labels = this.items.map((item, i) => {
-      const t = addPixelText(this, 0, 0, item.label(), { color: 0xe8e6d8 }).setScrollFactor(0);
-      t.setY(Math.round(firstY + i * LINE_H - t.height / 2));
+      const t = addPixelText(this, 0, 0, item.label(), { color: 0xe8e6d8 }).setOrigin(0.5).setScrollFactor(0);
+      t.setPosition(this.cx, Math.round(firstY + i * LINE_H));
       t.setInteractive({ useHandCursor: true });
       t.on('pointerover', () => {
         this.cursor = i;
@@ -98,8 +100,7 @@ export class MenuScene extends Phaser.Scene {
     });
 
     this.title.setText(page === 'main' ? 'PAUSED' : page === 'options' ? 'OPTIONS' : 'SAVE / LOAD');
-    this.title.setX(Math.round(this.cx - (this.title.width * 1.4) / 2));
-    this.title.setY(Math.round(this.cy - this.panelH / 2 + LINE_H * 0.6));
+    this.title.setPosition(this.cx, Math.round(this.cy - this.panelH / 2 + LINE_H * 0.75));
 
     this.help.setText(
       page === 'main'
@@ -108,8 +109,7 @@ export class MenuScene extends Phaser.Scene {
           ? 'W/S Move   A/D Adjust   Esc Back'
           : 'W/S Move   Enter Select   Esc Back',
     );
-    this.help.setX(Math.round(this.cx - this.help.width / 2));
-    this.help.setY(Math.round(this.cy + this.panelH / 2 - LINE_H * 1.1));
+    this.help.setPosition(this.cx, Math.round(this.cy + this.panelH / 2 - LINE_H * 0.7));
 
     this.refresh();
   }
@@ -213,9 +213,9 @@ export class MenuScene extends Phaser.Scene {
   private refresh(): void {
     this.labels.forEach((label, i) => {
       const active = i === this.cursor;
-      label.setText((active ? '> ' : '  ') + this.items[i].label());
+      // origin 0.5 keeps it centred as the text width changes with the cursor.
+      label.setText((active ? '> ' : '  ') + this.items[i].label() + (active ? ' <' : '  '));
       label.setTint(active ? 0xffffff : 0x9a9ab0);
-      label.setX(Math.round(this.cx - label.width / 2));
     });
   }
 
@@ -223,8 +223,7 @@ export class MenuScene extends Phaser.Scene {
   private flash(text: string): void {
     audio.playSfx('chime');
     this.feedback.setText(text).setAlpha(1);
-    this.feedback.setX(Math.round(this.cx - this.feedback.width / 2));
-    this.feedback.setY(Math.round(this.cy + this.panelH / 2 + LINE_H * 0.4));
+    this.feedback.setPosition(this.cx, Math.round(this.cy + this.panelH / 2 + LINE_H * 0.5));
     this.tweens.killTweensOf(this.feedback);
     this.tweens.add({ targets: this.feedback, alpha: 0, delay: 1200, duration: 600 });
   }

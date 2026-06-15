@@ -92,7 +92,7 @@ export const mushroomFolk: EnemyDef = {
   stunnable: true,
   attack: {
     type: 'overhead',
-    windupMs: 520,
+    windupMs: 700, // a longer, more readable tell before the slam
     activeMs: 150,
     recoverMs: 450,
     damage: 2,
@@ -118,11 +118,13 @@ export const barbhound: EnemyDef = {
   stunnable: true,
   attack: {
     type: 'charge',
-    windupMs: 480,
+    windupMs: 700, // a clear, readable wind-up before it commits
     activeMs: 260,
-    recoverMs: 520,
+    recoverMs: 560,
     damage: 2,
-    range: 120 * RENDER_SCALE, // commits the charge from well out
+    // Near-contact: it must actually reach the player to connect (the dash closes
+    // the gap during the active window) rather than "hitting" from across the room.
+    range: 22 * RENDER_SCALE,
   },
 };
 

@@ -229,20 +229,25 @@ export class WorldScene extends Phaser.Scene {
         }
       } else if (obj.type === 'tree') {
         this.trees.push(new Tree(this, obj.x, obj.y));
-        // A small invisible static trunk so the player rounds the base.
-        const trunk = this.add.rectangle(obj.x, obj.y - 2 * RS, 6 * RS, 3 * RS).setVisible(false);
+        // A small invisible static trunk at the base so the player rounds it.
+        // Aligned to the art's actual trunk (measured), centered on the tile.
+        const trunk = this.add.rectangle(obj.x, obj.y - 1 * RS, 7 * RS, 5 * RS).setOrigin(0.5).setVisible(false);
         this.physics.add.existing(trunk, true);
         this.treeTrunks.push(trunk);
       } else if (obj.type === 'blade') {
         if (woken || worldState.hasFlag('has_blade')) continue;
         const glow = this.makePickupGlint(obj.x, obj.y, [180, 210, 255]); // cool steel glint
         const tex = this.textures.exists('item-blade') ? 'item-blade' : TextureKeys.Blade;
-        this.itemPickups.push(new Pickup(this, obj.x, obj.y, tex, { glow, onCollect: () => this.onBladeCollected() }));
+        this.itemPickups.push(
+          new Pickup(this, obj.x, obj.y, tex, { glow, scale: 0.55, onCollect: () => this.onBladeCollected() }),
+        );
       } else if (obj.type === 'handbell') {
         if (woken || worldState.hasFlag('has_handbell')) continue;
         const glow = this.makePickupGlint(obj.x, obj.y, [255, 220, 140]); // warm gold glint
         const tex = this.textures.exists('item-handbell') ? 'item-handbell' : TextureKeys.Handbell;
-        this.itemPickups.push(new Pickup(this, obj.x, obj.y, tex, { glow, onCollect: () => this.onHandbellCollected() }));
+        this.itemPickups.push(
+          new Pickup(this, obj.x, obj.y, tex, { glow, scale: 0.55, onCollect: () => this.onHandbellCollected() }),
+        );
       } else if (obj.type === 'hearth') {
         this.hearthPositions.push({ x: obj.x, y: obj.y });
         this.interactables.push(
@@ -309,8 +314,11 @@ export class WorldScene extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.enemies, this.onPlayerTouchEnemy, undefined, this);
 
     // Camera: bounded, follows with a small dead-zone + slight lerp (§14 P1).
+    // Zoomed in 30% for a cozier, closer view (scroll-factor-0 overlays grow with
+    // zoom about the centre, so they still cover the screen).
     const cam = this.cameras.main;
     cam.setBounds(0, 0, map.widthPx, map.heightPx);
+    cam.setZoom(1.3);
     cam.startFollow(this.player, true, 0.12, 0.12);
     cam.setDeadzone(36 * RS, 28 * RS);
     cam.fadeIn(250);

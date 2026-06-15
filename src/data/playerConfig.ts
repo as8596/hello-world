@@ -119,7 +119,9 @@ export const playerConfig: PlayerConfig = {
   maxStamina: 3,
   staminaRegenPerSec: 1.4,
   dodge: {
-    speed: 260 * RENDER_SCALE,
+    // Distance reduced 30% (260 -> 182) via speed; duration/i-frames unchanged so
+    // the roll reads the same, it just travels less.
+    speed: 182 * RENDER_SCALE,
     durationMs: 180,
     iframesMs: 240,
     staminaCost: 1,
