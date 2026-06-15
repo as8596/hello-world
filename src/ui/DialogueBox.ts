@@ -36,7 +36,6 @@ export class DialogueBox {
   private readonly portraitBox: number;
   /** Current left edge of the text column (shifts right when a portrait shows). */
   private textX: number;
-  private choicesY = 28 * RS;
 
   /** Set by the runner; fires when the body text finishes typing. */
   onTyped?: () => void;
@@ -128,7 +127,6 @@ export class DialogueBox {
     // Body sits below the name (if any), in the column right of the portrait.
     const bodyY = opts.speaker ? this.name.y + this.name.height + 3 * RS : 6 * RS;
     this.body.setPosition(this.textX, bodyY).setWordWrapWidth(this.panelW - this.textX - 6 * RS, true);
-    this.choicesY = Math.max(this.choicesY, bodyY);
 
     this.full = text;
     this.revealed = 0;
@@ -165,9 +163,12 @@ export class DialogueBox {
 
   renderChoices(labels: string[], selected: number): void {
     this.clearChoices();
-    // Stack choices under the body, in the same text column as the portrait allows.
+    // Start just below the fully-typed body so choices never overlap it, then
+    // clamp so the stack still fits inside the panel.
     const lineH = 10 * RS; // roomy enough for the proportional font
-    const startY = Math.min(this.choicesY, this.panelH - labels.length * lineH - 4 * RS);
+    const below = this.body.y + this.body.height + 5 * RS;
+    const maxTop = this.panelH - labels.length * lineH - 4 * RS;
+    const startY = Math.min(below, maxTop);
     labels.forEach((label, i) => {
       const bt = addPixelText(this.scene, this.textX, startY + i * lineH, `${i === selected ? '> ' : '  '}${label}`, {
         color: i === selected ? 0xffe066 : 0x9a9a8a,

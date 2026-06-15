@@ -166,12 +166,14 @@ const SFX: Record<SfxName, (ctx: AudioContext, dest: AudioNode) => void> = {
     for (const f of [392, 494, 587]) tone(ctx, d, f, 'sine', t, 1.3, 0.07, 0.05);
   },
   fog: (ctx, d) => noiseBurst(ctx, d, ctx.currentTime, 0.5, 0.05, 'highpass', 2200, 0.5),
-  // A door pulling shut: a dull wooden body thud, then a small latch click.
+  // A door pulling shut: a woody knock with body, then a bright latch clack.
+  // Kept mid-forward (not just sub-bass) and loud so it carries on small speakers.
   doorClose: (ctx, d) => {
     const t = ctx.currentTime;
-    tone(ctx, d, 96, 'sine', t, 0.18, 0.2, 0.001); // low wooden body
-    noiseBurst(ctx, d, t, 0.13, 0.16, 'lowpass', 340, 1.0); // the thud
-    noiseBurst(ctx, d, t + 0.05, 0.04, 0.1, 'bandpass', 2300, 1.3); // latch click
+    sweep(ctx, d, 240, 90, 'triangle', t, 0.18, 0.42); // the thump (pitch drops)
+    noiseBurst(ctx, d, t, 0.15, 0.4, 'lowpass', 1100, 1.0); // woody thud with presence
+    noiseBurst(ctx, d, t + 0.055, 0.05, 0.32, 'bandpass', 2600, 1.2); // latch clack
+    tone(ctx, d, 1600, 'square', t + 0.055, 0.04, 0.16, 0.001); // tiny click tick
   },
   // A soft, slightly-varied foot plant: a dull body + a tiny tap so it carries on
   // small speakers, but still mixed under combat.

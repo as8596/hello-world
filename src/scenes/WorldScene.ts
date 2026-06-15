@@ -80,6 +80,18 @@ const AREA_NAMES: Record<string, string> = {
   warren: 'the Bramble Warren',
 };
 
+/**
+ * Pond variants → texture + the water region within the 128px art (centre + size
+ * in native px), so a pond can be scaled so its water exactly covers a water blob
+ * while the baked grass/rock banks overhang onto the surrounding terrain.
+ */
+const POND_VARIANTS: { tex: string; wcx: number; wcy: number; ww: number; wh: number }[] = [
+  { tex: 'pond-1', wcx: 63, wcy: 71, ww: 86, wh: 62 },
+  { tex: 'pond-2', wcx: 64, wcy: 64, ww: 88, wh: 74 },
+  { tex: 'pond-3', wcx: 63, wcy: 59, ww: 87, wh: 91 },
+  { tex: 'pond-4', wcx: 62, wcy: 62, ww: 84, wh: 60 },
+];
+
 /** Flat marker POI variant (object `group`) → small prop texture. */
 const MARKER_TEX: Record<string, string> = {
   cairn: 'rock-cairn',
@@ -419,6 +431,10 @@ export class WorldScene extends Phaser.Scene {
         this.villagers.push(villager);
       }
     }
+
+    // Ponds replacing water blobs: scale each so its water fills the blob, with
+    // the baked banks overhanging onto the surrounding grass.
+    map.ponds.forEach((p, i) => this.spawnPond(p, i));
 
     // Procedural bush clusters + scattered rocks (set-dressing).
     for (const b of map.bushes) this.spawnBush(b.x, b.y, b.group);
@@ -1369,6 +1385,23 @@ export class WorldScene extends Phaser.Scene {
     audio.playSfx('handbell');
     this.showToast("You lift the Warden's Handbell.");
     HintSystem.tryShow(this, 'ring', 'F  -  ring the bell');
+  }
+
+  /**
+   * Render one pond over a water blob. The pond is scaled (independently in x/y)
+   * so its water region covers the blob's bounding box, then offset so the water
+   * centre lands on the blob centre — the banks overhang onto the grass. Drawn at
+   * a low depth (a ground feature the player rounds, never stands on).
+   */
+  private spawnPond(p: { cx: number; cy: number; wPx: number; hPx: number }, index: number): void {
+    const v = POND_VARIANTS[index % POND_VARIANTS.length];
+    if (!this.textures.exists(v.tex)) return;
+    const sx = p.wPx / v.ww;
+    const sy = p.hPx / v.wh;
+    // Position so the art's water centre (v.wcx,v.wcy) sits at the blob centre.
+    const x = p.cx - (v.wcx - 64) * sx;
+    const y = p.cy - (v.wcy - 64) * sy;
+    this.add.image(x, y, v.tex).setOrigin(0.5).setScale(sx, sy).setDepth(2);
   }
 
   /** Create a bush; a berry bush also gets an E-interactable to harvest. */

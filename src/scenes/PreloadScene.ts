@@ -82,6 +82,9 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('bush-thorny', 'assets/sprites/bushes/thorny.png');
     this.load.image('bush-berry', 'assets/sprites/bushes/berry.png');
 
+    // Pond world-objects that replace water-tile clusters (banks baked in).
+    for (const n of ['1', '2', '3', '4']) this.load.image(`pond-${n}`, `assets/sprites/ponds/pond-${n}.png`);
+
     // Rock set-dressing + cairn/shrine/well point-of-interest props (64px each).
     for (const r of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'cluster', 'mossy', 'large', 'cairn', 'shrine', 'well', 'arch']) {
       this.load.image(`rock-${r}`, `assets/sprites/rocks/${r}.png`);

@@ -191,6 +191,16 @@ export interface RockPlacement {
   texture: string; // a rock-* texture key
 }
 
+/** A connected blob of water tiles to be covered by one scaled pond sprite. */
+export interface PondPlacement {
+  /** Centre of the water blob's bounding box (px). */
+  cx: number;
+  cy: number;
+  /** Bounding-box size of the water blob (px) — the area the pond water covers. */
+  wPx: number;
+  hPx: number;
+}
+
 export interface BuiltMap {
   layer: Phaser.Tilemaps.TilemapLayer;
   spawn: { x: number; y: number };
@@ -200,8 +210,72 @@ export interface BuiltMap {
   bushes: BushPlacement[];
   /** Procedurally-scattered rock set-dressing (pixel centers). */
   rocks: RockPlacement[];
+  /** Water blobs to render as pond sprites (the scene owns the art). */
+  ponds: PondPlacement[];
   widthPx: number;
   heightPx: number;
+}
+
+/**
+ * Replace water-tile blobs with pond props: flood-fill each connected run of
+ * Water, render grass under it (the pond art carries its own banks) while
+ * keeping the tiles solid, and return one placement per blob covering its
+ * bounding box. Collision + the offline BFS validator are unchanged (the data
+ * still says Water); only the look is swapped.
+ */
+function placePonds(
+  layer: Phaser.Tilemaps.TilemapLayer,
+  data: number[][],
+  floorTile: number,
+  tileSize: number,
+): PondPlacement[] {
+  const H = data.length;
+  const W = data[0]?.length ?? 0;
+  const seen = new Set<number>();
+  const out: PondPlacement[] = [];
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (data[y][x] !== Tile.Water || seen.has(y * W + x)) continue;
+      // Flood-fill this water blob (4-connected).
+      const blob: [number, number][] = [];
+      const stack: [number, number][] = [[x, y]];
+      seen.add(y * W + x);
+      let minX = x;
+      let maxX = x;
+      let minY = y;
+      let maxY = y;
+      while (stack.length) {
+        const [bx, by] = stack.pop()!;
+        blob.push([bx, by]);
+        if (bx < minX) minX = bx;
+        if (bx > maxX) maxX = bx;
+        if (by < minY) minY = by;
+        if (by > maxY) maxY = by;
+        for (const [nx, ny] of [[bx + 1, by], [bx - 1, by], [bx, by + 1], [bx, by - 1]] as const) {
+          if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+          if (data[ny][nx] !== Tile.Water || seen.has(ny * W + nx)) continue;
+          seen.add(ny * W + nx);
+          stack.push([nx, ny]);
+        }
+      }
+      // Render grass under each water tile, but keep it solid (a pond you can't
+      // wade into). The data stays Water so collision/validation are untouched.
+      for (const [bx, by] of blob) {
+        const t = layer.getTileAt(bx, by);
+        if (t) {
+          t.index = floorTile;
+          t.setCollision(true);
+        }
+      }
+      out.push({
+        cx: ((minX + maxX + 1) / 2) * tileSize,
+        cy: ((minY + maxY + 1) / 2) * tileSize,
+        wPx: (maxX - minX + 1) * tileSize,
+        hPx: (maxY - minY + 1) * tileSize,
+      });
+    }
+  }
+  return out;
 }
 
 /** Tiles occupied by objects/spawn (+ a 1-ring), so scatter avoids them. */
@@ -347,13 +421,18 @@ export function buildTilemap(scene: Phaser.Scene, def: TileMapDef): BuiltMap {
     const blockingSet = new Set<number>(def.blocking);
     for (let y = 0; y < data.length; y++) {
       for (let x = 0; x < data[y].length; x++) {
-        if (blockingSet.has(data[y][x])) overhead.putTileAt(data[y][x], x, y);
+        // Water is a ground feature (covered by a pond sprite), not a tall wall —
+        // it must not be redrawn above the player.
+        if (blockingSet.has(data[y][x]) && data[y][x] !== Tile.Water) overhead.putTileAt(data[y][x], x, y);
       }
     }
     overhead.setDepth(OVERHEAD_DEPTH);
   }
 
   placeEdgeDecals(scene, data, tileSize);
+
+  // Swap water blobs for pond sprites (after decals, so the grass-under read is clean).
+  const ponds = placePonds(layer, data, floorTile, tileSize);
 
   // Shared "occupied" set so bushes + rocks avoid objects and each other.
   const taken = occupiedTiles(objects, spawn, tileSize, width);
@@ -363,6 +442,7 @@ export function buildTilemap(scene: Phaser.Scene, def: TileMapDef): BuiltMap {
     objects,
     bushes: generateBushClusters(data, taken, tileSize, def),
     rocks: generateRockScatter(data, taken, tileSize, def),
+    ponds,
     widthPx: width * tileSize,
     heightPx: height * tileSize,
   };
