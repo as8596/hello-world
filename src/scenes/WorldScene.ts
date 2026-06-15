@@ -109,7 +109,7 @@ export class WorldScene extends Phaser.Scene {
   private ringKeys: Phaser.Input.Keyboard.Key[] = [];
   private dodgeKeys: Phaser.Input.Keyboard.Key[] = [];
   private promptText!: Phaser.GameObjects.BitmapText;
-  private promptBg!: Phaser.GameObjects.Rectangle;
+  private promptBg!: Phaser.GameObjects.Arc;
   private gateRemaining = 0;
   private fogRemaining = 0;
   private dyingPlayer = false;
@@ -415,12 +415,15 @@ export class WorldScene extends Phaser.Scene {
     this.dialogueRunner = new DialogueRunner(this.dialogue, worldState, (e) => this.runDialogueEffect(e));
     this.quests = new QuestManager(worldState);
 
+    // A small, unobtrusive "E" hover bubble above the nearest interactable.
     this.promptBg = this.add
-      .rectangle(0, 0, 1, 1, 0xe8e6d8, 0.92)
-      .setOrigin(0.5, 0.5)
+      .circle(0, 0, 5 * RS, 0x10101a, 0.82)
+      .setStrokeStyle(1 * RS, 0x6fb3ff, 0.85)
       .setDepth(1500)
       .setVisible(false);
-    this.promptText = addPixelText(this, 0, 0, '', { color: 0x10101a })
+    this.promptText = addPixelText(this, 0, 0, 'E', { color: 0xe8e6d8 })
+      .setOrigin(0.5)
+      .setScale(0.75)
       .setDepth(1501)
       .setVisible(false);
 
@@ -1322,13 +1325,11 @@ export class WorldScene extends Phaser.Scene {
       this.promptBg.setVisible(false);
       return;
     }
-    this.promptText.setText(`E > ${target.label}`);
-    const w = this.promptText.width;
-    const h = this.promptText.height;
+    // Just a little "E" bubble floating above the interactable — no verb label.
     const cx = Math.round(target.x);
     const cy = Math.round(target.y - 16 * RS);
-    this.promptText.setPosition(Math.round(cx - w / 2), Math.round(cy - h / 2)).setVisible(true);
-    this.promptBg.setPosition(cx, cy).setSize(w + 4 * RS, h + 3 * RS).setVisible(true);
+    this.promptText.setPosition(cx, cy).setVisible(true);
+    this.promptBg.setPosition(cx, cy).setVisible(true);
   }
 
   private act(target: Interactable): void {

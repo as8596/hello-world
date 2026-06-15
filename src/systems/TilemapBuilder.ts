@@ -13,6 +13,9 @@ const DECAL_DEPTH = 1;
 const GRASS_TILES = new Set<number>([...GRASS_VARIANT_INDICES, ...FLOWER_TILE_INDICES]);
 const isGrass = (t: number): boolean => GRASS_TILES.has(t);
 
+const COBBLE_TILES = new Set<number>(COBBLE_VARIANT_INDICES);
+const isCobble = (t: number): boolean => COBBLE_TILES.has(t);
+
 /** N/S/E/W offsets matching EDGE_DIRS, for neighbour lookups. */
 const EDGE_OFFSETS: Record<string, [number, number]> = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
 
@@ -29,8 +32,9 @@ function placeEdgeDecals(scene: Phaser.Scene, data: number[][], tileSize: number
     for (let x = 0; x < W; x++) {
       const t = data[y][x];
       const grass = isGrass(t);
-      const sandOrWater = t === Tile.Path || t === Tile.Water;
-      if (!grass && !sandOrWater) continue; // trees/vines don't receive decals
+      // Surfaces grass can overgrow at the edges: sand/water + the stone paths.
+      const receivesGrass = t === Tile.Path || t === Tile.Water || isCobble(t);
+      if (!grass && !receivesGrass) continue; // trees/vines don't receive decals
       const cx = x * tileSize + tileSize / 2;
       const cy = y * tileSize + tileSize / 2;
       for (const dir of EDGE_DIRS) {
@@ -39,8 +43,8 @@ function placeEdgeDecals(scene: Phaser.Scene, data: number[][], tileSize: number
         if (n === undefined) continue;
         // Soft shadow where this walkable tile meets a tree.
         if (n === Tile.Wall) scene.add.image(cx, cy, `shadow-edge-${dir}`).setDepth(DECAL_DEPTH);
-        // Grass fringe bleeding onto sand/water from a grass neighbour.
-        else if (sandOrWater && isGrass(n)) scene.add.image(cx, cy, `grass-edge-${dir}`).setDepth(DECAL_DEPTH);
+        // Grass fringe bleeding onto sand/water/stone from a grass neighbour.
+        else if (receivesGrass && isGrass(n)) scene.add.image(cx, cy, `grass-edge-${dir}`).setDepth(DECAL_DEPTH);
       }
     }
   }
@@ -117,13 +121,14 @@ function decorate(data: number[][], blocking: number[]): void {
     for (let i = 0; i < row.length; i++) if (row[i] === Tile.Cobble && Math.random() < 0.14) row[i] = pickGrass();
   }
 
-  // Vary the remaining cobbles across the real stone variants (mostly clean,
-  // some mossy) so the paths aren't a flat repeat.
+  // Vary the remaining cobbles across the real stone variants (grey/grey-alt/tan/
+  // rough/mossy) — mostly grey, with the distinctive ones sprinkled in.
   for (const row of data) {
     for (let i = 0; i < row.length; i++) {
       if (row[i] !== Tile.Cobble) continue;
       const r = Math.random();
-      row[i] = r < 0.45 ? COBBLE_VARIANT_INDICES[0] : r < 0.78 ? COBBLE_VARIANT_INDICES[1] : COBBLE_VARIANT_INDICES[2];
+      const v = r < 0.34 ? 0 : r < 0.62 ? 1 : r < 0.76 ? 2 : r < 0.88 ? 3 : 4;
+      row[i] = COBBLE_VARIANT_INDICES[v];
     }
   }
 

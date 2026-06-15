@@ -105,12 +105,13 @@ export const playerConfig: PlayerConfig = {
   // A short body near the feet reads better for top-down overlap than the full sprite.
   body: { width: 8 * RENDER_SCALE, height: 7 * RENDER_SCALE, offsetX: 4 * RENDER_SCALE, offsetY: 8 * RENDER_SCALE },
   // Native 128px art; the character's feet sit ~74% down the frame (measured),
-  // so the origin + foot box anchor there — otherwise the body lands in the empty
-  // padding below the feet and the player sinks ~half a tile into walls.
+  // so the origin + foot box anchor there. The box is tall (≈ the character's
+  // height) and bottom-anchored at the feet: that keeps the top collision exact
+  // while stopping the player at the treeline instead of sliding up behind it.
   sprite: {
     originY: 0.74,
     bodyWidth: 34,
-    bodyHeight: 18,
+    bodyHeight: 44,
   },
   maxHearts: 3,
   heartFragmentHalfHearts: 2,

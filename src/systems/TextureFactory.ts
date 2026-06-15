@@ -683,9 +683,10 @@ export const FLOWER_TILE_INDEX = 7;
  *  terrain sheet's flower row — scattered for variety. */
 export const FLOWER_TILE_INDICES = [7, 11, 12, 13];
 export const COBBLE_TILE_INDEX = 8;
-/** Cobble-tile slots: clean (8), a clean alt (14), and a mossy/overgrown one (15). */
-export const COBBLE_VARIANT_INDICES = [8, 14, 15];
-const TILESET_COUNT = 16;
+/** Cobble-tile slots: five stone variants from the sheet (grey, grey-alt, tan,
+ *  rough, mossy) for varied, overgrown paths. */
+export const COBBLE_VARIANT_INDICES = [8, 14, 15, 16, 17];
+const TILESET_COUNT = 18;
 
 function generateTileset(scene: Phaser.Scene): void {
   if (scene.textures.exists(TextureKeys.Tiles)) return;
@@ -711,6 +712,8 @@ function generateTileset(scene: Phaser.Scene): void {
   // Cobble variants (placeholders until the stone sheet is composited in).
   drawCobble(ctx, 14 * TILE);
   drawCobble(ctx, 15 * TILE);
+  drawCobble(ctx, 16 * TILE);
+  drawCobble(ctx, 17 * TILE);
 
   tex.refresh();
 }
@@ -771,9 +774,11 @@ export function applyStoneTileset(scene: Phaser.Scene, stoneKey: string): boolea
   const blit = (slot: number, r: number, c: number): void => {
     ctx.drawImage(src, c * STEP + 1, r * STEP + 1, 62, 62, slot * SLOT, 0, SLOT, SLOT);
   };
-  blit(COBBLE_VARIANT_INDICES[0], 0, 0); // clean cobbles       (slot 8)
-  blit(COBBLE_VARIANT_INDICES[1], 0, 1); // clean cobbles, alt  (slot 14)
-  blit(COBBLE_VARIANT_INDICES[2], 1, 0); // mossy/overgrown     (slot 15)
+  blit(COBBLE_VARIANT_INDICES[0], 0, 0); // grey cobbles        (slot 8)
+  blit(COBBLE_VARIANT_INDICES[1], 0, 1); // grey cobbles, alt   (slot 14)
+  blit(COBBLE_VARIANT_INDICES[2], 0, 2); // tan cobbles         (slot 15)
+  blit(COBBLE_VARIANT_INDICES[3], 0, 3); // rough stone         (slot 16)
+  blit(COBBLE_VARIANT_INDICES[4], 1, 0); // mossy / overgrown   (slot 17)
   ctx.restore();
   tex.refresh();
   return true;
