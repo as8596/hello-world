@@ -267,6 +267,13 @@ export class WorldScene extends Phaser.Scene {
         const maple = new Interactable(this, obj.x, obj.y, { npcId: 'maple', label: 'talk' });
         this.interactables.push(maple);
         this.villagers.push(maple); // wakes with the peal
+      } else if (obj.type === 'npc') {
+        // A named, already-awake NPC out in the world (e.g. Wren, Bram).
+        if (obj.npcId) {
+          this.interactables.push(
+            new Interactable(this, obj.x, obj.y, { npcId: obj.npcId, label: 'talk', texture: TextureKeys.VillagerAwake }),
+          );
+        }
       } else if (obj.type === 'greatbell') {
         this.greatBell = new Interactable(this, obj.x, obj.y, {
           texture: TextureKeys.GreatBell,

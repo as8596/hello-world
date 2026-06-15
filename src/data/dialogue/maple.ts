@@ -24,6 +24,11 @@ const shopChoices: Choice[] = [
 export const mapleNpc: NpcDef = {
   name: 'Maple',
   entries: [
+    // Bram's home safe and Maple hasn't thanked you yet — a one-time payoff.
+    {
+      when: [{ flag: 'thistledown_woken' }, { flag: 'bram_found' }, { flag: 'maple_thanked_bram', is: false }],
+      nodeId: 'reunited',
+    },
     { when: [{ flag: 'thistledown_woken' }, { flag: 'met_maple' }], nodeId: 'hub' },
     { when: [{ flag: 'thistledown_woken' }], nodeId: 'firstChat' },
     { nodeId: 'asleep' },
@@ -59,8 +64,15 @@ export const mapleNpc: NpcDef = {
     bram: {
       id: 'bram',
       speaker: 'Maple',
-      text: "Bram — a boy who wandered toward the eastern fog the night of the Hush. It's too thick out there for a handbell. If you find a way through... please, bring him home.",
+      text: "Bram — a boy who ran east the night of the Hush, into the brambles past the Thornwood Trail. Thorny, mean country out there. If you've the steel for it... please, bring him home.",
       effects: [{ startQuest: 'sleeping_child' }],
+      next: 'hub',
+    },
+    reunited: {
+      id: 'reunited',
+      speaker: 'Maple',
+      text: 'You found Bram! Bless you, Warden — he\'s home safe, asleep by the fire where he belongs. Here, take this. It\'s the least an old shopkeep can do.',
+      effects: [{ setFlag: 'maple_thanked_bram', to: true }, { giveItem: 'coin', amount: 25 }],
       next: 'hub',
     },
   },

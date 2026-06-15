@@ -9,8 +9,8 @@ import { Tile, type TileMapDef } from './types';
  * (heart + lore) until the den is cleared. West openings return to the trail.
  *
  * Terrain:  .  grass   #  thorn/wall
- * Objects:  m sprite(guard)  t ambush trigger  s/B ambush spawns  W ward
- *           h heart  b bones(lore)  k cache(lore)  X exit→trail  A entry  @ spawn
+ * Objects:  m sprite(guard)  t ambush trigger  s/B ambush spawns  W ward  R Bram(npc)
+ *           h heart  b bones(lore)  k cache(lore)  T tree  X exit→trail  A entry  @ spawn
  */
 export const warrenMap: TileMapDef = {
   tileSize: TILE_SIZE,
@@ -26,6 +26,7 @@ export const warrenMap: TileMapDef = {
     B: { type: 'spawn', enemyId: 'barbhound', group: 'warren' },
     W: { type: 'ward', group: 'warren' },
     h: { type: 'heart' },
+    R: { type: 'npc', npcId: 'bram' },
     T: { type: 'tree' },
     b: { type: 'marker', loreId: 'warren_bones' },
     k: { type: 'marker', loreId: 'warren_cache' },
@@ -40,7 +41,7 @@ export const warrenMap: TileMapDef = {
     '##....######....##........##', // 1  thorn masses; chamber roof (right)
     '##.b............##......k.##', // 2  bones (lore) / cache (lore, sealed)
     '##....##........##...h....##', // 3  heart (sealed in the cache)
-    '##.....T........##........##', // 4  a tree in the west burrow
+    '##.....T........##....R...##', // 4  a tree west; Bram hides in the sealed cache
     '##......####....##........##', // 5
     '##..............#####WW#####', // 6  ward seals the cache mouth
     'A...............##........##', // 7  entry from the trail (west)

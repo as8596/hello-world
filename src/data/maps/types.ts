@@ -27,6 +27,7 @@ export type ObjectType =
   | 'boss'
   | 'greatbell'
   | 'maple'
+  | 'npc' // a named, data-driven NPC (dialogue/dialogue/npcs.ts) via `npcId`
   | 'blade'
   | 'handbell'
   | 'tree' // a standalone canopy tree: blocks at the trunk, occludes overhead
@@ -43,6 +44,8 @@ export interface ObjectSpec {
   group?: string;
   /** For enemies: which EnemyDef id to spawn. */
   enemyId?: string;
+  /** For 'npc': which named NPC (data/dialogue/npcs.ts) to talk to. */
+  npcId?: string;
   /** For 'marker': the lore entry (data/dialogue/lore.ts) to show on examine. */
   loreId?: string;
   /** For 'exit': the area id to travel to and the entry id to arrive at there. */

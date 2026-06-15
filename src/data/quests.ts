@@ -14,6 +14,6 @@ export const QUESTS: Record<string, QuestDef> = {
   sleeping_child: {
     id: 'sleeping_child',
     title: 'The Sleeping Child',
-    objective: 'Find a way through the eastern fog to reach Bram.',
+    objective: 'Search the brambles east of the Thornwood Trail for Bram.',
   },
 };

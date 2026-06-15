@@ -9,8 +9,8 @@ import { Tile, type TileMapDef } from './types';
  * The east openings return to Sleeping Thistledown.
  *
  * Terrain:  .  grass   #  tree/reed   w  water
- * Objects:  c cairn   p spring   g gloommoth   b barbhound   h heart
- *           X exit→village   A entry(from_village)   @ spawn
+ * Objects:  c cairn   p spring   N Wren(npc)   g gloommoth   b barbhound   h heart
+ *           T tree   X exit→village   A entry(from_village)   @ spawn
  */
 export const gladeMap: TileMapDef = {
   tileSize: TILE_SIZE,
@@ -23,6 +23,7 @@ export const gladeMap: TileMapDef = {
   objects: {
     c: { type: 'marker', loreId: 'glade_cairn' },
     p: { type: 'marker', loreId: 'glade_spring' },
+    N: { type: 'npc', npcId: 'wren' },
     g: { type: 'enemy', enemyId: 'gloommoth' },
     b: { type: 'enemy', enemyId: 'barbhound' },
     h: { type: 'heart' },
@@ -42,7 +43,7 @@ export const gladeMap: TileMapDef = {
     '##.wwwwww...####...........#', // 5
     '##..wwww..........g.......##', // 6  a gloommoth over the water
     '##...........b.......T....##', // 7  barbhound prowls the open ground
-    '###.....p.................##', // 8  the spring (lore)
+    '###.....p..N..............##', // 8  the spring (lore); Wren the forager nearby
     '##.........wwww...........##', // 9
     '##..###...wwwwww.....g....##', // 10 reed clump + a second gloommoth
     '##..###...wwwwww..........##', // 11
