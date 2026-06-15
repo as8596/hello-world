@@ -443,25 +443,8 @@ export function buildTilemap(scene: Phaser.Scene, def: TileMapDef, seed = 'brack
 
   layer.setCollision(def.blocking);
 
-  // (No overhead canopy layer: the border is now short bushes, not tall trees,
-  // so the player stands in front of it rather than walking behind a canopy.
-  // The standalone Tree objects still depth-sort/occlude on their own.)
-
-  // Give each bush-border (wall) tile a deterministic random flip so the repeated
-  // tile doesn't read as a grid.
-  const wallFlip = new Map<number, [boolean, boolean]>();
-  for (let y = 0; y < data.length; y++) {
-    for (let x = 0; x < data[y].length; x++) {
-      if (data[y][x] === Tile.Wall) wallFlip.set(y * width + x, [rnd() < 0.5, rnd() < 0.5]);
-    }
-  }
-  layer.forEachTile((tile) => {
-    const f = wallFlip.get(tile.y * width + tile.x);
-    if (f) {
-      tile.flipX = f[0];
-      tile.flipY = f[1];
-    }
-  });
+  // (No overhead canopy layer: the border is short bushes, not tall trees, so
+  // the player stands in front of it. Standalone Tree objects still depth-sort.)
 
   placeEdgeDecals(scene, data, tileSize);
 
