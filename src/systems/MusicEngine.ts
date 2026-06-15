@@ -33,17 +33,38 @@ const PROGRESSION: Chord[] = [
   { pad: [98.0, 146.83], arp: [196.0, 246.94, 293.66, 392.0], bass: 49.0 }, // G
 ];
 
-// A sparse lead melody over the full 32-step progression cycle: [step, freq, dur].
-// Singable A-minor phrase that complements the chords (E–C / D–A / E–G / D–B).
-const MELODY: [number, number, number][] = [
-  [0, 659.25, 1.9], // E5  over Am
-  [6, 523.25, 1.1], // C5
-  [8, 587.33, 1.9], // D5  over F
-  [14, 440.0, 1.1], // A4
-  [16, 659.25, 1.5], // E5  over C
-  [20, 783.99, 1.5], // G5
-  [24, 587.33, 1.5], // D5  over G
-  [28, 493.88, 1.7], // B4 → leads back to Am
+// Several lead-melody phrases over the 32-step cycle: [step, freq, dur]. The
+// engine rotates through them so each progression cycle gets a different chiptune
+// tune (one is sparse, for breathing room). All in A minor over Am–F–C–G.
+const MELODIES: [number, number, number][][] = [
+  // A — gentle
+  [
+    [0, 659.25, 1.8], [6, 523.25, 1.0], // Am: E5 .. C5
+    [8, 587.33, 1.8], [14, 440.0, 1.0], // F:  D5 .. A4
+    [16, 659.25, 1.4], [20, 783.99, 1.4], // C: E5 G5
+    [24, 587.33, 1.4], [28, 493.88, 1.6], // G: D5 B4
+  ],
+  // B — rising runs
+  [
+    [0, 440.0, 0.7], [2, 523.25, 0.7], [4, 659.25, 1.2], // Am: A4 C5 E5
+    [8, 698.46, 0.7], [10, 587.33, 0.7], [12, 523.25, 1.2], // F: F5 D5 C5
+    [16, 659.25, 0.7], [18, 783.99, 0.7], [20, 659.25, 1.2], // C: E5 G5 E5
+    [24, 587.33, 0.7], [26, 493.88, 0.7], [28, 392.0, 1.4], // G: D5 B4 G4
+  ],
+  // C — sparse + high (a rest from the busier ones)
+  [
+    [0, 659.25, 2.6], // Am: E5
+    [8, 523.25, 2.6], // F:  C5
+    [16, 783.99, 2.6], // C: G5
+    [24, 493.88, 1.2], [28, 587.33, 1.4], // G: B4 D5
+  ],
+  // D — playful descents
+  [
+    [0, 880.0, 0.7], [2, 783.99, 0.7], [4, 659.25, 0.7], [6, 523.25, 1.0], // Am: A5 G5 E5 C5
+    [8, 440.0, 0.7], [10, 523.25, 0.7], [12, 698.46, 1.2], // F: A4 C5 F5
+    [16, 783.99, 0.7], [18, 659.25, 0.7], [20, 523.25, 1.0], // C: G5 E5 C5
+    [24, 493.88, 0.7], [26, 587.33, 0.7], [28, 783.99, 1.2], // G: B4 D5 G5
+  ],
 ];
 
 export class MusicEngine {
@@ -59,6 +80,7 @@ export class MusicEngine {
   private nextNoteTime = 0;
   private step = 0;
   private chord: Chord = PROGRESSION[0];
+  private melodyVariant = 0;
 
   /** Smoothed danger level driving the crossfade; eases toward `target`. */
   private current = 0;
@@ -78,7 +100,13 @@ export class MusicEngine {
     this.tensionGain.gain.value = 0;
     this.melodyGain = ctx.createGain();
     this.melodyGain.gain.value = 0.85;
-    for (const g of [this.padGain, this.calmGain, this.tensionGain, this.melodyGain]) g.connect(this.bus);
+    for (const g of [this.padGain, this.calmGain, this.tensionGain]) g.connect(this.bus);
+    // Soften the square lead's high harmonics → a warm chiptune, not a harsh buzz.
+    const melFilter = ctx.createBiquadFilter();
+    melFilter.type = 'lowpass';
+    melFilter.frequency.value = 2400;
+    melFilter.Q.value = 0.6;
+    this.melodyGain.connect(melFilter).connect(this.bus);
   }
 
   /** Build the continuous pad bed and start the lookahead scheduler. */
@@ -171,6 +199,8 @@ export class MusicEngine {
       this.chord = PROGRESSION[Math.floor(step / STEPS_PER_CHORD) % PROGRESSION.length];
       this.applyChord(t);
     }
+    // At the top of each progression cycle, rotate to a different melody phrase.
+    if (step === 0) this.melodyVariant = (this.melodyVariant + 1) % MELODIES.length;
 
     // Harmony: an ascending arpeggio of the current chord, one tone per beat
     // (every other step) — always consonant, with clear forward motion.
@@ -178,11 +208,11 @@ export class MusicEngine {
       this.pluck(this.chord.arp[(step % STEPS_PER_CHORD) / 2], t, this.calmGain, 0.12, 'triangle', 1.1);
     }
 
-    // Lead melody: a sparse singable phrase over the whole cycle, sitting above
-    // the arpeggio (soft, sustained). Recedes under danger.
+    // Lead melody: the current rotating chiptune phrase, on a square voice above
+    // the arpeggio. Recedes under danger.
     if (this.current < 0.85) {
-      const note = MELODY.find((m) => m[0] === step);
-      if (note) this.pluck(note[1], t, this.melodyGain, 0.1, 'triangle', note[2]);
+      const note = MELODIES[this.melodyVariant].find((m) => m[0] === step);
+      if (note) this.pluck(note[1], t, this.melodyGain, 0.08, 'square', note[2]);
     }
 
     // Danger layer — only scheduled once it's audible.
