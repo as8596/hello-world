@@ -5,8 +5,6 @@ import { COBBLE_VARIANT_INDICES, EDGE_DIRS, FLOWER_TILE_INDICES, GRASS_VARIANT_I
 /** Narrow walkable runs this wide or less become the dirt trail. */
 const MAX_TRAIL_WIDTH = 2;
 
-/** Depth of the tree-canopy overlay — just above the player (10) + slash (11). */
-const OVERHEAD_DEPTH = 12;
 /** Depth of the dithered edge decals — above the ground, below everything else. */
 const DECAL_DEPTH = 1;
 
@@ -445,42 +443,25 @@ export function buildTilemap(scene: Phaser.Scene, def: TileMapDef, seed = 'brack
 
   layer.setCollision(def.blocking);
 
-  // Re-draw the blocking tiles (tree-walls) on a layer ABOVE the player so the
-  // tall character walks *behind* the treeline (the canopy occludes them)
-  // instead of covering it — collision stays on the ground layer below. Skipped
-  // for interiors, where short walls shouldn't occlude the player.
-  const overhead = def.interior ? null : map.createBlankLayer('overhead', tileset, 0, 0);
-  if (overhead) {
-    const blockingSet = new Set<number>(def.blocking);
-    for (let y = 0; y < data.length; y++) {
-      for (let x = 0; x < data[y].length; x++) {
-        // Water is a ground feature (covered by a pond sprite), not a tall wall —
-        // it must not be redrawn above the player.
-        if (blockingSet.has(data[y][x]) && data[y][x] !== Tile.Water) overhead.putTileAt(data[y][x], x, y);
-      }
-    }
-    overhead.setDepth(OVERHEAD_DEPTH);
-  }
+  // (No overhead canopy layer: the border is now short bushes, not tall trees,
+  // so the player stands in front of it rather than walking behind a canopy.
+  // The standalone Tree objects still depth-sort/occlude on their own.)
 
   // Give each bush-border (wall) tile a deterministic random flip so the repeated
-  // tile doesn't read as a grid — applied identically to both layers.
+  // tile doesn't read as a grid.
   const wallFlip = new Map<number, [boolean, boolean]>();
   for (let y = 0; y < data.length; y++) {
     for (let x = 0; x < data[y].length; x++) {
       if (data[y][x] === Tile.Wall) wallFlip.set(y * width + x, [rnd() < 0.5, rnd() < 0.5]);
     }
   }
-  const applyWallFlip = (lyr: Phaser.Tilemaps.TilemapLayer | null): void => {
-    lyr?.forEachTile((tile) => {
-      const f = wallFlip.get(tile.y * width + tile.x);
-      if (f) {
-        tile.flipX = f[0];
-        tile.flipY = f[1];
-      }
-    });
-  };
-  applyWallFlip(layer);
-  applyWallFlip(overhead);
+  layer.forEachTile((tile) => {
+    const f = wallFlip.get(tile.y * width + tile.x);
+    if (f) {
+      tile.flipX = f[0];
+      tile.flipY = f[1];
+    }
+  });
 
   placeEdgeDecals(scene, data, tileSize);
 
