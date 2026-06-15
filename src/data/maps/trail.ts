@@ -29,6 +29,7 @@ export const trailMap: TileMapDef = {
     T: { type: 'tree' },
     G: { type: 'bush', group: 'green' },
     D: { type: 'bush', group: 'dead' },
+    k: { type: 'signpost' },
     n: { type: 'exit', toArea: 'belltower', toEntry: 'from_trail' },
     s: { type: 'exit', toArea: 'village', toEntry: 'from_trail' },
     e: { type: 'exit', toArea: 'warren', toEntry: 'from_trail' },
@@ -52,7 +53,7 @@ export const trailMap: TileMapDef = {
     '##..fhf...................##', // 9  ...heart fragment inside
     '##..fff...................##', // 10
     '##...............m........##', // 11 mushroom-folk (dodge timing)
-    '##.................T......##', // 12 a tree off the south lane
+    '##........k........T......##', // 12 a signpost; a tree off the south lane
     '##..........5.............##', // 13 arrive here coming from the village
     '##.......@................##', // 14 (fresh-start fallback spawn)
     '############ss##############', // 15 south opening -> village

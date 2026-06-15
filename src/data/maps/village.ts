@@ -33,6 +33,7 @@ export const villageMap: TileMapDef = {
     P: { type: 'building', group: 'stone' },
     U: { type: 'building', group: 'ruin' },
     T: { type: 'tree' },
+    k: { type: 'signpost' },
     // Interactable doors (in front of each house) -> interiors; also the spot you
     // return to when you leave.
     d: { type: 'doorway', toArea: 'house1', toEntry: 'inside', entryId: 'house1_door' },
@@ -62,7 +63,7 @@ export const villageMap: TileMapDef = {
     'g.ooooooooooooooooooo.........##', // 9  west street -> Mistmere Glade
     'g.o4ooooooooooooooooo.........##', // 10 arrive from the glade
     '##.........ooMooooHoo.........##', // 11 Maple's stall + a hearth
-    '##.........oooooooooo.........##', // 12
+    '##.........ookooooooo.........##', // 12 a signpost in the square
     '##......N......oo......N......##', // 13 more sleepers
     '##.....U.......oo.......C.....##', // 14 ruined house / cottage
     '##...T.f.....@.oo....S..j.T...##', // 15 their doors + spawn + a lone sprite

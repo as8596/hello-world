@@ -37,6 +37,7 @@ export type ObjectType =
   | 'building' // a medieval house: blocks at its footprint, occludes overhead
   | 'bush' // a small foliage decoration (group = green/dead/thorny)
   | 'marker' // an examinable point-of-interest (a cairn with lore)
+  | 'signpost' // read it for directions to neighbouring areas
   | 'trigger' // an invisible zone that starts a scripted encounter on entry
   | 'spawn' // a deferred enemy spawn point, raised by its encounter (not at build)
   | 'ward' // a magical barrier that only dispels when its encounter is cleared

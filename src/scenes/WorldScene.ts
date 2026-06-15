@@ -60,6 +60,16 @@ const BUILDING_TEX: Record<string, string> = {
   ruin: TextureKeys.HouseRuin,
 };
 
+/** Display names for the signpost directions. */
+const AREA_NAMES: Record<string, string> = {
+  hollow: 'the Waking Hollow',
+  village: 'Sleeping Thistledown',
+  trail: 'the Thornwood Trail',
+  belltower: 'the Belltower',
+  glade: 'Mistmere Glade',
+  warren: 'the Bramble Warren',
+};
+
 /** Bush variant (object `group`) → texture key. */
 const BUSH_TEX: Record<string, string> = {
   green: 'bush-green',
@@ -239,6 +249,10 @@ export class WorldScene extends Phaser.Scene {
         const lines = LORE[obj.loreId ?? ''] ?? ['...'];
         this.interactables.push(
           new Interactable(this, obj.x, obj.y, { texture: TextureKeys.Cairn, label: 'examine', lines }),
+        );
+      } else if (obj.type === 'signpost') {
+        this.interactables.push(
+          new Interactable(this, obj.x, obj.y, { texture: TextureKeys.Signpost, label: 'read', onInteract: () => this.readSignpost() }),
         );
       } else if (obj.type === 'trigger') {
         if (obj.group && !worldState.hasFlag(`encounter_${obj.group}_cleared`)) {
@@ -1312,6 +1326,25 @@ export class WorldScene extends Phaser.Scene {
       }).setVisible(false);
       this.interactables.push(gather);
     }
+  }
+
+  /** Read a signpost: list the directions to neighbouring areas from the exits. */
+  private readSignpost(): void {
+    const b = this.physics.world.bounds;
+    const dirOf = (x: number, y: number): string => {
+      const dx = x - b.centerX;
+      const dy = y - b.centerY;
+      return Math.abs(dy) >= Math.abs(dx) ? (dy < 0 ? 'North' : 'South') : dx < 0 ? 'West' : 'East';
+    };
+    const order: Record<string, number> = { North: 0, East: 1, South: 2, West: 3 };
+    const seen = new Set<string>();
+    const dirs = this.exits
+      .map((e) => ({ dir: dirOf(e.x, e.y), name: AREA_NAMES[e.toArea] ?? e.toArea }))
+      .filter((d) => (seen.has(d.dir + d.name) ? false : (seen.add(d.dir + d.name), true)))
+      .sort((p, q) => order[p.dir] - order[q.dir])
+      .map((d) => `${d.dir}  -  ${d.name}`);
+    const body = dirs.length > 0 ? `A weathered fingerpost:\n${dirs.join('\n')}` : 'A weathered fingerpost, its arms long fallen.';
+    this.dialogueRunner.startLines('', [body]);
   }
 
   /** Harvest a berry bush: swap to the plain bush, pocket the berries. */

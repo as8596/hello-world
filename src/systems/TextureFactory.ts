@@ -33,6 +33,7 @@ export const TextureKeys = {
   Handbell: 'handbell',
   Cairn: 'cairn',
   Coin: 'coin',
+  Signpost: 'signpost',
   HouseCottage: 'house-cottage',
   HouseStone: 'house-stone',
   HouseRuin: 'house-ruin',
@@ -86,6 +87,7 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   generateHandbell(scene);
   generateCairn(scene);
   generateCoin(scene);
+  generateSignpost(scene);
   generateHouses(scene);
   generateShopItems(scene);
 }
@@ -270,6 +272,30 @@ function generateGloommoth(scene: Phaser.Scene): void {
   rect(ctx, 0, 4, 6, 1, 2, '#b7b1d6'); // wing highlights
   rect(ctx, 0, 11, 6, 1, 2, '#b7b1d6');
   rect(ctx, 0, 7, 5, 2, 1, '#c8f06a'); // glowing eye-spot
+  tex.refresh();
+}
+
+/** A weathered wooden fingerpost — read it for directions. */
+function generateSignpost(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.Signpost)) return;
+  const made = makeTexture(scene, TextureKeys.Signpost, TILE, TILE);
+  if (!made) return;
+  const { tex, ctx } = made;
+  ctx.fillStyle = 'rgba(0,0,0,0.20)';
+  ctx.fillRect(6, 15, 5, 1); // shadow
+  rect(ctx, 0, 7, 2, 2, 13, '#6b4a2a'); // post
+  rect(ctx, 0, 8, 2, 1, 13, '#825c36'); // post highlight
+  // Upper plank pointing right.
+  rect(ctx, 0, 8, 4, 7, 3, '#a9803f');
+  rect(ctx, 0, 13, 5, 2, 1, '#8a6630'); // pointed tip
+  rect(ctx, 0, 8, 4, 6, 1, '#caa15f'); // top edge
+  // Lower plank pointing left.
+  rect(ctx, 0, 2, 9, 7, 3, '#a9803f');
+  rect(ctx, 0, 1, 10, 2, 1, '#8a6630');
+  rect(ctx, 0, 2, 9, 6, 1, '#caa15f');
+  // A couple of "writing" ticks.
+  rect(ctx, 0, 9, 5, 4, 1, '#6b4a2a');
+  rect(ctx, 0, 3, 10, 4, 1, '#6b4a2a');
   tex.refresh();
 }
 
