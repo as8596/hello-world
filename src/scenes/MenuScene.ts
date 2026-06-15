@@ -2,9 +2,10 @@ import Phaser from 'phaser';
 import { RENDER_SCALE as RS } from '../data/render';
 import { addPixelText } from '../systems/PixelFont';
 import { audio } from '../systems/AudioManager';
+import { hasSave, loadGame, saveGame } from '../systems/SaveSystem';
 import { SceneKeys } from './SceneKeys';
 
-type Page = 'main' | 'options';
+type Page = 'main' | 'options' | 'saveload';
 
 interface MenuItem {
   /** Dynamic so toggles/sliders re-render their current value on refresh. */
@@ -76,7 +77,8 @@ export class MenuScene extends Phaser.Scene {
     this.labels.forEach((l) => l.destroy());
     this.labels = [];
 
-    this.items = page === 'main' ? this.mainItems() : this.optionsItems();
+    this.items =
+      page === 'main' ? this.mainItems() : page === 'options' ? this.optionsItems() : this.saveLoadItems();
 
     const firstY = this.cy - ((this.items.length - 1) * LINE_H) / 2 + LINE_H * 0.2;
     this.labels = this.items.map((item, i) => {
@@ -95,11 +97,17 @@ export class MenuScene extends Phaser.Scene {
       return t;
     });
 
-    this.title.setText(page === 'main' ? 'PAUSED' : 'OPTIONS');
+    this.title.setText(page === 'main' ? 'PAUSED' : page === 'options' ? 'OPTIONS' : 'SAVE / LOAD');
     this.title.setX(Math.round(this.cx - (this.title.width * 1.4) / 2));
     this.title.setY(Math.round(this.cy - this.panelH / 2 + LINE_H * 0.6));
 
-    this.help.setText(page === 'main' ? 'W/S Move   Enter Select   Esc Resume' : 'W/S Move   A/D Adjust   Esc Back');
+    this.help.setText(
+      page === 'main'
+        ? 'W/S Move   Enter Select   Esc Resume'
+        : page === 'options'
+          ? 'W/S Move   A/D Adjust   Esc Back'
+          : 'W/S Move   Enter Select   Esc Back',
+    );
     this.help.setX(Math.round(this.cx - this.help.width / 2));
     this.help.setY(Math.round(this.cy + this.panelH / 2 - LINE_H * 1.1));
 
@@ -109,10 +117,28 @@ export class MenuScene extends Phaser.Scene {
   private mainItems(): MenuItem[] {
     return [
       { label: () => 'Resume', action: () => this.resumeGame() },
-      { label: () => 'Save / Load', action: () => 'Not yet available' },
+      { label: () => 'Save / Load', action: () => this.showPage('saveload') },
       { label: () => 'Options', action: () => this.showPage('options') },
       { label: () => 'Exit', action: () => this.exitGame() },
     ];
+  }
+
+  private saveLoadItems(): MenuItem[] {
+    return [
+      { label: () => 'Save', action: () => (saveGame() ? 'Game saved' : 'Save failed') },
+      { label: () => (hasSave() ? 'Load' : 'Load  (no save)'), action: () => this.loadFromSave() },
+      { label: () => 'Back', action: () => this.showPage('main') },
+    ];
+  }
+
+  /** Restore the last save and rebuild the world from it (checkpoint state). */
+  private loadFromSave(): string | void {
+    if (!loadGame()) return 'No save to load';
+    audio.playSfx('rested');
+    // loadGame() has rehydrated WorldState; restart the world so it rebuilds from
+    // the restored flags (area, hearth, abilities), then drop the menu.
+    this.scene.get(SceneKeys.World).scene.restart();
+    this.scene.stop();
   }
 
   private optionsItems(): MenuItem[] {
@@ -172,7 +198,7 @@ export class MenuScene extends Phaser.Scene {
   /** ESC steps back: from Options to main, from main it resumes the game. */
   private back(): void {
     if (this.time.now - this.openedAt < 200) return; // ignore the opening keypress
-    if (this.page === 'options') this.showPage('main');
+    if (this.page !== 'main') this.showPage('main');
     else this.resumeGame();
   }
 

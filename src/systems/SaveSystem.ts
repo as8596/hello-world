@@ -52,3 +52,15 @@ export function clearSave(): void {
     // ignore
   }
 }
+
+/** True if a loadable save of the current version exists on disk. */
+export function hasSave(): boolean {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw) as Partial<SaveData>;
+    return !!data && data.saveVersion === SAVE_VERSION && !!data.world;
+  } catch {
+    return false;
+  }
+}
