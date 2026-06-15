@@ -680,7 +680,7 @@ function generateObjects(scene: Phaser.Scene): void {
 export const GRASS_VARIANT_INDICES = [0, 5, 6];
 export const FLOWER_TILE_INDEX = 7;
 export const COBBLE_TILE_INDEX = 8;
-const TILESET_COUNT = 9;
+const TILESET_COUNT = 11;
 
 function generateTileset(scene: Phaser.Scene): void {
   if (scene.textures.exists(TextureKeys.Tiles)) return;
@@ -697,6 +697,8 @@ function generateTileset(scene: Phaser.Scene): void {
   drawGrass(ctx, 6 * TILE, 2);
   drawFlowers(ctx, 7 * TILE);
   drawCobble(ctx, 8 * TILE);
+  drawPlank(ctx, 9 * TILE);
+  drawTimber(ctx, 10 * TILE);
 
   tex.refresh();
 }
@@ -866,6 +868,24 @@ function drawCobble(ctx: CanvasRenderingContext2D, ox: number): void {
   // Moss creeping into the cracks — overgrown, unkempt.
   for (const [x, y] of [[5, 4], [10, 8], [3, 12], [13, 4]] as const) rect(ctx, ox, x, y, 1, 1, '#5e8e51');
   for (const [x, y] of [[8, 0], [0, 8], [13, 11]] as const) rect(ctx, ox, x, y, 1, 2, '#4a7340');
+}
+
+function drawPlank(ctx: CanvasRenderingContext2D, ox: number): void {
+  rect(ctx, ox, 0, 0, TILE, TILE, '#7a5536'); // warm wood floor
+  rect(ctx, ox, 0, 0, TILE, 1, '#8a6440'); // top board highlight
+  for (const y of [5, 10, 15] as const) rect(ctx, ox, 0, y, TILE, 1, '#5e3f28'); // board seams
+  for (const [x, y] of [[3, 2], [11, 7], [6, 12]] as const) rect(ctx, ox, x, y, 1, 1, '#5e3f28'); // grain knots
+  for (const [x, y] of [[9, 3], [4, 8], [13, 13]] as const) rect(ctx, ox, x, y, 1, 1, '#8a6440');
+}
+
+function drawTimber(ctx: CanvasRenderingContext2D, ox: number): void {
+  rect(ctx, ox, 0, 0, TILE, TILE, '#5a4632'); // daub
+  rect(ctx, ox, 0, 0, 2, TILE, '#3e2f20'); // timber posts
+  rect(ctx, ox, 14, 0, 2, TILE, '#3e2f20');
+  rect(ctx, ox, 0, 0, TILE, 2, '#3e2f20'); // beams
+  rect(ctx, ox, 0, 14, TILE, 2, '#3e2f20');
+  rect(ctx, ox, 6, 2, 1, 12, '#4a3826'); // brace
+  rect(ctx, ox, 3, 4, 9, 1, '#6b5640');
 }
 
 function drawWall(ctx: CanvasRenderingContext2D, ox: number): void {

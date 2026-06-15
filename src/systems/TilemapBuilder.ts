@@ -166,8 +166,9 @@ export function buildTilemap(scene: Phaser.Scene, def: TileMapDef): BuiltMap {
 
   // Re-draw the blocking tiles (tree-walls) on a layer ABOVE the player so the
   // tall character walks *behind* the treeline (the canopy occludes them)
-  // instead of covering it — collision stays on the ground layer below.
-  const overhead = map.createBlankLayer('overhead', tileset, 0, 0);
+  // instead of covering it — collision stays on the ground layer below. Skipped
+  // for interiors, where short walls shouldn't occlude the player.
+  const overhead = def.interior ? null : map.createBlankLayer('overhead', tileset, 0, 0);
   if (overhead) {
     const blockingSet = new Set<number>(def.blocking);
     for (let y = 0; y < data.length; y++) {

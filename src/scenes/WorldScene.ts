@@ -311,6 +311,16 @@ export class WorldScene extends Phaser.Scene {
         if (obj.toArea && isAreaId(obj.toArea) && obj.toEntry) {
           this.exits.push({ x: obj.x, y: obj.y, toArea: obj.toArea, toEntry: obj.toEntry });
         }
+      } else if (obj.type === 'doorway') {
+        // A door you press to enter an interior; its tile is also the return point.
+        if (obj.entryId) this.entries.set(obj.entryId, { x: obj.x, y: obj.y });
+        if (obj.toArea && isAreaId(obj.toArea) && obj.toEntry) {
+          const toArea = obj.toArea;
+          const toEntry = obj.toEntry;
+          this.interactables.push(
+            new Interactable(this, obj.x, obj.y, { label: 'enter', onInteract: () => this.transitionTo(toArea, toEntry) }).setVisible(false),
+          );
+        }
       } else if (obj.type === 'entry') {
         if (obj.entryId) this.entries.set(obj.entryId, { x: obj.x, y: obj.y });
       } else {
@@ -349,15 +359,22 @@ export class WorldScene extends Phaser.Scene {
 
     // Camera: bounded, follows with a small dead-zone + slight lerp (§14 P1).
     // Zoomed in 30% for a cozier, closer view (scroll-factor-0 overlays grow with
-    // zoom about the centre, so they still cover the screen).
+    // zoom about the centre, so they still cover the screen). Interiors are tiny
+    // rooms: centre the camera so the room sits framed in black (Stardew style).
     const cam = this.cameras.main;
-    cam.setBounds(0, 0, map.widthPx, map.heightPx);
     cam.setZoom(CAMERA_ZOOM);
-    cam.startFollow(this.player, true, 0.12, 0.12);
-    cam.setDeadzone(36 * RS, 28 * RS);
+    if (AREAS[this.areaId].interior) {
+      cam.stopFollow();
+      cam.centerOn(map.widthPx / 2, map.heightPx / 2);
+    } else {
+      cam.setBounds(0, 0, map.widthPx, map.heightPx);
+      cam.startFollow(this.player, true, 0.12, 0.12);
+      cam.setDeadzone(36 * RS, 28 * RS);
+    }
     cam.fadeIn(250);
 
-    this.setupNightAmbiance(map.widthPx, map.heightPx);
+    // Interiors are lit rooms framed in black — no night overlay or fireflies.
+    if (!AREAS[this.areaId].interior) this.setupNightAmbiance(map.widthPx, map.heightPx);
 
     // Audio: create the (suspended) context now, unlock it on the first input
     // (browsers require a gesture), and a mute toggle.

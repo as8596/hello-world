@@ -12,6 +12,8 @@ export const Tile = {
   Water: 3,
   Vine: 4,
   Cobble: 8, // stone path (slots 5-7 are grass variants/flowers, see TextureFactory)
+  Plank: 9, // interior wood floor
+  Timber: 10, // interior wood wall (blocking)
 } as const;
 export type Tile = (typeof Tile)[keyof typeof Tile];
 
@@ -37,6 +39,7 @@ export type ObjectType =
   | 'trigger' // an invisible zone that starts a scripted encounter on entry
   | 'spawn' // a deferred enemy spawn point, raised by its encounter (not at build)
   | 'ward' // a magical barrier that only dispels when its encounter is cleared
+  | 'doorway' // an interactable door: press to enter an interior; also a return point
   | 'exit' // an edge zone that transitions to another area
   | 'entry'; // a named spawn point the player arrives at from another area
 
@@ -80,4 +83,7 @@ export interface TileMapDef {
   objects?: Record<string, ObjectSpec>;
   /** Tile placed underneath objects (and a fallback floor). Defaults to Grass. */
   floorTile?: Tile;
+  /** Interior room (a house etc.): no night/atmosphere, no overhead canopy layer,
+   *  and small enough that the camera shows it floating in black (Stardew style). */
+  interior?: boolean;
 }

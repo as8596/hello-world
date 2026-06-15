@@ -11,6 +11,7 @@ import { Tile, type TileMapDef } from './types';
  * Terrain:  .  grass   #  tree/wall   o  cobble (stone path)
  * Objects:  v gate vine   H hearth   M Maple   N sleeper   S thorn-sprite
  *           C cottage   P stone house   U ruined house   T tree
+ *           d/e/f/j house doors (enter the interiors)
  *           n exit→trail   s exit→hollow   g exit→glade
  *           2 entry(from_trail)   3 entry(from_hollow)   4 entry(from_glade)
  */
@@ -32,6 +33,12 @@ export const villageMap: TileMapDef = {
     P: { type: 'building', group: 'stone' },
     U: { type: 'building', group: 'ruin' },
     T: { type: 'tree' },
+    // Interactable doors (in front of each house) -> interiors; also the spot you
+    // return to when you leave.
+    d: { type: 'doorway', toArea: 'house1', toEntry: 'inside', entryId: 'house1_door' },
+    e: { type: 'doorway', toArea: 'house2', toEntry: 'inside', entryId: 'house2_door' },
+    f: { type: 'doorway', toArea: 'house3', toEntry: 'inside', entryId: 'house3_door' },
+    j: { type: 'doorway', toArea: 'house4', toEntry: 'inside', entryId: 'house4_door' },
     n: { type: 'exit', toArea: 'trail', toEntry: 'from_village' },
     s: { type: 'exit', toArea: 'hollow', toEntry: 'from_village' },
     g: { type: 'exit', toArea: 'glade', toEntry: 'from_village' },
@@ -50,7 +57,7 @@ export const villageMap: TileMapDef = {
     '##.............oo.............##', // 4
     '##...T.........oo.........T...##', // 5
     '##.....C.......oo.......P.....##', // 6  cottage / stone house
-    '##.......N.....oo.....N.......##', // 7  sleepers in the lane
+    '##.....d.N.....oo.....N.e.....##', // 7  their doors (enter) + sleepers
     '##.........oooooooooo.........##', // 8  the market square (cobbled)
     'g.ooooooooooooooooooo.........##', // 9  west street -> Mistmere Glade
     'g.o4ooooooooooooooooo.........##', // 10 arrive from the glade
@@ -58,7 +65,7 @@ export const villageMap: TileMapDef = {
     '##.........oooooooooo.........##', // 12
     '##......N......oo......N......##', // 13 more sleepers
     '##.....U.......oo.......C.....##', // 14 ruined house / cottage
-    '##...T.......@.oo....S....T...##', // 15 (fresh-start spawn) + a lone sprite
+    '##...T.f.....@.oo....S..j.T...##', // 15 their doors + spawn + a lone sprite
     '##.............o3.............##', // 16 arrive from the Hollow
     '##.............oo.............##', // 17
     '##.............oo.............##', // 18
