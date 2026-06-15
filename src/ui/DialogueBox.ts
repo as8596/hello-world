@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { CAMERA_ZOOM, RENDER_SCALE as RS } from '../data/render';
 import { audio } from '../systems/AudioManager';
-import { addPixelText, PIXEL_FONT_KEY } from '../systems/PixelFont';
+import { addPixelText, type PixelText } from '../systems/PixelFont';
 
 /** Speaker-name colour — a warm gold so it pops off the body text. */
 const NAME_COLOR = 0xffd23f;
@@ -19,10 +19,10 @@ export class DialogueBox {
   private readonly root: Phaser.GameObjects.Container;
   private readonly portrait: Phaser.GameObjects.Image;
   private readonly portraitFrame: Phaser.GameObjects.Rectangle;
-  private readonly nameParts: Phaser.GameObjects.BitmapText[]; // main + faux-bold copies
-  private readonly body: Phaser.GameObjects.BitmapText;
-  private readonly indicator: Phaser.GameObjects.BitmapText;
-  private choiceTexts: Phaser.GameObjects.BitmapText[] = [];
+  private readonly name: PixelText; // speaker label (bold)
+  private readonly body: PixelText;
+  private readonly indicator: PixelText;
+  private choiceTexts: PixelText[] = [];
 
   private full = '';
   private revealed = 0;
@@ -79,20 +79,13 @@ export class DialogueBox {
       .setStrokeStyle(1 * RS, 0x6fb3ff, 0.9)
       .setVisible(false);
 
-    // Speaker name — gold, with two offset copies for a faux-bold weight.
-    this.nameParts = [
-      addPixelText(scene, 0, 0, '', { color: NAME_COLOR }),
-      addPixelText(scene, 0, 0, '', { color: NAME_COLOR }),
-      addPixelText(scene, 0, 0, '', { color: NAME_COLOR }),
-    ];
+    // Speaker name — emphasised in bold gold so it pops off the body.
+    this.name = addPixelText(scene, 0, 0, '', { color: NAME_COLOR, bold: true });
 
     this.body = addPixelText(scene, this.textX, 6 * RS, '', { color: 0xe8e6d8, maxWidth: this.panelW - this.textX - 6 * RS });
-    this.indicator = scene.add
-      .bitmapText(this.panelW - 12 * RS, this.panelH - 11 * RS, PIXEL_FONT_KEY, '>')
-      .setTint(0x6fb3ff)
-      .setVisible(false);
+    this.indicator = addPixelText(scene, this.panelW - 12 * RS, this.panelH - 11 * RS, '>', { color: 0x6fb3ff }).setVisible(false);
 
-    this.root.add([bg, this.portrait, this.portraitFrame, ...this.nameParts, this.body, this.indicator]);
+    this.root.add([bg, this.portrait, this.portraitFrame, this.name, this.body, this.indicator]);
   }
 
   get isOpen(): boolean {
@@ -133,8 +126,8 @@ export class DialogueBox {
     this.setName(opts.speaker);
 
     // Body sits below the name (if any), in the column right of the portrait.
-    const bodyY = opts.speaker ? this.nameParts[0].y + this.nameParts[0].height + 3 * RS : 6 * RS;
-    this.body.setPosition(this.textX, bodyY).setMaxWidth(this.panelW - this.textX - 6 * RS);
+    const bodyY = opts.speaker ? this.name.y + this.name.height + 3 * RS : 6 * RS;
+    this.body.setPosition(this.textX, bodyY).setWordWrapWidth(this.panelW - this.textX - 6 * RS, true);
     this.choicesY = Math.max(this.choicesY, bodyY);
 
     this.full = text;
@@ -173,9 +166,10 @@ export class DialogueBox {
   renderChoices(labels: string[], selected: number): void {
     this.clearChoices();
     // Stack choices under the body, in the same text column as the portrait allows.
-    const startY = Math.min(this.choicesY, this.panelH - labels.length * 8 * RS - 4 * RS);
+    const lineH = 10 * RS; // roomy enough for the proportional font
+    const startY = Math.min(this.choicesY, this.panelH - labels.length * lineH - 4 * RS);
     labels.forEach((label, i) => {
-      const bt = addPixelText(this.scene, this.textX, startY + i * 8 * RS, `${i === selected ? '> ' : '  '}${label}`, {
+      const bt = addPixelText(this.scene, this.textX, startY + i * lineH, `${i === selected ? '> ' : '  '}${label}`, {
         color: i === selected ? 0xffe066 : 0x9a9a8a,
       });
       this.root.add(bt);
@@ -202,19 +196,12 @@ export class DialogueBox {
     }
   }
 
-  /** Set the emphasised speaker name (gold, faux-bold), or clear it. */
+  /** Set the emphasised speaker name (bold gold), or clear it. */
   private setName(speaker?: string): void {
-    const offsets: [number, number][] = [
-      [1, 0],
-      [0, 1],
-      [0, 0],
-    ];
-    this.nameParts.forEach((t, i) => {
-      if (!speaker) {
-        t.setVisible(false);
-        return;
-      }
-      t.setText(speaker).setPosition(this.textX + offsets[i][0], 5 * RS + offsets[i][1]).setVisible(true);
-    });
+    if (!speaker) {
+      this.name.setVisible(false);
+      return;
+    }
+    this.name.setText(speaker).setPosition(this.textX, 5 * RS).setVisible(true);
   }
 }

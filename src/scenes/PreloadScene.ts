@@ -3,7 +3,7 @@ import { BASE_HEIGHT, BASE_WIDTH } from '../config';
 import { RENDER_SCALE as RS } from '../data/render';
 import { SPRITE_DIRS } from '../data/spriteDirections';
 import { PLAYER_SPRITE_DIRS } from '../entities/Player';
-import { addPixelText, createPixelFont } from '../systems/PixelFont';
+import { addPixelText, createPixelFont, loadGameFont } from '../systems/PixelFont';
 import { applyStoneTileset, applyTerrainTileset, generateEdgeDecals, generatePlaceholderTextures } from '../systems/TextureFactory';
 import { SceneKeys } from './SceneKeys';
 
@@ -13,13 +13,19 @@ import { SceneKeys } from './SceneKeys';
  * builds the procedural placeholder textures + pixel font and transitions on.
  */
 export class PreloadScene extends Phaser.Scene {
+  /** Resolves once Pixelify Sans is ready (or has failed to a fallback). */
+  private fontReady: Promise<void> = Promise.resolve();
+
   constructor() {
     super(SceneKeys.Preload);
   }
 
   preload(): void {
-    // Procedural assets are synchronous, so build them up front — the loading
-    // bar below then has a crisp font to draw with.
+    // Kick off the web font load immediately; World start waits on it so its
+    // text bakes in the real font rather than the fallback.
+    this.fontReady = loadGameFont();
+    // Procedural assets are synchronous, so build them up front. (The bitmap
+    // font stays registered as a safety fallback.)
     generatePlaceholderTextures(this);
     createPixelFont(this);
     this.drawLoadingBar();
@@ -164,7 +170,8 @@ export class PreloadScene extends Phaser.Scene {
     this.registerDirAnims('maple-walk');
     // Bake a head-and-shoulders bust from each full portrait for the dialogue box.
     this.bakePortrait('portrait-maple-full', 'portrait-maple', 221, 28, 224);
-    this.scene.start(SceneKeys.World);
+    // Wait for the web font so all in-world text renders in Pixelify Sans.
+    void this.fontReady.then(() => this.scene.start(SceneKeys.World));
   }
 
   /**

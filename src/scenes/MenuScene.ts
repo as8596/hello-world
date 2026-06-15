@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { RENDER_SCALE as RS } from '../data/render';
-import { addPixelText } from '../systems/PixelFont';
+import { addPixelText, type PixelText } from '../systems/PixelFont';
 import { audio } from '../systems/AudioManager';
 import { clearSave, hasSave, loadGame, saveGame } from '../systems/SaveSystem';
 import { worldState } from '../systems/WorldState';
@@ -28,15 +28,15 @@ const MAX_ROWS = 5; // the main page has the most rows; size the panel for it
  */
 export class MenuScene extends Phaser.Scene {
   private items: MenuItem[] = [];
-  private labels: Phaser.GameObjects.BitmapText[] = [];
+  private labels: PixelText[] = [];
   private cursor = 0;
   private page: Page = 'main';
   /** Timestamp the menu opened; the keypress that opened it must not close it. */
   private openedAt = 0;
 
-  private title!: Phaser.GameObjects.BitmapText;
-  private help!: Phaser.GameObjects.BitmapText;
-  private feedback!: Phaser.GameObjects.BitmapText;
+  private title!: PixelText;
+  private help!: PixelText;
+  private feedback!: PixelText;
   private cx = 0;
   private cy = 0;
   private panelH = 0;

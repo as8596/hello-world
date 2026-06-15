@@ -3,7 +3,7 @@ import { ITEMS, MAPLE_STOCK } from '../data/items';
 import { RENDER_SCALE as RS } from '../data/render';
 import { audio } from '../systems/AudioManager';
 import { eventBus } from '../systems/EventBus';
-import { addPixelText } from '../systems/PixelFont';
+import { addPixelText, type PixelText } from '../systems/PixelFont';
 import { worldState } from '../systems/WorldState';
 import { SceneKeys } from './SceneKeys';
 
@@ -27,9 +27,9 @@ export class ShopScene extends Phaser.Scene {
   private cx = 0;
   private cy = 0;
   private panelH = 0;
-  private coinText!: Phaser.GameObjects.BitmapText;
-  private detail!: Phaser.GameObjects.BitmapText;
-  private feedback!: Phaser.GameObjects.BitmapText;
+  private coinText!: PixelText;
+  private detail!: PixelText;
+  private feedback!: PixelText;
   private selectBox!: Phaser.GameObjects.Rectangle;
   private gridX0 = 0;
   private gridY0 = 0;

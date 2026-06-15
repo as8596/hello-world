@@ -28,7 +28,7 @@ import { Player } from '../entities/Player';
 import { Tree } from '../entities/Tree';
 import { Villager } from '../entities/Villager';
 import { HintSystem } from '../systems/HintSystem';
-import { addPixelText } from '../systems/PixelFont';
+import { addPixelText, type PixelText } from '../systems/PixelFont';
 import { TextureKeys, villagerAwakeKey } from '../systems/TextureFactory';
 import { buildTilemap } from '../systems/TilemapBuilder';
 import { DialogueRunner } from '../systems/DialogueRunner';
@@ -152,13 +152,13 @@ export class WorldScene extends Phaser.Scene {
   private waking = false;
   private bossBarBg?: Phaser.GameObjects.Rectangle;
   private bossBarFill?: Phaser.GameObjects.Rectangle;
-  private bossName?: Phaser.GameObjects.BitmapText;
+  private bossName?: PixelText;
   private interactKeys: Phaser.Input.Keyboard.Key[] = [];
   private attackKeys: Phaser.Input.Keyboard.Key[] = [];
   private ringKeys: Phaser.Input.Keyboard.Key[] = [];
   private dodgeKeys: Phaser.Input.Keyboard.Key[] = [];
   private promptIcon?: Phaser.GameObjects.Image; // the "E" keycap (preferred)
-  private promptText?: Phaser.GameObjects.BitmapText; // procedural fallback
+  private promptText?: PixelText; // procedural fallback
   private promptBg?: Phaser.GameObjects.Arc;
   private gateRemaining = 0;
   private fogRemaining = 0;

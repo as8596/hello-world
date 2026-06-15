@@ -57,18 +57,59 @@ export interface PixelTextOptions {
   color?: number;
   /** Word-wrap width in px. */
   maxWidth?: number;
+  /** Use the bold weight (e.g. speaker names). */
+  bold?: boolean;
 }
 
-/** Create a crisp pixel-font BitmapText. */
+/** The game's text type. Pixelify Sans is a TTF, so UI text is rendered with
+ *  Phaser's `Text` (the browser draws the real proportional font). */
+export type PixelText = Phaser.GameObjects.Text;
+
+/** The bundled pixel font (Google's Pixelify Sans, see assets/fonts/OFL.txt). */
+export const FONT_FAMILY = 'Pixelify Sans';
+/** Render size in px. Tunable — Pixelify is crispest at multiples of its grid. */
+export const FONT_PX = 8 * RENDER_SCALE;
+
+/**
+ * Load Pixelify Sans (regular + bold) via the FontFace API so `Text` can draw
+ * it. Resolves even on failure (a missing font just falls back to monospace),
+ * and is a no-op where FontFace is unavailable. Must finish before any text is
+ * created, or that text bakes its texture in the fallback font.
+ */
+export function loadGameFont(): Promise<void> {
+  if (typeof FontFace === 'undefined' || typeof document === 'undefined') return Promise.resolve();
+  const faces = [
+    new FontFace(FONT_FAMILY, 'url(assets/fonts/PixelifySans-Regular.ttf)', { weight: '400' }),
+    new FontFace(FONT_FAMILY, 'url(assets/fonts/PixelifySans-Bold.ttf)', { weight: '700' }),
+  ];
+  return Promise.all(
+    faces.map((f) => f.load().then((loaded) => document.fonts.add(loaded))),
+  )
+    .then(() => undefined)
+    .catch(() => undefined);
+}
+
+/**
+ * Create a crisp pixel-font line. Returns a Phaser `Text` using Pixelify Sans;
+ * `color` is applied as a tint (white glyphs × color) so existing call sites
+ * that also chain `.setTint(...)` keep working, and `maxWidth` word-wraps.
+ */
 export function addPixelText(
   scene: Phaser.Scene,
   x: number,
   y: number,
   text: string,
   opts: PixelTextOptions = {},
-): Phaser.GameObjects.BitmapText {
-  const bt = scene.add.bitmapText(x, y, PIXEL_FONT_KEY, text);
-  if (opts.color !== undefined) bt.setTint(opts.color);
-  if (opts.maxWidth) bt.setMaxWidth(opts.maxWidth);
-  return bt;
+): PixelText {
+  const t = scene.add.text(x, y, text, {
+    fontFamily: `'${FONT_FAMILY}', monospace`,
+    fontSize: `${FONT_PX}px`,
+    fontStyle: opts.bold ? 'bold' : 'normal',
+    color: '#ffffff',
+    resolution: RENDER_SCALE,
+  });
+  t.setOrigin(0, 0);
+  if (opts.color !== undefined) t.setTint(opts.color);
+  if (opts.maxWidth) t.setWordWrapWidth(opts.maxWidth, true);
+  return t;
 }

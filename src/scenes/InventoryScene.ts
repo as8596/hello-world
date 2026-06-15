@@ -4,7 +4,7 @@ import { xpToNext } from '../data/progression';
 import { RENDER_SCALE as RS } from '../data/render';
 import { audio } from '../systems/AudioManager';
 import { eventBus } from '../systems/EventBus';
-import { addPixelText } from '../systems/PixelFont';
+import { addPixelText, type PixelText } from '../systems/PixelFont';
 import { worldState } from '../systems/WorldState';
 import { SceneKeys } from './SceneKeys';
 
@@ -23,7 +23,7 @@ const SLOT = 30 * RS;
 export class InventoryScene extends Phaser.Scene {
   private ids: string[] = [];
   private icons: Phaser.GameObjects.Image[] = [];
-  private counts: Phaser.GameObjects.BitmapText[] = [];
+  private counts: PixelText[] = [];
   private cursor = 0;
   private openedAt = 0;
   private cx = 0;
@@ -31,9 +31,9 @@ export class InventoryScene extends Phaser.Scene {
   private panelH = 0;
   private gridX0 = 0;
   private gridY0 = 0;
-  private header!: Phaser.GameObjects.BitmapText;
-  private detail!: Phaser.GameObjects.BitmapText;
-  private feedback!: Phaser.GameObjects.BitmapText;
+  private header!: PixelText;
+  private detail!: PixelText;
+  private feedback!: PixelText;
   private selectBox!: Phaser.GameObjects.Rectangle;
   private offUsed?: () => void;
 
