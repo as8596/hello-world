@@ -16,7 +16,6 @@ import { Chime } from '../entities/Chime';
 import { Destructible } from '../entities/Destructible';
 import { EnemyBase } from '../entities/EnemyBase';
 import { FogPatch } from '../entities/FogPatch';
-import { HeartPickup } from '../entities/HeartPickup';
 import { Interactable } from '../entities/Interactable';
 import { Pickup } from '../entities/Pickup';
 import { Player } from '../entities/Player';
@@ -63,7 +62,7 @@ export class WorldScene extends Phaser.Scene {
   private fog: FogPatch[] = [];
   private interactables: Interactable[] = [];
   private enemies: EnemyBase[] = [];
-  private pickups: HeartPickup[] = [];
+  private pickups: Pickup[] = [];
   private itemPickups: Pickup[] = [];
   private bellVineExamine?: Interactable;
   private chimes: Chime[] = [];
@@ -182,7 +181,9 @@ export class WorldScene extends Phaser.Scene {
         }
       } else if (obj.type === 'heart') {
         if (worldState.hasFlag('heart_fragment_taken')) continue;
-        this.pickups.push(new HeartPickup(this, obj.x, obj.y, { onCollect: (p) => this.onHeartCollected(p) }));
+        this.pickups.push(
+          new Pickup(this, obj.x, obj.y, TextureKeys.HeartFragment, { onCollect: (p) => this.onHeartCollected(p) }),
+        );
       } else if (obj.type === 'blade') {
         if (woken || worldState.hasFlag('has_blade')) continue;
         const glow = this.makePickupGlint(obj.x, obj.y, [180, 210, 255]); // cool steel glint
@@ -831,31 +832,13 @@ export class WorldScene extends Phaser.Scene {
   private makeFireflyTexture(): void {
     if (this.textures.exists(FIREFLY_TEXTURE)) return;
     const size = 24;
-    const tex = this.textures.createCanvas(FIREFLY_TEXTURE, size, size);
-    if (!tex) return;
+    // Reuse the shared radial-falloff baker for the halo, then stamp the spark.
+    this.makeRadialGlow(FIREFLY_TEXTURE, size, [205, 255, 150], 0.85, 2.4);
+    const tex = this.textures.get(FIREFLY_TEXTURE) as Phaser.Textures.CanvasTexture;
     const ctx = tex.getContext();
-    const img = ctx.createImageData(size, size);
     const c = size / 2;
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const d = Math.hypot(x - c + 0.5, y - c + 0.5) / c;
-        const a = d >= 1 ? 0 : Math.pow(1 - d, 2.4) * 0.85;
-        const i = (y * size + x) * 4;
-        img.data[i] = 205;
-        img.data[i + 1] = 255;
-        img.data[i + 2] = 150;
-        img.data[i + 3] = Math.round(a * 255);
-      }
-    }
-    // Bright near-white core (2x2 pixels) for the "firefly spark".
-    for (const [dx, dy] of [[-1, -1], [0, -1], [-1, 0], [0, 0]] as const) {
-      const i = ((c + dy) * size + (c + dx)) * 4;
-      img.data[i] = 255;
-      img.data[i + 1] = 255;
-      img.data[i + 2] = 210;
-      img.data[i + 3] = 255;
-    }
-    ctx.putImageData(img, 0, 0);
+    ctx.fillStyle = 'rgba(255,255,210,1)'; // bright near-white core (2x2)
+    ctx.fillRect(c - 1, c - 1, 2, 2);
     tex.refresh();
   }
 
@@ -1024,7 +1007,7 @@ export class WorldScene extends Phaser.Scene {
     HintSystem.tryShow(this, 'ring', 'F  -  ring the bell');
   }
 
-  private onHeartCollected(pickup: HeartPickup): void {
+  private onHeartCollected(pickup: Pickup): void {
     const idx = this.pickups.indexOf(pickup);
     if (idx >= 0) this.pickups.splice(idx, 1);
     worldState.addCounter('heart_fragments');
