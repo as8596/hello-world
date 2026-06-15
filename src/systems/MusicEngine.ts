@@ -10,8 +10,8 @@
  * sample-accurate regardless of timer jitter.
  */
 
-const STEPS = 16; // an eighth-note loop
-const STEPS_PER_CHORD = 8; // the chord changes twice a loop
+const STEPS = 32; // the full progression cycle (an eighth-note grid)
+const STEPS_PER_CHORD = 8; // each chord lasts a bar
 const BUS_GAIN = 0.6; // the whole score sits under the SFX
 const BPM = 70;
 const STEP_DUR = 60 / BPM / 2; // eighth note in seconds
@@ -33,18 +33,31 @@ const PROGRESSION: Chord[] = [
   { pad: [98.0, 146.83], arp: [196.0, 246.94, 293.66, 392.0], bass: 49.0 }, // G
 ];
 
+// A sparse lead melody over the full 32-step progression cycle: [step, freq, dur].
+// Singable A-minor phrase that complements the chords (E–C / D–A / E–G / D–B).
+const MELODY: [number, number, number][] = [
+  [0, 659.25, 1.9], // E5  over Am
+  [6, 523.25, 1.1], // C5
+  [8, 587.33, 1.9], // D5  over F
+  [14, 440.0, 1.1], // A4
+  [16, 659.25, 1.5], // E5  over C
+  [20, 783.99, 1.5], // G5
+  [24, 587.33, 1.5], // D5  over G
+  [28, 493.88, 1.7], // B4 → leads back to Am
+];
+
 export class MusicEngine {
   private readonly ctx: AudioContext;
   private readonly bus: GainNode;
   private readonly padGain: GainNode;
   private readonly calmGain: GainNode;
   private readonly tensionGain: GainNode;
+  private readonly melodyGain: GainNode;
   private readonly padOscs: OscillatorNode[] = [];
 
   private timer: number | null = null;
   private nextNoteTime = 0;
   private step = 0;
-  private chordIdx = 0;
   private chord: Chord = PROGRESSION[0];
 
   /** Smoothed danger level driving the crossfade; eases toward `target`. */
@@ -63,7 +76,9 @@ export class MusicEngine {
     this.calmGain.gain.value = 0.9;
     this.tensionGain = ctx.createGain();
     this.tensionGain.gain.value = 0;
-    for (const g of [this.padGain, this.calmGain, this.tensionGain]) g.connect(this.bus);
+    this.melodyGain = ctx.createGain();
+    this.melodyGain.gain.value = 0.85;
+    for (const g of [this.padGain, this.calmGain, this.tensionGain, this.melodyGain]) g.connect(this.bus);
   }
 
   /** Build the continuous pad bed and start the lookahead scheduler. */
@@ -145,25 +160,29 @@ export class MusicEngine {
     this.current += (this.target - this.current) * 0.06;
     const t = this.ctx.currentTime;
     this.calmGain.gain.setTargetAtTime(0.9 - 0.5 * this.current, t, 0.4);
+    this.melodyGain.gain.setTargetAtTime(0.85 - 0.55 * this.current, t, 0.4);
     this.tensionGain.gain.setTargetAtTime(this.current, t, 0.4);
     this.padGain.gain.setTargetAtTime(0.5 - 0.1 * this.current, t, 0.4);
   }
 
   private scheduleStep(step: number, t: number): void {
-    // Advance the chord progression (and retune the pad) twice a loop.
+    // Advance the chord progression (and retune the pad) each bar.
     if (step % STEPS_PER_CHORD === 0) {
-      this.chord = PROGRESSION[this.chordIdx % PROGRESSION.length];
-      this.chordIdx++;
+      this.chord = PROGRESSION[Math.floor(step / STEPS_PER_CHORD) % PROGRESSION.length];
       this.applyChord(t);
     }
 
-    // Calm melody: an ascending arpeggio of the current chord, one tone per beat
+    // Harmony: an ascending arpeggio of the current chord, one tone per beat
     // (every other step) — always consonant, with clear forward motion.
     if (step % 2 === 0 && this.current < 0.97) {
-      const tone = this.chord.arp[(step % STEPS_PER_CHORD) / 2];
-      this.pluck(tone, t, this.calmGain, 0.13, 'triangle', 1.1);
-      // A soft octave-up lead at the top of each chord for a little melody.
-      if (step % STEPS_PER_CHORD === 0) this.pluck(this.chord.arp[3] * 2, t, this.calmGain, 0.05, 'sine', 1.6);
+      this.pluck(this.chord.arp[(step % STEPS_PER_CHORD) / 2], t, this.calmGain, 0.12, 'triangle', 1.1);
+    }
+
+    // Lead melody: a sparse singable phrase over the whole cycle, sitting above
+    // the arpeggio (soft, sustained). Recedes under danger.
+    if (this.current < 0.85) {
+      const note = MELODY.find((m) => m[0] === step);
+      if (note) this.pluck(note[1], t, this.melodyGain, 0.1, 'triangle', note[2]);
     }
 
     // Danger layer — only scheduled once it's audible.
@@ -171,7 +190,7 @@ export class MusicEngine {
       if (step % 4 === 0) this.bass(this.chord.bass, t, 0.16); // pulse on the chord root
       else if (step % 4 === 2) this.bass(this.chord.bass * 2, t, 0.1);
       // A dissonant minor-second shimmer above the root, for unease.
-      if (step === 8) this.pluck(this.chord.bass * 4.24, t, this.tensionGain, 0.05, 'sawtooth', 0.9);
+      if (step % 16 === 8) this.pluck(this.chord.bass * 4.24, t, this.tensionGain, 0.05, 'sawtooth', 0.9);
     }
   }
 
