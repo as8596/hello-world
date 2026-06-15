@@ -14,7 +14,7 @@ export class CoinPickup extends Phaser.GameObjects.Image {
   private collected = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number, value: number) {
-    super(scene, x, y, TextureKeys.Coin);
+    super(scene, x, y, scene.textures.exists('ui-coin') ? 'ui-coin' : TextureKeys.Coin);
     scene.add.existing(this);
     this.value = value;
     this.setDepth(6).setScale(0.2).setAlpha(0);

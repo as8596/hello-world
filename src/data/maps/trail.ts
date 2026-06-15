@@ -44,9 +44,9 @@ export const trailMap: TileMapDef = {
     '############nn##############', // 0  north opening -> belltower
     '##..................G.....##', // 1  a leafy bush
     '##..........4.............##', // 2  arrive here coming back from the belltower
-    '##..wwww........b.........##', // 3  pond + brambleback (ring-to-stun)
-    '##..wwww........T.........##', // 4  a tree by the pond
-    '##..wwww..............D...##', // 5  a bare bush
+    '##..ww..........b.........##', // 3  pond + brambleback (ring-to-stun)
+    '##..ww..........T.........##', // 4  a tree by the pond
+    '##....................D...##', // 5  a bare bush
     '##.........S...............e', // 6  a lone sprite (east opening -> warren)
     '##......................6..e', // 7  arrive from the warren; the doorway
     '##..fff...................##', // 8  fog-sealed pocket...

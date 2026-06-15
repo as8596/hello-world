@@ -41,16 +41,16 @@ export const gladeMap: TileMapDef = {
     '############################', // 0
     '###..####.........###....###', // 1  ragged northern treeline
     '##..H..##...........#....c.#', // 2  hero standing-stone (NW); cairn (top-right)
-    '##..wwww.................A.#', // 3  arrive from the village (east)
-    '##.wwwwww...####.........X.#', // 4  big mere + reed island; exit east
-    '##.wwwwww...####...........#', // 5
-    '##..wwww..........g.......##', // 6  a gloommoth over the water
+    '##.......................A.#', // 3  arrive from the village (east)
+    '##..ww......####.........X.#', // 4  the Mistmere (pond) + reed island; exit east
+    '##..ww......####...........#', // 5
+    '##................g.......##', // 6  a gloommoth over the open ground
     '##...........b.......T.G..##', // 7  barbhound prowls the open ground; a bush
     '###.....p..N..............##', // 8  the spring (lore); Wren the forager nearby
-    '##.........wwww...........##', // 9
-    '##..###...wwwwww.....g....##', // 10 reed clump + a second gloommoth
-    '##..###...wwwwww..........##', // 11
-    '##.........wwww.....@.....##', // 12 (fresh-start fallback spawn)
+    '##........................##', // 9
+    '##..###....ww........g....##', // 10 reed clump; a second pond + gloommoth
+    '##..###....ww.............##', // 11
+    '##..................@.....##', // 12 (fresh-start fallback spawn)
     '##..h............T....Y...##', // 13 heart fragment (southwest pocket); tree + bush
     '###....##.........####...###', // 14 ragged southern treeline
     '############################', // 15

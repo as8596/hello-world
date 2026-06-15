@@ -1396,12 +1396,11 @@ export class WorldScene extends Phaser.Scene {
   private spawnPond(p: { cx: number; cy: number; wPx: number; hPx: number }, index: number): void {
     const v = POND_VARIANTS[index % POND_VARIANTS.length];
     if (!this.textures.exists(v.tex)) return;
-    const sx = p.wPx / v.ww;
-    const sy = p.hPx / v.wh;
-    // Position so the art's water centre (v.wcx,v.wcy) sits at the blob centre.
-    const x = p.cx - (v.wcx - 64) * sx;
-    const y = p.cy - (v.wcy - 64) * sy;
-    this.add.image(x, y, v.tex).setOrigin(0.5).setScale(sx, sy).setDepth(2);
+    // Native resolution (no upscaling): just centre the art's water region on the
+    // water blob. The blobs are sized ~2×2 tiles to match the 128px ponds.
+    const x = p.cx - (v.wcx - 64);
+    const y = p.cy - (v.wcy - 64);
+    this.add.image(x, y, v.tex).setOrigin(0.5).setDepth(2);
   }
 
   /** Create a bush; a berry bush also gets an E-interactable to harvest. */
@@ -1541,9 +1540,8 @@ export class WorldScene extends Phaser.Scene {
         bell_pear_preserve: 4,
         berry: 2,
         bread: 2,
-        salted_fish: 4,
         pickled_roots: 4,
-        meat_stew: 6,
+        wheel_of_cheese: 6,
         health_potion: 8,
       };
       if (HEARTS[id]) ok = this.player.heal(HEARTS[id]);

@@ -22,21 +22,13 @@ export const ITEMS: Record<string, ItemDef> = {
     desc: 'A sturdy rod for coaxing fish from the still ponds.',
     texture: 'item-fishing-rod',
   },
-  salted_fish: {
-    id: 'salted_fish',
-    name: 'Salted smoked fish',
+  wheel_of_cheese: {
+    id: 'wheel_of_cheese',
+    name: 'Wheel of cheese',
     kind: 'consumable',
-    value: 7,
-    desc: 'Salt-cured and smoked. Restores 2 hearts.',
-    texture: 'item-salted-fish',
-  },
-  meat_stew: {
-    id: 'meat_stew',
-    name: 'Meat stew',
-    kind: 'consumable',
-    value: 10,
-    desc: 'Rich and filling. Restores 3 hearts.',
-    texture: 'item-meat-stew',
+    value: 9,
+    desc: 'A whole farmhouse wheel. Restores 3 hearts.',
+    texture: 'item-cheese',
   },
   health_potion: {
     id: 'health_potion',
@@ -60,7 +52,7 @@ export const ITEMS: Record<string, ItemDef> = {
     kind: 'charm',
     value: 14,
     desc: 'A lucky charm. +Echo regen.',
-    texture: 'item-charm',
+    texture: 'item-sproutling-charm',
   },
   pickled_roots: {
     id: 'pickled_roots',
@@ -133,8 +125,7 @@ export const ITEMS: Record<string, ItemDef> = {
 /** Maple's store stock for the slice. */
 export const MAPLE_STOCK: string[] = [
   'fishing_rod',
-  'salted_fish',
-  'meat_stew',
+  'wheel_of_cheese',
   'health_potion',
   'bread',
   'sproutling_charm',

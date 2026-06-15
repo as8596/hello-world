@@ -46,7 +46,13 @@ export class UIScene extends Phaser.Scene {
     this.staminaFill = this.add.rectangle(6 * RS, sy + 1 * RS, this.staminaWidth, 1 * RS, 0x76c44a).setOrigin(0, 0);
     this.renderStamina(1);
 
-    this.coinText = addPixelText(this, 5 * RS, 17 * RS, '', { color: 0xffe066 });
+    // A small coin icon before the count (universal coin art if present).
+    let coinX = 5 * RS;
+    if (this.textures.exists('ui-coin')) {
+      this.add.image(5 * RS, 18 * RS, 'ui-coin').setOrigin(0, 0.5).setDisplaySize(6 * RS, 6 * RS);
+      coinX = 12 * RS;
+    }
+    this.coinText = addPixelText(this, coinX, 17 * RS, '', { color: 0xffe066 });
     this.renderCoin(worldState.getCounter('coin'));
 
     // Level + XP bar under the coin count.
@@ -115,8 +121,9 @@ export class UIScene extends Phaser.Scene {
     for (const h of this.hearts) h.destroy();
     this.hearts = [];
     this.currentMax = max;
+    const tex = this.textures.exists('ui-hearts') ? 'ui-hearts' : TextureKeys.Hearts;
     for (let i = 0; i < max / 2; i++) {
-      this.hearts.push(this.add.image((5 + i * 8) * RS, 5 * RS, TextureKeys.Hearts, 'full').setOrigin(0, 0));
+      this.hearts.push(this.add.image((5 + i * 8) * RS, 5 * RS, tex, 'full').setOrigin(0, 0).setDisplaySize(7 * RS, 7 * RS));
     }
   }
 

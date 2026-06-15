@@ -77,6 +77,9 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('ui-prompt-e', 'assets/sprites/ui/E.png');
     this.load.image('ui-window', 'assets/sprites/ui/Window.png');
     this.load.image('ui-button', 'assets/sprites/ui/Button.png');
+    // Universal heart + coin icons for the HUD (and the world coin pickup).
+    this.load.image('ui-heart', 'assets/sprites/ui/heart.png');
+    this.load.image('ui-coin', 'assets/sprites/ui/coin.png');
 
     // Bush foliage world-objects (green / dead / thorny / berry), placed in clusters.
     this.load.image('bush-green', 'assets/sprites/bushes/green.png');
@@ -107,9 +110,8 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('item-handbell', 'assets/sprites/items/handbell.png');
     this.load.image('item-berry', 'assets/sprites/items/berry.png');
 
-    // Maple's shop wares (icons land shortly — missing files fall back to a
-    // placeholder via itemIcon()).
-    for (const f of ['fishing-rod', 'salted-fish', 'meat-stew', 'health-potion', 'bread', 'pickled-roots', 'rope', 'firewood', 'flint-steel', 'herbs']) {
+    // Maple's shop wares. Missing files fall back to a placeholder via itemIcon().
+    for (const f of ['fishing-rod', 'cheese', 'health-potion', 'bread', 'pickled-roots', 'rope', 'firewood', 'flint-steel', 'herbs', 'sproutling-charm']) {
       this.load.image(`item-${f}`, `assets/sprites/items/${f}.png`);
     }
 
@@ -181,6 +183,8 @@ export class PreloadScene extends Phaser.Scene {
     this.registerDirAnims('maple-walk');
     // Bake a head-and-shoulders bust from each full portrait for the dialogue box.
     this.bakePortrait('portrait-maple-full', 'portrait-maple', 221, 28, 224);
+    // Bake the HUD heart atlas (full / half / empty) from the universal heart icon.
+    this.bakeHearts();
     // Wait for the web font so all in-world text renders in Pixelify Sans.
     void this.fontReady.then(() => this.scene.start(SceneKeys.World));
   }
@@ -198,6 +202,42 @@ export class PreloadScene extends Phaser.Scene {
     const ctx = tex.getContext();
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(src, sx, sy, side, side, 0, 0, side, side);
+    tex.refresh();
+  }
+
+  /**
+   * Bake a 3-frame HUD heart atlas (full / half / empty) from the single heart
+   * icon: the half/empty frames darken the right half / whole heart. No-op if the
+   * icon is missing — the procedural hearts stay in use.
+   */
+  private bakeHearts(): void {
+    if (!this.textures.exists('ui-heart') || this.textures.exists('ui-hearts')) return;
+    const src = this.textures.get('ui-heart').getSourceImage() as CanvasImageSource & { width: number; height: number };
+    const CELL = 26;
+    const tex = this.textures.createCanvas('ui-hearts', CELL * 3, CELL);
+    if (!tex) return;
+    const ctx = tex.getContext();
+    ctx.imageSmoothingEnabled = false;
+    for (let f = 0; f < 3; f++) {
+      const ox = f * CELL;
+      ctx.drawImage(src, 0, 0, src.width, src.height, ox, 0, CELL, CELL);
+      if (f >= 1) {
+        const fromX = f === 1 ? ox + CELL / 2 : ox; // half: right side; empty: all
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(fromX, 0, ox + CELL - fromX, CELL);
+        ctx.clip();
+        ctx.globalCompositeOperation = 'source-atop';
+        ctx.fillStyle = 'rgba(20,12,16,0.8)';
+        ctx.fillRect(ox, 0, CELL, CELL);
+        ctx.restore();
+        ctx.globalCompositeOperation = 'source-over';
+      }
+    }
+    tex.refresh();
+    tex.add('full', 0, 0, 0, CELL, CELL);
+    tex.add('half', 0, CELL, 0, CELL, CELL);
+    tex.add('empty', 0, CELL * 2, 0, CELL, CELL);
     tex.refresh();
   }
 
