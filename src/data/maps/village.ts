@@ -9,7 +9,8 @@ import { Tile, type TileMapDef } from './types';
  *
  * Terrain:  .  grass   #  tree/wall
  * Objects:  v gate vine   H hearth   M Maple   N sleeper   S thorn-sprite
- *           n exit→trail   s exit→hollow   2 entry(from_trail)   3 entry(from_hollow)
+ *           n exit→trail   s exit→hollow   g exit→glade
+ *           2 entry(from_trail)   3 entry(from_hollow)   4 entry(from_glade)
  */
 export const villageMap: TileMapDef = {
   tileSize: TILE_SIZE,
@@ -26,8 +27,10 @@ export const villageMap: TileMapDef = {
     S: { type: 'enemy', enemyId: 'thorn_sprite' },
     n: { type: 'exit', toArea: 'trail', toEntry: 'from_village' },
     s: { type: 'exit', toArea: 'hollow', toEntry: 'from_village' },
+    g: { type: 'exit', toArea: 'glade', toEntry: 'from_village' },
     '2': { type: 'entry', entryId: 'from_trail' },
     '3': { type: 'entry', entryId: 'from_hollow' },
+    '4': { type: 'entry', entryId: 'from_glade' },
   },
   floorTile: Tile.Grass,
   spawnChar: '@',
@@ -40,9 +43,9 @@ export const villageMap: TileMapDef = {
     '##........................##', // 4
     '##....N..........N........##', // 5  sleepers
     '##........................##', // 6
-    '##...H..........M.........##', // 7  hearth + Maple
-    '##........................##', // 8
-    '##..N..........S..........##', // 9  sleeper + a lone sprite
+    'g....H..........M.........##', // 7  hearth + Maple (west opening -> glade)
+    'g.........................##', // 8  ...the glade doorway
+    '##4.N..........S..........##', // 9  arrive from the glade; sleeper + a sprite
     '##........................##', // 10
     '##........................##', // 11
     '##..........3.............##', // 12 arrive here coming from the Hollow

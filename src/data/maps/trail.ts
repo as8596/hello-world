@@ -9,7 +9,8 @@ import { Tile, type TileMapDef } from './types';
  *
  * Terrain:  .  grass   #  tree/wall   w  water
  * Objects:  f fog   h heart   S thorn-sprite   b brambleback   m mushroom-folk
- *           n exit→belltower   s exit→village   4 entry(from_belltower)   5 entry(from_village)
+ *           n exit→belltower   s exit→village   e exit→warren
+ *           4 entry(from_belltower)   5 entry(from_village)   6 entry(from_warren)
  */
 export const trailMap: TileMapDef = {
   tileSize: TILE_SIZE,
@@ -27,8 +28,10 @@ export const trailMap: TileMapDef = {
     m: { type: 'enemy', enemyId: 'mushroom_folk' },
     n: { type: 'exit', toArea: 'belltower', toEntry: 'from_trail' },
     s: { type: 'exit', toArea: 'village', toEntry: 'from_trail' },
+    e: { type: 'exit', toArea: 'warren', toEntry: 'from_trail' },
     '4': { type: 'entry', entryId: 'from_belltower' },
     '5': { type: 'entry', entryId: 'from_village' },
+    '6': { type: 'entry', entryId: 'from_warren' },
   },
   floorTile: Tile.Grass,
   spawnChar: '@',
@@ -40,8 +43,8 @@ export const trailMap: TileMapDef = {
     '##..wwww........b.........##', // 3  pond + brambleback (ring-to-stun)
     '##..wwww..................##', // 4
     '##..wwww..................##', // 5
-    '##.........S..............##', // 6  a lone sprite
-    '##........................##', // 7
+    '##.........S...............e', // 6  a lone sprite (east opening -> warren)
+    '##......................6..e', // 7  arrive from the warren; the doorway
     '##..fff...................##', // 8  fog-sealed pocket...
     '##..fhf...................##', // 9  ...heart fragment inside
     '##..fff...................##', // 10

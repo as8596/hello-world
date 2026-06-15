@@ -27,8 +27,11 @@ export const TextureKeys = {
   VillagerAwake: 'villager_awake',
   Brambleback: 'brambleback',
   MushroomFolk: 'mushroom_folk',
+  Barbhound: 'barbhound',
+  Gloommoth: 'gloommoth',
   Blade: 'blade',
   Handbell: 'handbell',
+  Cairn: 'cairn',
 } as const;
 
 const FRAME = 16; // player placeholder frame size, design px
@@ -70,8 +73,62 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   generateVillagerAwake(scene);
   generateBrambleback(scene);
   generateMushroomFolk(scene);
+  generateBarbhound(scene);
+  generateGloommoth(scene);
   generateBlade(scene);
   generateHandbell(scene);
+  generateCairn(scene);
+}
+
+/** A lean thorn-hound: low slung body, long snout — the charger. */
+function generateBarbhound(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.Barbhound)) return;
+  const made = makeTexture(scene, TextureKeys.Barbhound, TILE, TILE);
+  if (!made) return;
+  const { tex, ctx } = made;
+  ctx.fillStyle = 'rgba(0,0,0,0.20)';
+  ctx.fillRect(2, 14, 12, 1); // shadow
+  rect(ctx, 0, 2, 8, 11, 4, '#4a3320'); // long body
+  rect(ctx, 0, 12, 7, 3, 3, '#4a3320'); // snout
+  rect(ctx, 0, 3, 11, 1, 3, '#3a2718'); // legs
+  rect(ctx, 0, 9, 11, 1, 3, '#3a2718');
+  // Barbs along the spine.
+  for (const x of [3, 5, 7, 9] as const) rect(ctx, 0, x, 6, 1, 2, '#6b4a2a');
+  rect(ctx, 0, 13, 8, 1, 1, '#ff7a4a'); // eye
+  tex.refresh();
+}
+
+/** A small four-winged moth: dusky body, pale wings, glowing eye — the swarmer. */
+function generateGloommoth(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.Gloommoth)) return;
+  const made = makeTexture(scene, TextureKeys.Gloommoth, TILE, TILE);
+  if (!made) return;
+  const { tex, ctx } = made;
+  rect(ctx, 0, 7, 5, 2, 7, '#3a3550'); // body
+  // Wings.
+  rect(ctx, 0, 3, 5, 3, 4, '#8d86b0');
+  rect(ctx, 0, 10, 5, 3, 4, '#8d86b0');
+  rect(ctx, 0, 4, 6, 1, 2, '#b7b1d6'); // wing highlights
+  rect(ctx, 0, 11, 6, 1, 2, '#b7b1d6');
+  rect(ctx, 0, 7, 5, 2, 1, '#c8f06a'); // glowing eye-spot
+  tex.refresh();
+}
+
+/** A small stacked-stone cairn — marks a point of interest (examine for lore). */
+function generateCairn(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.Cairn)) return;
+  const made = makeTexture(scene, TextureKeys.Cairn, TILE, TILE);
+  if (!made) return;
+  const { tex, ctx } = made;
+  ctx.fillStyle = 'rgba(0,0,0,0.20)';
+  ctx.fillRect(4, 14, 8, 1); // shadow
+  rect(ctx, 0, 4, 11, 8, 3, '#8a8470'); // base stone
+  rect(ctx, 0, 5, 8, 6, 3, '#9b9580'); // middle stone
+  rect(ctx, 0, 6, 5, 4, 3, '#aaa491'); // top stone
+  rect(ctx, 0, 4, 11, 8, 1, '#6f6a59'); // base shading
+  rect(ctx, 0, 6, 5, 1, 2, '#c8c2ad'); // top highlight
+  rect(ctx, 0, 7, 6, 2, 1, '#6fae8a'); // moss
+  tex.refresh();
 }
 
 /** A small sword lying point-up — the blade pickup (unlocks attack). */

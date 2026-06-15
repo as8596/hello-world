@@ -10,9 +10,11 @@
 import { worldState } from './WorldState';
 
 const SAVE_KEY = 'brackenvale_save_v1';
-// v2: the Waking Hollow added has_blade/has_handbell gating; pre-v2 saves lack
-// those flags, so they're invalidated (clean fresh start) rather than migrated.
-const SAVE_VERSION = 2;
+// v2: the Waking Hollow added has_blade/has_handbell gating.
+// v3: heart fragments moved to per-fragment flags (heart_taken_<area>_<x>_<y>)
+// and new branch areas/encounters were added; pre-v3 saves are invalidated
+// (clean fresh start) rather than migrated.
+const SAVE_VERSION = 3;
 
 interface SaveData {
   saveVersion: number;

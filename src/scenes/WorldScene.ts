@@ -4,10 +4,12 @@ import { bramblewerth } from '../data/bossConfig';
 import { NPCS } from '../data/dialogue/npcs';
 import { oathNpc } from '../data/dialogue/oath';
 import type { Effect } from '../data/dialogue/types';
+import { LORE } from '../data/dialogue/lore';
 import { ENEMIES } from '../data/enemies';
 import { ITEMS } from '../data/items';
 import { handbellConfig } from '../data/handbellConfig';
 import { AREAS, type AreaId, isAreaId, START_AREA } from '../data/maps/areas';
+import type { MapObjectInstance } from '../data/maps/types';
 import { playerConfig } from '../data/playerConfig';
 import { RENDER_SCALE as RS } from '../data/render';
 import { Boss } from '../entities/Boss';
@@ -59,8 +61,15 @@ export class WorldScene extends Phaser.Scene {
   private navUpKeys: Phaser.Input.Keyboard.Key[] = [];
   private navDownKeys: Phaser.Input.Keyboard.Key[] = [];
   private vines: Destructible[] = [];
+  private wards: Destructible[] = [];
   private fog: FogPatch[] = [];
   private interactables: Interactable[] = [];
+  // Scripted encounters: a trigger zone raises its deferred spawns; clearing the
+  // pack dispels the matching ward(s). Keyed by encounter group.
+  private triggers: { x: number; y: number; group: string }[] = [];
+  private encounterSpawns = new Map<string, MapObjectInstance[]>();
+  private startedEncounters = new Set<string>();
+  private encounterRemaining = new Map<string, number>();
   private enemies: EnemyBase[] = [];
   private pickups: Pickup[] = [];
   private itemPickups: Pickup[] = [];
@@ -103,6 +112,11 @@ export class WorldScene extends Phaser.Scene {
   create(): void {
     this.vines = [];
     this.fog = [];
+    this.wards = [];
+    this.triggers = [];
+    this.encounterSpawns.clear();
+    this.startedEncounters.clear();
+    this.encounterRemaining.clear();
     this.interactables = [];
     this.enemies = [];
     this.pickups = [];
@@ -180,10 +194,34 @@ export class WorldScene extends Phaser.Scene {
           );
         }
       } else if (obj.type === 'heart') {
-        if (worldState.hasFlag('heart_fragment_taken')) continue;
+        // Per-fragment persistence (there are several across the world now), keyed
+        // by area + tile so taking one doesn't suppress the others.
+        const key = `heart_taken_${this.areaId}_${Math.round(obj.x)}_${Math.round(obj.y)}`;
+        if (worldState.hasFlag(key)) continue;
         this.pickups.push(
-          new Pickup(this, obj.x, obj.y, TextureKeys.HeartFragment, { onCollect: (p) => this.onHeartCollected(p) }),
+          new Pickup(this, obj.x, obj.y, TextureKeys.HeartFragment, { onCollect: (p) => this.onHeartCollected(p, key) }),
         );
+      } else if (obj.type === 'marker') {
+        const lines = LORE[obj.loreId ?? ''] ?? ['...'];
+        this.interactables.push(
+          new Interactable(this, obj.x, obj.y, { texture: TextureKeys.Cairn, label: 'examine', lines }),
+        );
+      } else if (obj.type === 'trigger') {
+        if (obj.group && !worldState.hasFlag(`encounter_${obj.group}_cleared`)) {
+          this.triggers.push({ x: obj.x, y: obj.y, group: obj.group });
+        }
+      } else if (obj.type === 'spawn') {
+        if (obj.group && obj.enemyId && !worldState.hasFlag(`encounter_${obj.group}_cleared`)) {
+          const list = this.encounterSpawns.get(obj.group) ?? [];
+          list.push(obj);
+          this.encounterSpawns.set(obj.group, list);
+        }
+      } else if (obj.type === 'ward') {
+        if (obj.group && !worldState.hasFlag(`encounter_${obj.group}_cleared`)) {
+          const ward = new Destructible(this, obj.x, obj.y, { group: obj.group });
+          ward.setTint(0x9a6cd0); // a sickly violet so it reads as "magic — can't just cut it"
+          this.wards.push(ward);
+        }
       } else if (obj.type === 'blade') {
         if (woken || worldState.hasFlag('has_blade')) continue;
         const glow = this.makePickupGlint(obj.x, obj.y, [180, 210, 255]); // cool steel glint
@@ -252,6 +290,7 @@ export class WorldScene extends Phaser.Scene {
     this.player = new Player(this, spawn.x, spawn.y);
     this.physics.add.collider(this.player, map.layer);
     this.physics.add.collider(this.player, this.vines);
+    this.physics.add.collider(this.player, this.wards);
     this.physics.add.collider(this.player, this.fog);
     this.physics.add.collider(this.player, this.bossDoors);
     this.physics.add.collider(this.enemies, map.layer);
@@ -408,6 +447,7 @@ export class WorldScene extends Phaser.Scene {
 
     this.collectNearbyPickups();
     this.maybeShowContextHints();
+    this.checkTriggers();
     if (this.checkAreaTransition()) return;
 
     const target = this.nearestActionable();
@@ -485,6 +525,72 @@ export class WorldScene extends Phaser.Scene {
     if (idx >= 0) this.enemies.splice(idx, 1);
     worldState.addCounter('enemies_killed');
     this.addCoin(2); // a bounded coin faucet (DESIGN.md §19)
+  }
+
+  // --- Scripted encounters ------------------------------------------------
+
+  /** Spring an ambush the moment the player steps onto a trigger zone. */
+  private checkTriggers(): void {
+    if (this.triggers.length === 0) return;
+    const px = this.player.x;
+    const py = this.player.y;
+    for (const t of this.triggers) {
+      if (!this.startedEncounters.has(t.group) && Phaser.Math.Distance.Between(px, py, t.x, t.y) <= 20 * RS) {
+        this.startEncounter(t.group);
+      }
+    }
+  }
+
+  /** Raise an encounter's deferred spawns and start tracking them. */
+  private startEncounter(group: string): void {
+    if (this.startedEncounters.has(group)) return;
+    this.startedEncounters.add(group);
+    const spawns = this.encounterSpawns.get(group) ?? [];
+    let count = 0;
+    for (const s of spawns) {
+      const def = ENEMIES[s.enemyId ?? ''];
+      if (!def) continue;
+      const enemy = new EnemyBase(this, s.x, s.y, def, {
+        onDeath: (e) => {
+          this.onEnemyDeath(e);
+          this.onEncounterEnemyDown(group);
+        },
+        onPlayerHit: this.hurtPlayerFrom,
+      });
+      enemy.setScale(enemy.scale * 0.2); // a quick "burst from the thorns" pop-in
+      this.tweens.add({ targets: enemy, scale: enemy.scale, duration: 220, ease: 'Back.Out' });
+      this.enemies.push(enemy);
+      count++;
+    }
+    if (count === 0) {
+      // Nothing to fight (shouldn't happen) — just release the reward.
+      this.clearEncounter(group);
+      return;
+    }
+    this.encounterRemaining.set(group, count);
+    this.cameras.main.shake(180, 0.005);
+    this.showToast('The thicket springs to life!');
+  }
+
+  private onEncounterEnemyDown(group: string): void {
+    const left = (this.encounterRemaining.get(group) ?? 0) - 1;
+    this.encounterRemaining.set(group, left);
+    if (left <= 0) this.clearEncounter(group);
+  }
+
+  /** Encounter beaten: persist it, dissolve its ward(s), reveal the reward. */
+  private clearEncounter(group: string): void {
+    if (worldState.hasFlag(`encounter_${group}_cleared`)) return;
+    worldState.setFlag(`encounter_${group}_cleared`, true);
+    let dispelled = false;
+    for (const ward of this.wards) {
+      if (ward.active && ward.group === group) {
+        ward.hit(999); // force it open (wards aren't sword-cuttable, only the clear opens them)
+        dispelled = true;
+      }
+    }
+    audio.playSfx('chime');
+    this.showToast(dispelled ? 'The thorns wither — the way beyond opens.' : 'The den falls quiet.');
   }
 
   // --- Handbell -----------------------------------------------------------
@@ -1013,11 +1119,11 @@ export class WorldScene extends Phaser.Scene {
     HintSystem.tryShow(this, 'ring', 'F  -  ring the bell');
   }
 
-  private onHeartCollected(pickup: Pickup): void {
+  private onHeartCollected(pickup: Pickup, takenKey: string): void {
     const idx = this.pickups.indexOf(pickup);
     if (idx >= 0) this.pickups.splice(idx, 1);
     worldState.addCounter('heart_fragments');
-    worldState.setFlag('heart_fragment_taken', true); // don't respawn it on death/load
+    worldState.setFlag(takenKey, true); // this fragment won't respawn on death/load
     this.player.gainMaxHalfHearts(playerConfig.heartFragmentHalfHearts);
     audio.playSfx('heart');
     this.showToast('Heart container! Max health up.');

@@ -100,8 +100,53 @@ export const mushroomFolk: EnemyDef = {
   },
 };
 
+/**
+ * The barbhound: a lean thorn-beast that telegraphs a long wind-up then CHARGES
+ * in a straight line — teaches sidestepping/dodging a committed dash (§17). Fast
+ * but fragile, and it overshoots, opening a punish window.
+ */
+export const barbhound: EnemyDef = {
+  id: 'barbhound',
+  name: 'Barbhound',
+  texture: TextureKeys.Barbhound,
+  hp: 3,
+  speed: 60 * RENDER_SCALE,
+  contactDamage: 0, // only the telegraphed charge hurts (fair, dodgeable)
+  vision: 120 * RENDER_SCALE,
+  aggroRange: 110 * RENDER_SCALE,
+  leashRange: 200 * RENDER_SCALE,
+  stunnable: true,
+  attack: {
+    type: 'charge',
+    windupMs: 480,
+    activeMs: 260,
+    recoverMs: 520,
+    damage: 2,
+    range: 120 * RENDER_SCALE, // commits the charge from well out
+  },
+};
+
+/**
+ * The gloommoth: a small, fast, erratic flutterer that harries on contact — no
+ * telegraph, low HP, dangerous in numbers. Used for swarms/ambushes (§17).
+ */
+export const gloommoth: EnemyDef = {
+  id: 'gloommoth',
+  name: 'Gloommoth',
+  texture: TextureKeys.Gloommoth,
+  hp: 1,
+  speed: 70 * RENDER_SCALE,
+  contactDamage: 1,
+  vision: 130 * RENDER_SCALE,
+  aggroRange: 120 * RENDER_SCALE,
+  leashRange: 260 * RENDER_SCALE,
+  stunnable: true,
+};
+
 export const ENEMIES: Record<string, EnemyDef> = {
   thorn_sprite: thornSprite,
   brambleback: brambleback,
   mushroom_folk: mushroomFolk,
+  barbhound: barbhound,
+  gloommoth: gloommoth,
 };

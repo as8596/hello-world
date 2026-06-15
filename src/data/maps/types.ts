@@ -29,6 +29,10 @@ export type ObjectType =
   | 'maple'
   | 'blade'
   | 'handbell'
+  | 'marker' // an examinable point-of-interest (a cairn with lore)
+  | 'trigger' // an invisible zone that starts a scripted encounter on entry
+  | 'spawn' // a deferred enemy spawn point, raised by its encounter (not at build)
+  | 'ward' // a magical barrier that only dispels when its encounter is cleared
   | 'exit' // an edge zone that transitions to another area
   | 'entry'; // a named spawn point the player arrives at from another area
 
@@ -38,6 +42,8 @@ export interface ObjectSpec {
   group?: string;
   /** For enemies: which EnemyDef id to spawn. */
   enemyId?: string;
+  /** For 'marker': the lore entry (data/dialogue/lore.ts) to show on examine. */
+  loreId?: string;
   /** For 'exit': the area id to travel to and the entry id to arrive at there. */
   toArea?: string;
   toEntry?: string;
