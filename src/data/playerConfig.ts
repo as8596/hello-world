@@ -104,10 +104,11 @@ export const playerConfig: PlayerConfig = {
   runPixelsPerFrame: 40,
   // A short body near the feet reads better for top-down overlap than the full sprite.
   body: { width: 8 * RENDER_SCALE, height: 7 * RENDER_SCALE, offsetX: 4 * RENDER_SCALE, offsetY: 8 * RENDER_SCALE },
-  // Native 128px art (character centered, feet ~90% down the frame); the foot
-  // box is in those native pixels (the sprite renders 1:1, no scaling).
+  // Native 128px art; the character's feet sit ~74% down the frame (measured),
+  // so the origin + foot box anchor there — otherwise the body lands in the empty
+  // padding below the feet and the player sinks ~half a tile into walls.
   sprite: {
-    originY: 0.9,
+    originY: 0.74,
     bodyWidth: 34,
     bodyHeight: 18,
   },
