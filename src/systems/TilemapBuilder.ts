@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { Tile, type MapObjectInstance, type TileMapDef } from '../data/maps/types';
-import { EDGE_DIRS, FLOWER_TILE_INDEX, GRASS_VARIANT_INDICES, TextureKeys } from './TextureFactory';
+import { EDGE_DIRS, FLOWER_TILE_INDICES, GRASS_VARIANT_INDICES, TextureKeys } from './TextureFactory';
 
 /** Narrow walkable runs this wide or less become the dirt trail. */
 const MAX_TRAIL_WIDTH = 2;
@@ -10,7 +10,7 @@ const OVERHEAD_DEPTH = 12;
 /** Depth of the dithered edge decals — above the ground, below everything else. */
 const DECAL_DEPTH = 1;
 
-const GRASS_TILES = new Set<number>([...GRASS_VARIANT_INDICES, FLOWER_TILE_INDEX]);
+const GRASS_TILES = new Set<number>([...GRASS_VARIANT_INDICES, ...FLOWER_TILE_INDICES]);
 const isGrass = (t: number): boolean => GRASS_TILES.has(t);
 
 /** N/S/E/W offsets matching EDGE_DIRS, for neighbour lookups. */
@@ -46,10 +46,10 @@ function placeEdgeDecals(scene: Phaser.Scene, data: number[][], tileSize: number
   }
 }
 
-/** Pick a grass tile variant (rarely a flower) for organic-looking ground. */
+/** Pick a grass tile variant (rarely a random flower) for organic ground. */
 function pickGrass(): number {
   const r = Math.random();
-  if (r < 0.02) return FLOWER_TILE_INDEX; // sparse flowers
+  if (r < 0.03) return FLOWER_TILE_INDICES[Math.floor(Math.random() * FLOWER_TILE_INDICES.length)]; // sparse, varied
   if (r < 0.38) return GRASS_VARIANT_INDICES[1];
   return GRASS_VARIANT_INDICES[0];
 }
@@ -157,7 +157,7 @@ export function buildTilemap(scene: Phaser.Scene, def: TileMapDef): BuiltMap {
   if (!layer) throw new Error('Failed to create tilemap layer');
 
   // Randomly mirror ~half the grass/flower tiles for extra organic variation.
-  const flippable = new Set<number>([...GRASS_VARIANT_INDICES, FLOWER_TILE_INDEX]);
+  const flippable = new Set<number>([...GRASS_VARIANT_INDICES, ...FLOWER_TILE_INDICES]);
   layer.forEachTile((tile) => {
     if (flippable.has(tile.index) && Math.random() < 0.5) tile.flipX = true;
   });

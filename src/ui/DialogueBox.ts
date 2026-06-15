@@ -1,15 +1,17 @@
 import Phaser from 'phaser';
-import { RENDER_SCALE as RS } from '../data/render';
+import { CAMERA_ZOOM, RENDER_SCALE as RS } from '../data/render';
 import { addPixelText, PIXEL_FONT_KEY } from '../systems/PixelFont';
 
 /**
  * DialogueBox — the bottom dialogue panel (DESIGN.md §16). A dumb renderer
  * driven by DialogueRunner: typewriter body text, an advance indicator, and a
- * selectable choice list. Camera-fixed, pixel-font, built from primitives.
+ * selectable choice list. Built from primitives in a container that counter-
+ * scales the world camera's zoom, so it renders at native size + screen-fixed
+ * (the world is zoomed; UI shouldn't be).
  */
 export class DialogueBox {
   private readonly scene: Phaser.Scene;
-  private readonly bg: Phaser.GameObjects.Rectangle;
+  private readonly root: Phaser.GameObjects.Container;
   private readonly body: Phaser.GameObjects.BitmapText;
   private readonly indicator: Phaser.GameObjects.BitmapText;
   private choiceTexts: Phaser.GameObjects.BitmapText[] = [];
@@ -33,28 +35,32 @@ export class DialogueBox {
     const panelW = w - margin * 2;
     const panelY = h - panelH - 6 * RS;
 
-    this.bg = scene.add
-      .rectangle(margin, panelY, panelW, panelH, 0x10101a, 0.92)
-      .setOrigin(0, 0)
-      .setStrokeStyle(1 * RS, 0x6fb3ff, 0.8)
+    // The world camera zooms about its centre; place a scroll-fixed container at
+    // the inverse-transformed panel anchor and scale it 1/zoom so its children
+    // (in local, native coords) land screen-fixed at native size.
+    const Z = CAMERA_ZOOM;
+    const cx = w / 2;
+    const cy = h / 2;
+    this.root = scene.add
+      .container(cx + (margin - cx) / Z, cy + (panelY - cy) / Z)
       .setScrollFactor(0)
+      .setScale(1 / Z)
       .setDepth(2000)
       .setVisible(false);
 
-    this.body = addPixelText(scene, margin + 6 * RS, panelY + 6 * RS, '', { color: 0xe8e6d8, maxWidth: panelW - 16 * RS })
-      .setScrollFactor(0)
-      .setDepth(2001)
-      .setVisible(false);
-
+    const bg = scene.add
+      .rectangle(0, 0, panelW, panelH, 0x10101a, 0.92)
+      .setOrigin(0, 0)
+      .setStrokeStyle(1 * RS, 0x6fb3ff, 0.8);
+    this.body = addPixelText(scene, 6 * RS, 6 * RS, '', { color: 0xe8e6d8, maxWidth: panelW - 16 * RS });
     this.indicator = scene.add
-      .bitmapText(margin + panelW - 12 * RS, panelY + panelH - 11 * RS, PIXEL_FONT_KEY, '>')
+      .bitmapText(panelW - 12 * RS, panelH - 11 * RS, PIXEL_FONT_KEY, '>')
       .setTint(0x6fb3ff)
-      .setScrollFactor(0)
-      .setDepth(2001)
       .setVisible(false);
+    this.root.add([bg, this.body, this.indicator]);
 
-    this.choiceX = margin + 8 * RS;
-    this.choiceStartY = panelY + 26 * RS;
+    this.choiceX = 8 * RS;
+    this.choiceStartY = 26 * RS;
   }
 
   get isOpen(): boolean {
@@ -67,8 +73,7 @@ export class DialogueBox {
 
   openBox(): void {
     this.open = true;
-    this.bg.setVisible(true);
-    this.body.setVisible(true);
+    this.root.setVisible(true);
   }
 
   close(): void {
@@ -76,8 +81,8 @@ export class DialogueBox {
     this.timer?.remove();
     this.clearChoices();
     this.indicator.setVisible(false);
-    this.body.setText('').setVisible(false);
-    this.bg.setVisible(false);
+    this.body.setText('');
+    this.root.setVisible(false);
   }
 
   /** Start the typewriter on a single body string. */
@@ -118,9 +123,8 @@ export class DialogueBox {
     labels.forEach((label, i) => {
       const bt = addPixelText(this.scene, this.choiceX, this.choiceStartY + i * 8 * RS, `${i === selected ? '> ' : '  '}${label}`, {
         color: i === selected ? 0xffe066 : 0x9a9a8a,
-      })
-        .setScrollFactor(0)
-        .setDepth(2001);
+      });
+      this.root.add(bt);
       this.choiceTexts.push(bt);
     });
   }

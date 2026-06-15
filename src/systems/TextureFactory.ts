@@ -679,8 +679,11 @@ function generateObjects(scene: Phaser.Scene): void {
  */
 export const GRASS_VARIANT_INDICES = [0, 5, 6];
 export const FLOWER_TILE_INDEX = 7;
+/** Flower-tile slots: white daisies (7) + red/yellow, blue, purple from the
+ *  terrain sheet's flower row — scattered for variety. */
+export const FLOWER_TILE_INDICES = [7, 11, 12, 13];
 export const COBBLE_TILE_INDEX = 8;
-const TILESET_COUNT = 11;
+const TILESET_COUNT = 14;
 
 function generateTileset(scene: Phaser.Scene): void {
   if (scene.textures.exists(TextureKeys.Tiles)) return;
@@ -699,6 +702,10 @@ function generateTileset(scene: Phaser.Scene): void {
   drawCobble(ctx, 8 * TILE);
   drawPlank(ctx, 9 * TILE);
   drawTimber(ctx, 10 * TILE);
+  // Extra flower variants (placeholders until the terrain sheet is composited in).
+  drawFlowers(ctx, 11 * TILE);
+  drawFlowers(ctx, 12 * TILE);
+  drawFlowers(ctx, 13 * TILE);
 
   tex.refresh();
 }
@@ -730,7 +737,10 @@ export function applyTerrainTileset(scene: Phaser.Scene, terrainKey: string): bo
   blit(1, 2, 0); // sand           -> Path
   blit(GRASS_VARIANT_INDICES[1], 0, 1); // grass variant (slot 5)
   blit(GRASS_VARIANT_INDICES[2], 0, 0); // plain grass   (slot 6 — the striped tile is dropped)
-  blit(FLOWER_TILE_INDEX, 1, 2); //       grass + flowers (slot 7)
+  blit(FLOWER_TILE_INDEX, 1, 2); //       white daisies (slot 7)
+  blit(11, 1, 0); //                       red + yellow flowers (slot 11)
+  blit(12, 1, 1); //                       blue flowers         (slot 12)
+  blit(13, 1, 3); //                       purple lavender      (slot 13)
   ctx.restore();
   tex.refresh();
   return true;
