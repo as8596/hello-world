@@ -29,6 +29,7 @@ export type ObjectType =
   | 'maple'
   | 'blade'
   | 'handbell'
+  | 'tree' // a standalone canopy tree: blocks at the trunk, occludes overhead
   | 'marker' // an examinable point-of-interest (a cairn with lore)
   | 'trigger' // an invisible zone that starts a scripted encounter on entry
   | 'spawn' // a deferred enemy spawn point, raised by its encounter (not at build)

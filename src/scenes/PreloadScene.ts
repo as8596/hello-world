@@ -44,6 +44,10 @@ export class PreloadScene extends Phaser.Scene {
     // tiles once loaded (tree-walls + vines stay procedural).
     this.load.image('terrain', 'assets/tilesets/terrain.png');
 
+    // A standalone tree world-object, placed via 'tree' map objects (optional —
+    // a missing file just means those objects render nothing).
+    this.load.image('tree', 'assets/tree.png');
+
     // Optional real item art (blade + handbell pickups); falls back to the
     // procedural placeholder if missing.
     this.load.image('item-blade', 'assets/sprites/items/blade.png');

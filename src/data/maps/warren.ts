@@ -26,6 +26,7 @@ export const warrenMap: TileMapDef = {
     B: { type: 'spawn', enemyId: 'barbhound', group: 'warren' },
     W: { type: 'ward', group: 'warren' },
     h: { type: 'heart' },
+    T: { type: 'tree' },
     b: { type: 'marker', loreId: 'warren_bones' },
     k: { type: 'marker', loreId: 'warren_cache' },
     X: { type: 'exit', toArea: 'trail', toEntry: 'from_warren' },
@@ -39,7 +40,7 @@ export const warrenMap: TileMapDef = {
     '##....######....##........##', // 1  thorn masses; chamber roof (right)
     '##.b............##......k.##', // 2  bones (lore) / cache (lore, sealed)
     '##....##........##...h....##', // 3  heart (sealed in the cache)
-    '##..............##........##', // 4
+    '##.....T........##........##', // 4  a tree in the west burrow
     '##......####....##........##', // 5
     '##..............#####WW#####', // 6  ward seals the cache mouth
     'A...............##........##', // 7  entry from the trail (west)

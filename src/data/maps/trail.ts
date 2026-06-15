@@ -26,6 +26,7 @@ export const trailMap: TileMapDef = {
     S: { type: 'enemy', enemyId: 'thorn_sprite' },
     b: { type: 'enemy', enemyId: 'brambleback' },
     m: { type: 'enemy', enemyId: 'mushroom_folk' },
+    T: { type: 'tree' },
     n: { type: 'exit', toArea: 'belltower', toEntry: 'from_trail' },
     s: { type: 'exit', toArea: 'village', toEntry: 'from_trail' },
     e: { type: 'exit', toArea: 'warren', toEntry: 'from_trail' },
@@ -41,7 +42,7 @@ export const trailMap: TileMapDef = {
     '##........................##', // 1
     '##..........4.............##', // 2  arrive here coming back from the belltower
     '##..wwww........b.........##', // 3  pond + brambleback (ring-to-stun)
-    '##..wwww..................##', // 4
+    '##..wwww........T.........##', // 4  a tree by the pond
     '##..wwww..................##', // 5
     '##.........S...............e', // 6  a lone sprite (east opening -> warren)
     '##......................6..e', // 7  arrive from the warren; the doorway
@@ -49,7 +50,7 @@ export const trailMap: TileMapDef = {
     '##..fhf...................##', // 9  ...heart fragment inside
     '##..fff...................##', // 10
     '##...............m........##', // 11 mushroom-folk (dodge timing)
-    '##........................##', // 12
+    '##.................T......##', // 12 a tree off the south lane
     '##..........5.............##', // 13 arrive here coming from the village
     '##.......@................##', // 14 (fresh-start fallback spawn)
     '############ss##############', // 15 south opening -> village

@@ -21,6 +21,7 @@ import { FogPatch } from '../entities/FogPatch';
 import { Interactable } from '../entities/Interactable';
 import { Pickup } from '../entities/Pickup';
 import { Player } from '../entities/Player';
+import { Tree } from '../entities/Tree';
 import { HintSystem } from '../systems/HintSystem';
 import { addPixelText } from '../systems/PixelFont';
 import { TextureKeys } from '../systems/TextureFactory';
@@ -62,6 +63,8 @@ export class WorldScene extends Phaser.Scene {
   private navDownKeys: Phaser.Input.Keyboard.Key[] = [];
   private vines: Destructible[] = [];
   private wards: Destructible[] = [];
+  private trees: Tree[] = [];
+  private treeTrunks: Phaser.GameObjects.Rectangle[] = [];
   private fog: FogPatch[] = [];
   private interactables: Interactable[] = [];
   // Scripted encounters: a trigger zone raises its deferred spawns; clearing the
@@ -113,6 +116,8 @@ export class WorldScene extends Phaser.Scene {
     this.vines = [];
     this.fog = [];
     this.wards = [];
+    this.trees = [];
+    this.treeTrunks = [];
     this.triggers = [];
     this.encounterSpawns.clear();
     this.startedEncounters.clear();
@@ -222,6 +227,12 @@ export class WorldScene extends Phaser.Scene {
           ward.setTint(0x9a6cd0); // a sickly violet so it reads as "magic — can't just cut it"
           this.wards.push(ward);
         }
+      } else if (obj.type === 'tree') {
+        this.trees.push(new Tree(this, obj.x, obj.y));
+        // A small invisible static trunk so the player rounds the base.
+        const trunk = this.add.rectangle(obj.x, obj.y - 2 * RS, 6 * RS, 3 * RS).setVisible(false);
+        this.physics.add.existing(trunk, true);
+        this.treeTrunks.push(trunk);
       } else if (obj.type === 'blade') {
         if (woken || worldState.hasFlag('has_blade')) continue;
         const glow = this.makePickupGlint(obj.x, obj.y, [180, 210, 255]); // cool steel glint
@@ -291,6 +302,7 @@ export class WorldScene extends Phaser.Scene {
     this.physics.add.collider(this.player, map.layer);
     this.physics.add.collider(this.player, this.vines);
     this.physics.add.collider(this.player, this.wards);
+    this.physics.add.collider(this.player, this.treeTrunks);
     this.physics.add.collider(this.player, this.fog);
     this.physics.add.collider(this.player, this.bossDoors);
     this.physics.add.collider(this.enemies, map.layer);
@@ -448,6 +460,7 @@ export class WorldScene extends Phaser.Scene {
     this.collectNearbyPickups();
     this.maybeShowContextHints();
     this.checkTriggers();
+    for (const tree of this.trees) tree.syncDepth(this.player.y);
     if (this.checkAreaTransition()) return;
 
     const target = this.nearestActionable();

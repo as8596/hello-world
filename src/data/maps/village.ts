@@ -25,6 +25,7 @@ export const villageMap: TileMapDef = {
     M: { type: 'maple' },
     N: { type: 'villager' },
     S: { type: 'enemy', enemyId: 'thorn_sprite' },
+    T: { type: 'tree' },
     n: { type: 'exit', toArea: 'trail', toEntry: 'from_village' },
     s: { type: 'exit', toArea: 'hollow', toEntry: 'from_village' },
     g: { type: 'exit', toArea: 'glade', toEntry: 'from_village' },
@@ -42,14 +43,14 @@ export const villageMap: TileMapDef = {
     '##..........2.............##', // 3  arrive here coming back from the trail
     '##........................##', // 4
     '##....N..........N........##', // 5  sleepers
-    '##........................##', // 6
+    '##.................T......##', // 6  a shade tree
     'g....H..........M.........##', // 7  hearth + Maple (west opening -> glade)
     'g.........................##', // 8  ...the glade doorway
     '##4.N..........S..........##', // 9  arrive from the glade; sleeper + a sprite
     '##........................##', // 10
     '##........................##', // 11
     '##..........3.............##', // 12 arrive here coming from the Hollow
-    '##........................##', // 13
+    '##.........T..............##', // 13 a shade tree
     '##.......@................##', // 14 (fresh-start fallback spawn)
     '############ss##############', // 15 south opening -> hollow
   ],
