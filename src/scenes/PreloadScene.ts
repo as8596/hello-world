@@ -40,6 +40,11 @@ export class PreloadScene extends Phaser.Scene {
       this.load.image(`thorn-${dir}`, `assets/sprites/thorn-sprite/rotations/${dir}.png`);
     }
 
+    // Optional Maple 8-direction art — used for the shopkeeper once she wakes.
+    for (const dir of SPRITE_DIRS) {
+      this.load.image(`maple-${dir}`, `assets/sprites/maple/rotations/${dir}.png`);
+    }
+
     // Optional real terrain tileset — composited over the walkable placeholder
     // tiles once loaded (tree-walls + vines stay procedural).
     this.load.image('terrain', 'assets/tilesets/terrain.png');

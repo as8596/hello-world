@@ -1,0 +1,36 @@
+{
+  "group_id": null,
+  "states": [
+    {
+      "character": {
+        "id": "6c67ed6a-e405-4307-ad06-29a81c2eb369",
+        "name": "A sturdy, kindly woman in",
+        "prompt": "A sturdy, kindly woman in her fifties with a practical build and a quietly weary warmth \u2014 someone who just woke from a very long sleep and is facing forward anyway. Greying chestnut hair pinned up loosely with a few escaping strands. She wears the simple, lived-in clothes of a country general-store keeper: homespun linen blouse with rolled sleeves, a well-worn canvas apron with deep pockets, a long woolen skirt, and sturdy boots. Small homey details read even at low resolution \u2014 a thistle in her apron pocket, a brass ring of shop keys at her belt. Approachable, grounded, motherly but not soft, with a gentle expression suggested in just a few pixels. Limited, harmonious palette of warm earth tones \u2014 oatmeal, chestnut-brown, dusty sage, with a small pop of thistle dusty-rose. Soft warm sunlit shading with chunky deliberate pixel clusters, bold readable silhouette, crisp clean pixel edges, hand-placed pixel detail, classic 16-bit cozy RPG style.",
+        "size": {
+          "width": 124,
+          "height": 124
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "high top-down",
+        "created_at": "2026-06-15T02:57:55.398994+00:00"
+      },
+      "folder": "A_sturdy_kindly_woman_in",
+      "frames": {
+        "rotations": {
+          "south": "A_sturdy_kindly_woman_in/rotations/south.png",
+          "south-east": "A_sturdy_kindly_woman_in/rotations/south-east.png",
+          "east": "A_sturdy_kindly_woman_in/rotations/east.png",
+          "north-east": "A_sturdy_kindly_woman_in/rotations/north-east.png",
+          "north": "A_sturdy_kindly_woman_in/rotations/north.png",
+          "north-west": "A_sturdy_kindly_woman_in/rotations/north-west.png",
+          "west": "A_sturdy_kindly_woman_in/rotations/west.png",
+          "south-west": "A_sturdy_kindly_woman_in/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.0",
+  "export_date": "2026-06-15T03:03:23.446101"
+}

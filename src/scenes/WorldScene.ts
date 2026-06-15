@@ -289,8 +289,15 @@ export class WorldScene extends Phaser.Scene {
       } else if (obj.type === 'boss') {
         this.bossSpawn = { x: obj.x, y: obj.y }; // spawned when the door opens
       } else if (obj.type === 'maple') {
-        // Maple keeps the shop apron (variant 1); wakes + ambles with the peal.
-        const maple = new Villager(this, obj.x, obj.y, { npcId: 'maple', label: 'talk', awakeTexture: villagerAwakeKey(1) });
+        // Maple wakes into her real 8-direction model and ambles the square.
+        const maple = new Villager(this, obj.x, obj.y, {
+          npcId: 'maple',
+          label: 'talk',
+          awakeTexture: villagerAwakeKey(1),
+          dirPrefix: 'maple',
+          dirScale: 1,
+          dirOriginY: 0.74,
+        });
         this.interactables.push(maple);
         this.villagers.push(maple);
       } else if (obj.type === 'npc') {
