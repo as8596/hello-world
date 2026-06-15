@@ -74,8 +74,12 @@ function placeEdgeDecals(scene: Phaser.Scene, data: number[][], tileSize: number
         const [dx, dy] = EDGE_OFFSETS[dir];
         const n = at(x + dx, y + dy);
         if (n === undefined) continue;
-        // Soft shadow where this walkable tile meets a tree.
-        if (n === Tile.Wall) scene.add.image(cx, cy, `shadow-edge-${dir}`).setDepth(DECAL_DEPTH);
+        // Bush border meeting grass: a soft shadow + the bushes dithered onto the
+        // grass, so the impassable foliage edge feathers in instead of a hard line.
+        if (n === Tile.Wall) {
+          scene.add.image(cx, cy, `shadow-edge-${dir}`).setDepth(DECAL_DEPTH);
+          if (scene.textures.exists(`bushedge-${dir}`)) scene.add.image(cx, cy, `bushedge-${dir}`).setDepth(DECAL_DEPTH);
+        }
         // Grass fringe bleeding onto sand/water/stone from a grass neighbour.
         else if (receivesGrass && isGrass(n)) scene.add.image(cx, cy, `grass-edge-${dir}`).setDepth(DECAL_DEPTH);
         // Grass-to-grass: the variant grass feathers onto plain grass it borders.
@@ -459,6 +463,26 @@ export function buildTilemap(scene: Phaser.Scene, def: TileMapDef, seed = 'brack
     }
     overhead.setDepth(OVERHEAD_DEPTH);
   }
+
+  // Give each bush-border (wall) tile a deterministic random flip so the repeated
+  // tile doesn't read as a grid — applied identically to both layers.
+  const wallFlip = new Map<number, [boolean, boolean]>();
+  for (let y = 0; y < data.length; y++) {
+    for (let x = 0; x < data[y].length; x++) {
+      if (data[y][x] === Tile.Wall) wallFlip.set(y * width + x, [rnd() < 0.5, rnd() < 0.5]);
+    }
+  }
+  const applyWallFlip = (lyr: Phaser.Tilemaps.TilemapLayer | null): void => {
+    lyr?.forEachTile((tile) => {
+      const f = wallFlip.get(tile.y * width + tile.x);
+      if (f) {
+        tile.flipX = f[0];
+        tile.flipY = f[1];
+      }
+    });
+  };
+  applyWallFlip(layer);
+  applyWallFlip(overhead);
 
   placeEdgeDecals(scene, data, tileSize);
 

@@ -4,7 +4,7 @@ import { RENDER_SCALE as RS } from '../data/render';
 import { SPRITE_DIRS } from '../data/spriteDirections';
 import { PLAYER_SPRITE_DIRS } from '../entities/Player';
 import { addPixelText, createPixelFont, loadGameFont } from '../systems/PixelFont';
-import { applyStoneTileset, applyTerrainTileset, generateEdgeDecals, generatePlaceholderTextures } from '../systems/TextureFactory';
+import { applyBorderTileset, applyStoneTileset, applyTerrainTileset, generateEdgeDecals, generatePlaceholderTextures } from '../systems/TextureFactory';
 import { SceneKeys } from './SceneKeys';
 
 /**
@@ -59,6 +59,9 @@ export class PreloadScene extends Phaser.Scene {
 
     // Optional real cobblestone sheet — composited into the cobble tile slots.
     this.load.image('stone', 'assets/tilesets/stone.png');
+
+    // Forest-bush border sheet (4×4, 64px) — replaces the placeholder tree-walls.
+    this.load.image('forest-border', 'assets/tilesets/forest-border.png');
 
     // A standalone tree world-object, placed via 'tree' map objects (optional —
     // a missing file just means those objects render nothing).
@@ -177,6 +180,7 @@ export class PreloadScene extends Phaser.Scene {
     // tileset, then bake the dithered edge decals from the (now real) grass.
     applyTerrainTileset(this, 'terrain');
     applyStoneTileset(this, 'stone');
+    applyBorderTileset(this, 'forest-border'); // bush border before the bush-edge decals bake
     generateEdgeDecals(this);
     // Register the looping fire animation (global) if its sheet loaded.
     if (this.textures.exists('fire') && !this.anims.exists('fire')) {
