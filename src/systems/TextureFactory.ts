@@ -41,6 +41,17 @@ export const TextureKeys = {
   ItemDraught: 'item-draught',
   ItemCharm: 'item-charm',
   ItemUnknown: 'item-unknown',
+  // Interior furniture (procedural placeholders; real art can replace by key).
+  PropWindow: 'prop-window',
+  PropGlass: 'prop-glass',
+  PropCounter: 'prop-counter',
+  PropBed: 'prop-bed',
+  PropTable: 'prop-table',
+  PropRug: 'prop-rug',
+  PropShelf: 'prop-shelf',
+  PropBarrel: 'prop-barrel',
+  PropCrate: 'prop-crate',
+  PropHatch: 'prop-hatch',
 } as const;
 
 const FRAME = 16; // player placeholder frame size, design px
@@ -91,6 +102,7 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   generateSignpost(scene);
   generateHouses(scene);
   generateShopItems(scene);
+  generateInteriorProps(scene);
 }
 
 /** An item's icon texture if it has loaded, else the generic parcel placeholder. */
@@ -152,6 +164,105 @@ function generateShopItems(scene: Phaser.Scene): void {
       tex.refresh();
     }
   }
+}
+
+/**
+ * Procedural interior furniture (placeholders, keyed so real art can replace
+ * each later). Simple, readable pieces for the house/tavern/shop templates.
+ */
+function generateInteriorProps(scene: Phaser.Scene): void {
+  const mk = (key: string, w: number, h: number, draw: (R: (x: number, y: number, w: number, h: number, c: string) => void) => void): void => {
+    if (scene.textures.exists(key)) return;
+    const m = makeTexture(scene, key, w, h);
+    if (!m) return;
+    draw((x, y, w2, h2, c) => rect(m.ctx, 0, x, y, w2, h2, c));
+    m.tex.refresh();
+  };
+
+  mk(TextureKeys.PropWindow, 16, 16, (R) => {
+    R(2, 1, 12, 13, '#6b4a2a'); // frame
+    R(3, 2, 10, 11, '#bfe3f0'); // glass
+    R(3, 2, 10, 5, '#a9d6e8'); // upper-pane shade
+    R(7, 2, 2, 11, '#6b4a2a'); // vertical mullion
+    R(3, 7, 10, 1, '#6b4a2a'); // horizontal mullion
+    R(2, 14, 12, 1, '#4a3320'); // sill
+  });
+  mk(TextureKeys.PropGlass, 16, 16, (R) => {
+    R(2, 1, 12, 14, '#5a4326'); // frame
+    R(3, 2, 5, 6, '#d2654b'); // red
+    R(8, 2, 5, 6, '#4f8fd0'); // blue
+    R(3, 8, 5, 5, '#e0b84a'); // amber
+    R(8, 8, 5, 5, '#5aa05a'); // green
+    R(7, 2, 2, 11, '#3a2a18');
+    R(3, 7, 10, 1, '#3a2a18');
+  });
+  mk(TextureKeys.PropCounter, 16, 16, (R) => {
+    R(0, 3, 16, 4, '#a9803f'); // top surface
+    R(0, 3, 16, 1, '#caa15f'); // highlight
+    R(0, 7, 16, 9, '#6e4a28'); // front
+    R(0, 11, 16, 1, '#5a3c20'); // panel line
+  });
+  mk(TextureKeys.PropBed, 16, 32, (R) => {
+    R(1, 1, 14, 30, '#6e4a28'); // frame
+    R(2, 2, 12, 9, '#e8e6d8'); // pillow area
+    R(3, 3, 10, 6, '#ffffff'); // pillow
+    R(2, 11, 12, 19, '#b0463f'); // blanket
+    R(2, 11, 12, 2, '#cf5a4f'); // blanket fold
+    R(2, 24, 12, 1, '#8f3530'); // fold line
+  });
+  mk(TextureKeys.PropTable, 16, 16, (R) => {
+    R(3, 3, 10, 10, '#7a5230'); // top
+    R(4, 2, 8, 1, '#7a5230');
+    R(2, 4, 1, 8, '#7a5230');
+    R(13, 4, 1, 8, '#7a5230');
+    R(4, 13, 8, 1, '#7a5230');
+    R(4, 4, 8, 3, '#9a6a3e'); // highlight
+    R(5, 12, 2, 3, '#5a3c20'); // leg hints
+    R(9, 12, 2, 3, '#5a3c20');
+  });
+  mk(TextureKeys.PropRug, 16, 16, (R) => {
+    R(1, 2, 14, 12, '#7a3b46'); // body
+    R(1, 2, 14, 2, '#9a4f5c'); // borders
+    R(1, 12, 14, 2, '#9a4f5c');
+    R(6, 5, 4, 6, '#c98a5a'); // centre motif
+  });
+  mk(TextureKeys.PropShelf, 16, 16, (R) => {
+    R(1, 1, 14, 15, '#5a3c20'); // case
+    R(2, 2, 12, 6, '#3a2614'); // shelf voids
+    R(2, 9, 12, 6, '#3a2614');
+    const cols = ['#c4524a', '#4f8fd0', '#e0b84a', '#5aa05a', '#b06ad0'];
+    for (let i = 0; i < 5; i++) {
+      R(3 + i * 2, 2, 1, 6, cols[i]);
+      R(3 + i * 2, 9, 1, 6, cols[(i + 2) % 5]);
+    }
+  });
+  mk(TextureKeys.PropBarrel, 16, 16, (R) => {
+    R(3, 2, 10, 13, '#7a5230'); // body
+    R(3, 2, 10, 2, '#9a6a3e'); // top rim
+    R(2, 5, 12, 1, '#4a3320'); // hoops
+    R(2, 10, 12, 1, '#4a3320');
+    R(3, 2, 1, 13, '#5a3c20');
+    R(12, 2, 1, 13, '#5a3c20');
+  });
+  mk(TextureKeys.PropCrate, 16, 16, (R) => {
+    R(2, 2, 12, 12, '#9a6a3e'); // body
+    R(2, 2, 12, 1, '#b58a52'); // highlights
+    R(2, 2, 1, 12, '#b58a52');
+    R(2, 13, 12, 1, '#5a3c20');
+    R(13, 2, 1, 12, '#5a3c20');
+    for (let i = 0; i < 10; i++) {
+      R(3 + i, 3 + i, 1, 1, '#6e4a28'); // X brace
+      R(12 - i, 3 + i, 1, 1, '#6e4a28');
+    }
+  });
+  mk(TextureKeys.PropHatch, 16, 16, (R) => {
+    R(1, 1, 14, 14, '#4a3320'); // recess
+    R(2, 2, 12, 12, '#6e4a28'); // wood door
+    R(2, 7, 12, 1, '#4a3320'); // planks
+    R(7, 2, 1, 12, '#4a3320');
+    R(11, 7, 3, 2, '#caa15f'); // metal ring
+    R(12, 8, 1, 1, '#3a2614');
+  });
 }
 
 const HOUSE_W = 44;

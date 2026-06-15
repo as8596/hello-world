@@ -36,6 +36,7 @@ export type ObjectType =
   | 'tree' // a standalone canopy tree: blocks at the trunk, occludes overhead
   | 'building' // a medieval house: blocks at its footprint, occludes overhead
   | 'bush' // a small foliage decoration (group = green/dead/thorny)
+  | 'prop' // interior furniture (group = bed/table/counter/window/...); see WorldScene PROPS
   | 'marker' // an examinable point-of-interest (a cairn with lore)
   | 'signpost' // read it for directions to neighbouring areas
   | 'trigger' // an invisible zone that starts a scripted encounter on entry

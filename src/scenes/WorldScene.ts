@@ -12,7 +12,7 @@ import { AREAS, type AreaId, isAreaId, START_AREA } from '../data/maps/areas';
 import type { MapObjectInstance } from '../data/maps/types';
 import { LEVEL_UP_MAX_HALF_HEARTS, xpToNext } from '../data/progression';
 import { playerConfig } from '../data/playerConfig';
-import { CAMERA_ZOOM, RENDER_SCALE as RS } from '../data/render';
+import { CAMERA_ZOOM, RENDER_SCALE as RS, TILE_SIZE } from '../data/render';
 import { Boss } from '../entities/Boss';
 import { BossDoor } from '../entities/BossDoor';
 import { Chime } from '../entities/Chime';
@@ -93,6 +93,26 @@ const POND_VARIANTS: { tex: string; wcx: number; wcy: number; ww: number; wh: nu
 ];
 /** The animated waterfall pond — placed at the glade's Mistmere. */
 const POND_WATERFALL = { tex: 'pond-waterfall', wcx: 62, wcy: 60 };
+
+/** Interior furniture (object `group`) → texture key. */
+const PROP_TEX: Record<string, string> = {
+  window: TextureKeys.PropWindow,
+  glass: TextureKeys.PropGlass,
+  counter: TextureKeys.PropCounter,
+  bed: TextureKeys.PropBed,
+  table: TextureKeys.PropTable,
+  rug: TextureKeys.PropRug,
+  shelf: TextureKeys.PropShelf,
+  barrel: TextureKeys.PropBarrel,
+  crate: TextureKeys.PropCrate,
+  hatch: TextureKeys.PropHatch,
+};
+/** Furniture you can't walk through (gets a footprint collider). */
+const PROP_SOLID = new Set(['counter', 'bed', 'table', 'shelf', 'barrel', 'crate']);
+/** Flat/wall décor drawn under entities (rugs on the floor, windows on the wall). */
+const PROP_FLAT = new Set(['rug', 'window', 'glass', 'hatch']);
+/** Wall décor lifted up onto the wall behind it (windows sit in the north wall). */
+const PROP_WALL = new Set(['window', 'glass']);
 
 /** Flat marker POI variant (object `group`) → small prop texture. */
 const MARKER_TEX: Record<string, string> = {
@@ -347,6 +367,8 @@ export class WorldScene extends Phaser.Scene {
         this.propColliders.push(foot);
       } else if (obj.type === 'bush') {
         this.spawnBush(obj.x, obj.y, obj.group ?? 'green'); // non-blocking decoration
+      } else if (obj.type === 'prop') {
+        this.spawnProp(obj.x, obj.y, obj.group ?? '');
       } else if (obj.type === 'blade') {
         if (woken || worldState.hasFlag('has_blade')) continue;
         const glow = this.makePickupGlint(obj.x, obj.y, [180, 210, 255]); // cool steel glint
@@ -415,11 +437,13 @@ export class WorldScene extends Phaser.Scene {
       } else if (obj.type === 'doorway') {
         // A door you press to enter an interior; its tile is also the return point.
         if (obj.entryId) this.entries.set(obj.entryId, { x: obj.x, y: obj.y });
+        // A cellar hatch shows its floor-door art (other doorways use the building).
+        if (obj.group === 'hatch') this.add.image(obj.x, obj.y, TextureKeys.PropHatch).setOrigin(0.5).setDepth(1);
         if (obj.toArea && isAreaId(obj.toArea) && obj.toEntry) {
           const toArea = obj.toArea;
           const toEntry = obj.toEntry;
           this.interactables.push(
-            new Interactable(this, obj.x, obj.y, { label: 'enter', onInteract: () => this.transitionTo(toArea, toEntry) }).setVisible(false),
+            new Interactable(this, obj.x, obj.y, { label: obj.group === 'hatch' ? 'descend' : 'enter', onInteract: () => this.transitionTo(toArea, toEntry) }).setVisible(false),
           );
         }
       } else if (obj.type === 'entry') {
@@ -472,7 +496,9 @@ export class WorldScene extends Phaser.Scene {
     // rooms: centre the camera so the room sits framed in black (Stardew style).
     const cam = this.cameras.main;
     cam.setZoom(CAMERA_ZOOM);
-    if (AREAS[this.areaId].interior) {
+    const fitsView = map.widthPx <= this.scale.width / CAMERA_ZOOM && map.heightPx <= this.scale.height / CAMERA_ZOOM;
+    if (AREAS[this.areaId].interior && fitsView) {
+      // A small room sits framed in black (Stardew style).
       cam.stopFollow();
       cam.centerOn(map.widthPx / 2, map.heightPx / 2);
     } else {
@@ -1405,6 +1431,35 @@ export class WorldScene extends Phaser.Scene {
     const y = p.cy - (v.wcy - 64);
     if (useFall) this.add.sprite(x, y, v.tex).play('pond-waterfall').setOrigin(0.5).setDepth(2);
     else this.add.image(x, y, v.tex).setOrigin(0.5).setDepth(2);
+  }
+
+  /** Place an interior furniture prop: flat décor sits under entities, solid
+   *  furniture depth-sorts and gets a footprint collider. */
+  private spawnProp(x: number, y: number, group: string): void {
+    const tex = PROP_TEX[group];
+    if (!tex) return;
+    if (PROP_FLAT.has(group)) {
+      // Windows lift up onto the north wall; rugs/hatches lie flat on the floor.
+      const wall = PROP_WALL.has(group);
+      this.add.image(x, wall ? y - TILE_SIZE * 0.5 : y, tex).setOrigin(0.5).setDepth(wall ? 7 : 1);
+    } else {
+      this.bushes.push(new Bush(this, x, y, tex)); // depth-sorted, fades when behind
+    }
+    if (PROP_SOLID.has(group)) {
+      // Footprint collider (tiles): [w, h, yOffset]; tall pieces sit a bit high.
+      const FOOT: Record<string, [number, number, number]> = {
+        bed: [0.8, 1.5, -0.35],
+        counter: [1.0, 0.7, -0.05],
+        shelf: [0.9, 0.7, -0.05],
+      };
+      const [fw, fh, fy] = FOOT[group] ?? [0.8, 0.8, 0];
+      const foot = this.add
+        .rectangle(x, y + fy * TILE_SIZE, fw * TILE_SIZE, fh * TILE_SIZE)
+        .setOrigin(0.5)
+        .setVisible(false);
+      this.physics.add.existing(foot, true);
+      this.propColliders.push(foot);
+    }
   }
 
   /** Create a bush; a berry bush also gets an E-interactable to harvest. */

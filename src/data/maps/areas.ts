@@ -1,7 +1,7 @@
 import { belltowerMap } from './belltower';
 import { gladeMap } from './glade';
 import { hollowMap } from './hollow';
-import { houseInterior } from './interiors';
+import { cellarInterior, houseInterior, shopInterior, tavernInterior } from './interiors';
 import { trailMap } from './trail';
 import type { TileMapDef } from './types';
 import { villageMap } from './village';
@@ -26,7 +26,8 @@ export type AreaId =
   | 'house1'
   | 'house2'
   | 'house3'
-  | 'house4';
+  | 'house4'
+  | 'tavern_cellar';
 
 export const AREAS: Record<AreaId, TileMapDef> = {
   hollow: hollowMap,
@@ -35,11 +36,13 @@ export const AREAS: Record<AreaId, TileMapDef> = {
   belltower: belltowerMap,
   glade: gladeMap,
   warren: warrenMap,
-  // House interiors (entered via village doorways); each leads back to its door.
+  // Building interiors (entered via village doorways); each leads back to its
+  // door. The two cottages are houses, the tavern + alchemist get their own.
   house1: houseInterior('house1_door'),
-  house2: houseInterior('house2_door'),
-  house3: houseInterior('house3_door'),
+  house2: tavernInterior('house2_door'),
+  house3: shopInterior('house3_door'),
   house4: houseInterior('house4_door'),
+  tavern_cellar: cellarInterior(),
 };
 
 /** Where a brand-new game begins. */
