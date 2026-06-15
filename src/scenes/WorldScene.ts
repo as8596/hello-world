@@ -70,6 +70,9 @@ const AREA_NAMES: Record<string, string> = {
   warren: 'the Bramble Warren',
 };
 
+/** Marker POI variant (object `group`) → prop texture. */
+const MARKER_TEX: Record<string, string> = { cairn: 'rock-cairn', shrine: 'rock-shrine', well: 'rock-well' };
+
 /** Bush variant (object `group`) → texture key. */
 const BUSH_TEX: Record<string, string> = {
   green: 'bush-green',
@@ -247,9 +250,8 @@ export class WorldScene extends Phaser.Scene {
         );
       } else if (obj.type === 'marker') {
         const lines = LORE[obj.loreId ?? ''] ?? ['...'];
-        this.interactables.push(
-          new Interactable(this, obj.x, obj.y, { texture: TextureKeys.Cairn, label: 'examine', lines }),
-        );
+        const tex = MARKER_TEX[obj.group ?? ''] ?? TextureKeys.Cairn;
+        this.interactables.push(new Interactable(this, obj.x, obj.y, { texture: tex, label: 'examine', lines }));
       } else if (obj.type === 'signpost') {
         this.interactables.push(
           new Interactable(this, obj.x, obj.y, { texture: TextureKeys.Signpost, label: 'read', onInteract: () => this.readSignpost() }),
@@ -373,8 +375,9 @@ export class WorldScene extends Phaser.Scene {
       }
     }
 
-    // Procedural bush clusters scattered over the grass (berry bushes harvestable).
+    // Procedural bush clusters + scattered rocks (set-dressing).
     for (const b of map.bushes) this.spawnBush(b.x, b.y, b.group);
+    for (const r of map.rocks) this.bushes.push(new Bush(this, r.x, r.y, r.texture));
 
     // A loaded woken valley shows its people already risen (and ambling).
     if (woken) for (const v of this.villagers) v.wake();

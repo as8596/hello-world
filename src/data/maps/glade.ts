@@ -21,8 +21,8 @@ export const gladeMap: TileMapDef = {
   },
   blocking: [Tile.Wall, Tile.Water],
   objects: {
-    c: { type: 'marker', loreId: 'glade_cairn' },
-    p: { type: 'marker', loreId: 'glade_spring' },
+    c: { type: 'marker', group: 'cairn', loreId: 'glade_cairn' },
+    p: { type: 'marker', group: 'shrine', loreId: 'glade_spring' },
     N: { type: 'npc', npcId: 'wren' },
     g: { type: 'enemy', enemyId: 'gloommoth' },
     b: { type: 'enemy', enemyId: 'barbhound' },

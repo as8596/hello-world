@@ -185,6 +185,12 @@ export interface BushPlacement {
   group: string; // green | dead | thorny | berry
 }
 
+export interface RockPlacement {
+  x: number;
+  y: number;
+  texture: string; // a rock-* texture key
+}
+
 export interface BuiltMap {
   layer: Phaser.Tilemaps.TilemapLayer;
   spawn: { x: number; y: number };
@@ -192,8 +198,42 @@ export interface BuiltMap {
   objects: MapObjectInstance[];
   /** Procedurally-clustered bush foliage (pixel centers). */
   bushes: BushPlacement[];
+  /** Procedurally-scattered rock set-dressing (pixel centers). */
+  rocks: RockPlacement[];
   widthPx: number;
   heightPx: number;
+}
+
+/** Tiles occupied by objects/spawn (+ a 1-ring), so scatter avoids them. */
+function occupiedTiles(objects: MapObjectInstance[], spawn: { x: number; y: number }, tileSize: number, W: number): Set<number> {
+  const taken = new Set<number>();
+  const mark = (px: number, py: number): void => {
+    const tx = Math.floor(px / tileSize);
+    const ty = Math.floor(py / tileSize);
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) taken.add((ty + dy) * W + (tx + dx));
+  };
+  for (const o of objects) mark(o.x, o.y);
+  mark(spawn.x, spawn.y);
+  return taken;
+}
+
+const ROCK_VARIANTS = ['rock-a', 'rock-b', 'rock-c', 'rock-d', 'rock-e', 'rock-f', 'rock-g', 'rock-h', 'rock-cluster', 'rock-mossy'];
+
+/** Sparsely scatter single rocks over open grass for set-dressing. */
+function generateRockScatter(data: number[][], taken: Set<number>, tileSize: number, def: TileMapDef): RockPlacement[] {
+  if (def.interior) return [];
+  const H = data.length;
+  const W = data[0].length;
+  const out: RockPlacement[] = [];
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (!isGrass(data[y][x]) || taken.has(y * W + x) || Math.random() >= 0.009) continue;
+      taken.add(y * W + x);
+      const texture = Math.random() < 0.08 ? 'rock-large' : ROCK_VARIANTS[Math.floor(Math.random() * ROCK_VARIANTS.length)];
+      out.push({ x: x * tileSize + tileSize / 2, y: y * tileSize + tileSize / 2, texture });
+    }
+  }
+  return out;
 }
 
 /**
@@ -201,27 +241,12 @@ export interface BuiltMap {
  * objects): seed a few spots, grow a small blob of one variant, and give green
  * clusters a chance at a harvestable berry bush. Avoids object/spawn tiles.
  */
-function generateBushClusters(
-  data: number[][],
-  objects: MapObjectInstance[],
-  spawn: { x: number; y: number },
-  tileSize: number,
-  def: TileMapDef,
-): BushPlacement[] {
+function generateBushClusters(data: number[][], taken: Set<number>, tileSize: number, def: TileMapDef): BushPlacement[] {
   if (def.interior) return [];
   const H = data.length;
   const W = data[0].length;
   const out: BushPlacement[] = [];
-  const taken = new Set<number>();
   const key = (x: number, y: number): number => y * W + x;
-  const block = (px: number, py: number): void => {
-    const tx = Math.floor(px / tileSize);
-    const ty = Math.floor(py / tileSize);
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) taken.add(key(tx + dx, ty + dy));
-  };
-  for (const o of objects) block(o.x, o.y); // keep bushes off NPCs/exits/pickups
-  block(spawn.x, spawn.y);
-
   const canSeed = (x: number, y: number): boolean => isGrass(data[y][x]) && !taken.has(key(x, y));
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
@@ -330,11 +355,14 @@ export function buildTilemap(scene: Phaser.Scene, def: TileMapDef): BuiltMap {
 
   placeEdgeDecals(scene, data, tileSize);
 
+  // Shared "occupied" set so bushes + rocks avoid objects and each other.
+  const taken = occupiedTiles(objects, spawn, tileSize, width);
   return {
     layer,
     spawn,
     objects,
-    bushes: generateBushClusters(data, objects, spawn, tileSize, def),
+    bushes: generateBushClusters(data, taken, tileSize, def),
+    rocks: generateRockScatter(data, taken, tileSize, def),
     widthPx: width * tileSize,
     heightPx: height * tileSize,
   };

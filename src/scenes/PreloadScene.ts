@@ -64,6 +64,11 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('bush-thorny', 'assets/sprites/bushes/thorny.png');
     this.load.image('bush-berry', 'assets/sprites/bushes/berry.png');
 
+    // Rock set-dressing + cairn/shrine/well point-of-interest props (64px each).
+    for (const r of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'cluster', 'mossy', 'large', 'cairn', 'shrine', 'well', 'arch']) {
+      this.load.image(`rock-${r}`, `assets/sprites/rocks/${r}.png`);
+    }
+
     // Animated placeholder fire (roaring flames) for the hearth — a 64px strip.
     this.load.spritesheet('fire', 'assets/sprites/fire.png', { frameWidth: 64, frameHeight: 64 });
 
