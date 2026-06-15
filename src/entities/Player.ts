@@ -223,6 +223,23 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.emitHealth();
   }
 
+  /** Heal `halfHearts`, capped at max (e.g. a consumable). Returns true if it did anything. */
+  heal(halfHearts: number): boolean {
+    if (this.dead || this.hp >= this.maxHp) return false;
+    this.hp = Math.min(this.maxHp, this.hp + halfHearts);
+    this.emitHealth();
+    this.scene.tweens.add({ targets: this, alpha: 0.4, yoyo: true, duration: 110, repeat: 1, onComplete: () => this.setAlpha(1) });
+    return true;
+  }
+
+  /** Restore stamina/Echoes by `points`, capped at max. Returns true if it did anything. */
+  restoreStamina(points: number): boolean {
+    if (this.stamina >= playerConfig.maxStamina) return false;
+    this.stamina = Math.min(playerConfig.maxStamina, this.stamina + points);
+    this.emitStamina(true);
+    return true;
+  }
+
   /**
    * Take `amount` half-hearts of damage from a source position. No-op while
    * invulnerable or dead. Applies i-frames, knockback, a hurt blink, and emits

@@ -10,6 +10,7 @@ import { ITEMS } from '../data/items';
 import { handbellConfig } from '../data/handbellConfig';
 import { AREAS, type AreaId, isAreaId, START_AREA } from '../data/maps/areas';
 import type { MapObjectInstance } from '../data/maps/types';
+import { LEVEL_UP_MAX_HALF_HEARTS, xpToNext } from '../data/progression';
 import { playerConfig } from '../data/playerConfig';
 import { RENDER_SCALE as RS } from '../data/render';
 import { Boss } from '../entities/Boss';
@@ -19,6 +20,7 @@ import { Destructible } from '../entities/Destructible';
 import { EnemyBase } from '../entities/EnemyBase';
 import { FogPatch } from '../entities/FogPatch';
 import { Interactable } from '../entities/Interactable';
+import { CoinPickup } from '../entities/CoinPickup';
 import { Pickup } from '../entities/Pickup';
 import { Player } from '../entities/Player';
 import { Tree } from '../entities/Tree';
@@ -76,6 +78,7 @@ export class WorldScene extends Phaser.Scene {
   private enemies: EnemyBase[] = [];
   private pickups: Pickup[] = [];
   private itemPickups: Pickup[] = [];
+  private coins: CoinPickup[] = [];
   private bellVineExamine?: Interactable;
   private chimes: Chime[] = [];
   private bossDoors: BossDoor[] = [];
@@ -126,6 +129,7 @@ export class WorldScene extends Phaser.Scene {
     this.enemies = [];
     this.pickups = [];
     this.itemPickups = [];
+    this.coins = [];
     this.bellVineExamine = undefined;
     this.chimes = [];
     this.bossDoors = [];
@@ -356,6 +360,10 @@ export class WorldScene extends Phaser.Scene {
       this.scene.launch(SceneKeys.Menu);
     });
 
+    // Inventory (I / Tab): a pause-style overlay of level, coin, and items.
+    this.input.keyboard?.on('keydown-I', () => this.openInventory());
+    this.input.keyboard?.on('keydown-TAB', () => this.openInventory());
+
     this.dialogue = new DialogueBox(this);
     this.dialogueRunner = new DialogueRunner(this.dialogue, worldState, (e) => this.runDialogueEffect(e));
     this.quests = new QuestManager(worldState);
@@ -407,9 +415,12 @@ export class WorldScene extends Phaser.Scene {
       this.hurtFlash();
       audio.playSfx('playerHurt');
     });
+    // The InventoryScene (paused over us) asks us to apply a consumable.
+    const offUse = eventBus.on('useItem', (p) => this.useConsumable((p as { id: string }).id));
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       offDied();
       offHurt();
+      offUse();
     });
 
     this.buildBossBar();
@@ -428,6 +439,7 @@ export class WorldScene extends Phaser.Scene {
 
     worldState.addCounter('world:entered');
     eventBus.emit('world:ready', undefined);
+    this.emitProgress();
   }
 
   update(_time: number, deltaMs: number): void {
@@ -552,7 +564,21 @@ export class WorldScene extends Phaser.Scene {
     const idx = this.enemies.indexOf(dead);
     if (idx >= 0) this.enemies.splice(idx, 1);
     worldState.addCounter('enemies_killed');
-    this.addCoin(2); // a bounded coin faucet (DESIGN.md §19)
+    // Drop loot in the world instead of crediting coin directly — the player
+    // walks over it to pick it up (coin + XP) (DESIGN.md §19).
+    this.dropCoins(dead.x, dead.y, dead.def.coinValue ?? 2);
+  }
+
+  /** Scatter coin pickups worth `value` total (1 coin per ~2 value, max 4). */
+  private dropCoins(x: number, y: number, value: number): void {
+    if (value <= 0) return;
+    const count = Math.max(1, Math.min(4, Math.round(value / 2)));
+    const base = Math.floor(value / count);
+    let rem = value - base * count;
+    for (let i = 0; i < count; i++) {
+      const v = base + (rem-- > 0 ? 1 : 0);
+      this.coins.push(new CoinPickup(this, x, y, v));
+    }
   }
 
   // --- Scripted encounters ------------------------------------------------
@@ -711,7 +737,16 @@ export class WorldScene extends Phaser.Scene {
   private onBossDefeated(): void {
     worldState.setFlag('bramblewerth_defeated', true);
     this.hideBossBar();
+    if (this.boss) this.dropCoins(this.boss.x, this.boss.y, 20); // a hoard of loot
     this.showToast('The thorns fall still. The great bell may be rung.');
+  }
+
+  /** Open the inventory overlay (pauses the world, like the menu). */
+  private openInventory(): void {
+    if (this.dyingPlayer || this.transitioning || this.waking || this.dialogueRunner.isActive) return;
+    if (this.scene.isActive(SceneKeys.Menu) || this.scene.isActive(SceneKeys.Inventory)) return;
+    this.scene.pause();
+    this.scene.launch(SceneKeys.Inventory);
   }
 
   // --- The waking peal (DESIGN.md §12 payoff) ------------------------------
@@ -1110,6 +1145,51 @@ export class WorldScene extends Phaser.Scene {
         item.collect();
       }
     }
+    // Coins: a slightly larger reach so loot feels magnetic; collectible only
+    // once they've landed from the drop hop.
+    for (const coin of this.coins) {
+      if (coin.active && coin.collectible && Phaser.Math.Distance.Between(px, py, coin.x, coin.y) <= 16 * RS) {
+        coin.collect();
+        this.onCoinCollected(coin.value);
+      }
+    }
+  }
+
+  /** A coin reached the player: credit spendable coin + XP, with a soft chime. */
+  private onCoinCollected(value: number): void {
+    this.addCoin(value);
+    audio.playSfx('clink');
+    this.gainXp(value);
+  }
+
+  /** Add XP (= coin value) and apply any level-ups it crosses. */
+  private gainXp(amount: number): void {
+    let xp = worldState.getCounter('xp') + amount;
+    let level = Math.max(1, worldState.getCounter('level') || 1);
+    let leveled = 0;
+    while (xp >= xpToNext(level)) {
+      xp -= xpToNext(level);
+      level++;
+      leveled++;
+    }
+    worldState.setCounter('xp', xp);
+    worldState.setCounter('level', level);
+    if (leveled > 0) this.applyLevelUp(level, leveled);
+    this.emitProgress();
+  }
+
+  /** Reward a level-up: a permanent max-HP bump, a heal, and fanfare. */
+  private applyLevelUp(level: number, gained: number): void {
+    this.player.gainMaxHalfHearts(LEVEL_UP_MAX_HALF_HEARTS * gained); // heals to full + persists
+    audio.playSfx('rested');
+    this.cameras.main.flash(180, 255, 240, 180);
+    this.showToast(`Level ${level}!  Max health up.`);
+  }
+
+  /** Push level + XP-to-next to the HUD. */
+  private emitProgress(): void {
+    const level = Math.max(1, worldState.getCounter('level') || 1);
+    eventBus.emit('xpChanged', { level, xp: worldState.getCounter('xp'), need: xpToNext(level) });
   }
 
   /** A soft ADD glow drawn above the night overlay so a pickup beacons in the dark. */
@@ -1225,6 +1305,21 @@ export class WorldScene extends Phaser.Scene {
   private addCoin(amount: number): void {
     const coin = worldState.addCounter('coin', amount);
     eventBus.emit('coinChanged', { coin });
+  }
+
+  /** Apply a held consumable's effect (driven by the InventoryScene). */
+  private useConsumable(id: string): void {
+    const item = ITEMS[id];
+    let ok = false;
+    if (item?.kind === 'consumable' && worldState.getCounter(`item_${id}`) > 0) {
+      if (id === 'bell_pear_preserve') ok = this.player.heal(4); // two hearts
+      else if (id === 'resonant_draught') ok = this.player.restoreStamina(playerConfig.maxStamina);
+      if (ok) {
+        worldState.addCounter(`item_${id}`, -1);
+        audio.playSfx('heart');
+      }
+    }
+    eventBus.emit('itemUsed', { id, ok });
   }
 
   /** Apply a dialogue/shop Effect (DESIGN.md §16/§19). */

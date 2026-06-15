@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { playerConfig } from '../data/playerConfig';
+import { xpToNext } from '../data/progression';
 import { RENDER_SCALE as RS } from '../data/render';
 import { QUESTS } from '../data/quests';
 import { eventBus } from '../systems/EventBus';
@@ -20,7 +21,10 @@ export class UIScene extends Phaser.Scene {
   private coinText!: Phaser.GameObjects.BitmapText;
   private questText!: Phaser.GameObjects.BitmapText;
   private staminaFill!: Phaser.GameObjects.Rectangle;
+  private levelText!: Phaser.GameObjects.BitmapText;
+  private xpFill!: Phaser.GameObjects.Rectangle;
   private readonly staminaWidth = 28 * RS;
+  private readonly xpWidth = 28 * RS;
 
   constructor() {
     super(SceneKeys.UI);
@@ -41,6 +45,13 @@ export class UIScene extends Phaser.Scene {
     this.coinText = addPixelText(this, 5 * RS, 17 * RS, '', { color: 0xffe066 });
     this.renderCoin(worldState.getCounter('coin'));
 
+    // Level + XP bar under the coin count.
+    this.levelText = addPixelText(this, 5 * RS, 24 * RS, '', { color: 0xbfa8ff });
+    const xy = 31 * RS;
+    this.add.rectangle(5 * RS, xy, this.xpWidth + 2 * RS, 3 * RS, 0x10101a, 0.85).setOrigin(0, 0);
+    this.xpFill = this.add.rectangle(6 * RS, xy + 1 * RS, this.xpWidth, 1 * RS, 0x8d6cf0).setOrigin(0, 0);
+    this.renderProgress();
+
     this.questText = addPixelText(this, 0, 0, '', { color: 0xe8e6d8, maxWidth: 150 * RS }).setVisible(false);
     this.restorePinnedQuest();
 
@@ -50,6 +61,7 @@ export class UIScene extends Phaser.Scene {
     });
     const offCoin = eventBus.on('coinChanged', (p) => this.renderCoin((p as { coin: number }).coin));
     const offStamina = eventBus.on('playerStamina', (p) => this.renderStamina((p as { ratio: number }).ratio));
+    const offXp = eventBus.on('xpChanged', (p) => this.renderProgress(p as { level: number; xp: number; need: number }));
     const offQuest = eventBus.on('questObjective', (p) => {
       const { objective } = p as { objective: string };
       this.renderQuest(objective);
@@ -58,15 +70,26 @@ export class UIScene extends Phaser.Scene {
     // restarting this parallel HUD, so re-seed coin + quest from WorldState then.
     const offReady = eventBus.on('world:ready', () => {
       this.renderCoin(worldState.getCounter('coin'));
+      this.renderProgress();
       this.restorePinnedQuest();
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       offHealth();
       offCoin();
       offStamina();
+      offXp();
       offQuest();
       offReady();
     });
+  }
+
+  /** Render the level number + XP bar fill (reads WorldState if no payload). */
+  private renderProgress(p?: { level: number; xp: number; need: number }): void {
+    const level = p?.level ?? Math.max(1, worldState.getCounter('level') || 1);
+    const xp = p?.xp ?? worldState.getCounter('xp');
+    const need = p?.need ?? xpToNext(level);
+    this.levelText.setText(`Lv ${level}`);
+    this.xpFill.width = this.xpWidth * Phaser.Math.Clamp(need > 0 ? xp / need : 0, 0, 1);
   }
 
   private renderStamina(ratio: number): void {

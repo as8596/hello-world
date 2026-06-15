@@ -32,6 +32,7 @@ export const TextureKeys = {
   Blade: 'blade',
   Handbell: 'handbell',
   Cairn: 'cairn',
+  Coin: 'coin',
 } as const;
 
 const FRAME = 16; // player placeholder frame size, design px
@@ -78,6 +79,23 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   generateBlade(scene);
   generateHandbell(scene);
   generateCairn(scene);
+  generateCoin(scene);
+}
+
+/** A small round gold coin with a highlight — the enemy loot drop. */
+function generateCoin(scene: Phaser.Scene): void {
+  if (scene.textures.exists(TextureKeys.Coin)) return;
+  const made = makeTexture(scene, TextureKeys.Coin, TILE, TILE);
+  if (!made) return;
+  const { tex, ctx } = made;
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillRect(6, 12, 5, 1); // shadow
+  rect(ctx, 0, 6, 4, 5, 6, '#b8841f'); // outer rim
+  rect(ctx, 0, 5, 5, 7, 4, '#e9b53b'); // gold face
+  rect(ctx, 0, 7, 5, 3, 4, '#f6d873'); // inner highlight
+  rect(ctx, 0, 7, 6, 1, 1, '#fff3c4'); // glint
+  rect(ctx, 0, 8, 6, 1, 2, '#a8761b'); // engraved mark
+  tex.refresh();
 }
 
 /** A lean thorn-hound: low slung body, long snout — the charger. */

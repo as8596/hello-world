@@ -15,6 +15,8 @@ export interface EnemyDef {
   speed: number;
   /** Touch damage in half-hearts. */
   contactDamage: number;
+  /** Coin (and XP) value dropped on death (default 2). */
+  coinValue?: number;
   /** Aggro/perception ranges in px. */
   vision: number;
   aggroRange: number;
@@ -54,6 +56,7 @@ export const thornSprite: EnemyDef = {
   hp: 2,
   speed: 55 * RENDER_SCALE,
   contactDamage: 1,
+  coinValue: 2,
   vision: 90 * RENDER_SCALE,
   aggroRange: 80 * RENDER_SCALE,
   leashRange: 150 * RENDER_SCALE,
@@ -71,6 +74,7 @@ export const brambleback: EnemyDef = {
   hp: 5,
   speed: 38 * RENDER_SCALE,
   contactDamage: 2,
+  coinValue: 4,
   vision: 95 * RENDER_SCALE,
   aggroRange: 78 * RENDER_SCALE,
   leashRange: 175 * RENDER_SCALE,
@@ -86,6 +90,7 @@ export const mushroomFolk: EnemyDef = {
   hp: 3,
   speed: 42 * RENDER_SCALE,
   contactDamage: 0, // only the telegraphed overhead hurts (fair, dodgeable)
+  coinValue: 3,
   vision: 100 * RENDER_SCALE,
   aggroRange: 85 * RENDER_SCALE,
   leashRange: 160 * RENDER_SCALE,
@@ -112,6 +117,7 @@ export const barbhound: EnemyDef = {
   hp: 3,
   speed: 60 * RENDER_SCALE,
   contactDamage: 0, // only the telegraphed charge hurts (fair, dodgeable)
+  coinValue: 3,
   vision: 120 * RENDER_SCALE,
   aggroRange: 110 * RENDER_SCALE,
   leashRange: 200 * RENDER_SCALE,
@@ -139,6 +145,7 @@ export const gloommoth: EnemyDef = {
   hp: 1,
   speed: 70 * RENDER_SCALE,
   contactDamage: 1,
+  coinValue: 1,
   vision: 130 * RENDER_SCALE,
   aggroRange: 120 * RENDER_SCALE,
   leashRange: 260 * RENDER_SCALE,

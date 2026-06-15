@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { DESIGN_HEIGHT, DESIGN_WIDTH, RENDER_SCALE } from './data/render';
 import { BootScene } from './scenes/BootScene';
+import { InventoryScene } from './scenes/InventoryScene';
 import { MenuScene } from './scenes/MenuScene';
 import { PreloadScene } from './scenes/PreloadScene';
 import { UIScene } from './scenes/UIScene';
@@ -45,5 +46,5 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     },
   },
 
-  scene: [BootScene, PreloadScene, WorldScene, UIScene, MenuScene],
+  scene: [BootScene, PreloadScene, WorldScene, UIScene, MenuScene, InventoryScene],
 };
