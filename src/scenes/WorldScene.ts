@@ -249,7 +249,7 @@ export class WorldScene extends Phaser.Scene {
         this.trees.push(new Tree(this, obj.x, obj.y));
         // An invisible static trunk at the base so the player rounds it. Scaled
         // to the big tree's trunk, but kept ~1 tile so it never walls off a lane.
-        const trunk = this.add.rectangle(obj.x, obj.y - 1 * RS, 16 * RS, 10 * RS).setOrigin(0.5).setVisible(false);
+        const trunk = this.add.rectangle(obj.x, obj.y - 1 * RS, 13 * RS, 8 * RS).setOrigin(0.5).setVisible(false);
         this.physics.add.existing(trunk, true);
         this.propColliders.push(trunk);
       } else if (obj.type === 'building') {
