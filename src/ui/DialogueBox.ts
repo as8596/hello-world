@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CAMERA_ZOOM, RENDER_SCALE as RS } from '../data/render';
+import { audio } from '../systems/AudioManager';
 import { addPixelText, PIXEL_FONT_KEY } from '../systems/PixelFont';
 
 /**
@@ -18,6 +19,7 @@ export class DialogueBox {
 
   private full = '';
   private revealed = 0;
+  private voiceHz = 360;
   private timer?: Phaser.Time.TimerEvent;
   private open = false;
   private readonly choiceStartY: number;
@@ -85,12 +87,13 @@ export class DialogueBox {
     this.root.setVisible(false);
   }
 
-  /** Start the typewriter on a single body string. */
-  renderText(text: string): void {
+  /** Start the typewriter on a single body string. `voiceHz` tints the talk blip. */
+  renderText(text: string, voiceHz = 360): void {
     this.clearChoices();
     this.indicator.setVisible(false);
     this.full = text;
     this.revealed = 0;
+    this.voiceHz = voiceHz;
     this.body.setText('');
     this.timer?.remove();
     this.timer = this.scene.time.addEvent({
@@ -99,6 +102,10 @@ export class DialogueBox {
       callback: () => {
         this.revealed++;
         this.body.setText(this.full.slice(0, this.revealed));
+        // Animal-Crossing babble: a blip as letters appear. Throttled to every
+        // other character and skipping whitespace so it chatters, not buzzes.
+        const ch = this.full.charCodeAt(this.revealed - 1);
+        if (this.revealed % 2 === 0 && ch !== 32 && ch !== 10) audio.talkBlip(this.voiceHz, ch);
         if (this.revealed >= this.full.length) {
           this.timer?.remove();
           this.onTyped?.();

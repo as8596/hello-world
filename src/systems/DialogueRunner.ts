@@ -4,6 +4,24 @@ import type { DialogueBox } from '../ui/DialogueBox';
 import type { WorldState } from './WorldState';
 
 /**
+ * Pick a stable "voice" pitch (Hz) for a speaker so each character babbles at
+ * its own register as the text types. Named NPCs get hand-tuned voices; anyone
+ * else (and unattributed narration) hashes their name into a pleasant range.
+ */
+const NAMED_VOICES: Record<string, number> = {
+  Maple: 430, // bright, friendly shopkeeper
+  Wren: 500, // small, high forager
+  Bram: 290, // gruff, low
+};
+function voiceFor(speaker?: string): number {
+  if (!speaker) return 360; // neutral narration (signs, lore)
+  if (NAMED_VOICES[speaker]) return NAMED_VOICES[speaker];
+  let h = 0;
+  for (let i = 0; i < speaker.length; i++) h = (h * 31 + speaker.charCodeAt(i)) & 0xffff;
+  return 300 + (h % 180); // 300..479 Hz
+}
+
+/**
  * DialogueRunner — plays a data-driven NpcDef through the DialogueBox (§16):
  * picks the first entry whose conditions pass, runs node effects, types the
  * body, then offers condition-filtered choices. Effects are handed back to the
@@ -80,7 +98,7 @@ export class DialogueRunner {
     for (const effect of node.effects ?? []) this.runEffect(effect);
     this.box.openBox();
     const text = node.speaker ? `${node.speaker}: ${node.text}` : node.text;
-    this.box.renderText(text);
+    this.box.renderText(text, voiceFor(node.speaker));
   }
 
   private onTextDone(): void {

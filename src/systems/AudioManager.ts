@@ -217,6 +217,36 @@ class AudioManager {
     SFX[name](this.ctx, this.master);
   }
 
+  /**
+   * A short vocal "blip" for the dialogue typewriter — Animal-Crossing-style
+   * babble. `baseHz` is the speaker's voice; the character nudges the pitch up
+   * or down within a small range so the chatter follows the text. Mixed quiet
+   * so it sits under everything else.
+   */
+  talkBlip(baseHz: number, charCode: number): void {
+    if (!this.ctx || !this.master || this.ctx.state !== 'running') return;
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const semis = (charCode % 13) - 6; // -6..+6 semitones, deterministic per letter
+    const freq = baseHz * Math.pow(2, semis / 12);
+    const osc = ctx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(freq, t);
+    // A gentle downward chirp + lowpass softens the square into a cute voice.
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.88, t + 0.06);
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 1700;
+    f.Q.value = 0.7;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.045, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+    osc.connect(f).connect(g).connect(this.master);
+    osc.start(t);
+    osc.stop(t + 0.09);
+  }
+
   setMuted(m: boolean): void {
     this.muted = m;
     if (this.master && this.ctx) {
