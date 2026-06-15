@@ -46,12 +46,37 @@ function placeEdgeDecals(scene: Phaser.Scene, data: number[][], tileSize: number
   }
 }
 
-/** Pick a grass tile variant (rarely a random flower) for organic ground. */
+const GRASS_VARIANT_SET = new Set<number>(GRASS_VARIANT_INDICES);
+
+/** Pick a (flowerless) grass tile variant for organic ground. */
 function pickGrass(): number {
   const r = Math.random();
-  if (r < 0.03) return FLOWER_TILE_INDICES[Math.floor(Math.random() * FLOWER_TILE_INDICES.length)]; // sparse, varied
-  if (r < 0.38) return GRASS_VARIANT_INDICES[1];
+  if (r < 0.36) return GRASS_VARIANT_INDICES[1];
   return GRASS_VARIANT_INDICES[0];
+}
+
+/**
+ * Grow an organic patch of one flower variant from a seed cell, spreading to
+ * adjacent plain-grass tiles until `target` are placed — so flowers read as
+ * clumped patches, not random confetti.
+ */
+function growFlowerPatch(data: number[][], sx: number, sy: number, variant: number, target: number): void {
+  const H = data.length;
+  const W = data[0].length;
+  const frontier: [number, number][] = [[sx, sy]];
+  let placed = 0;
+  while (frontier.length > 0 && placed < target) {
+    const i = Math.floor(Math.random() * frontier.length);
+    const [x, y] = frontier.splice(i, 1)[0];
+    if (!GRASS_VARIANT_SET.has(data[y][x])) continue; // already flowered / not grass
+    data[y][x] = variant;
+    placed++;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (ny >= 0 && ny < H && nx >= 0 && nx < W && GRASS_VARIANT_SET.has(data[ny][nx])) frontier.push([nx, ny]);
+    }
+  }
 }
 
 /**
@@ -90,6 +115,19 @@ function decorate(data: number[][], blocking: number[]): void {
   // so the medieval paths read as long-neglected and unkempt.
   for (const row of data) {
     for (let i = 0; i < row.length; i++) if (row[i] === Tile.Cobble && Math.random() < 0.14) row[i] = pickGrass();
+  }
+
+  // Flower PATCHES: seed a few spots and grow a blob of one variant from each, so
+  // flowers cluster into patches instead of speckling the whole field.
+  const H = data.length;
+  const W = data[0].length;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (GRASS_VARIANT_SET.has(data[y][x]) && Math.random() < 0.012) {
+        const variant = FLOWER_TILE_INDICES[Math.floor(Math.random() * FLOWER_TILE_INDICES.length)];
+        growFlowerPatch(data, x, y, variant, 3 + Math.floor(Math.random() * 7)); // ~3–9 tiles
+      }
+    }
   }
 }
 
