@@ -21,6 +21,7 @@ import { EnemyBase } from '../entities/EnemyBase';
 import { FogPatch } from '../entities/FogPatch';
 import { Interactable } from '../entities/Interactable';
 import { Building } from '../entities/Building';
+import { Bush } from '../entities/Bush';
 import { CoinPickup } from '../entities/CoinPickup';
 import { Pickup } from '../entities/Pickup';
 import { Player } from '../entities/Player';
@@ -59,6 +60,9 @@ const BUILDING_TEX: Record<string, string> = {
   ruin: TextureKeys.HouseRuin,
 };
 
+/** Bush variant (object `group`) → texture key. */
+const BUSH_TEX: Record<string, string> = { green: 'bush-green', dead: 'bush-dead', thorny: 'bush-thorny' };
+
 /**
  * WorldScene — the playable overworld. Builds the Thistledown tilemap, spawns
  * the player, vines, villagers, and enemies, and runs the combat loop (sword
@@ -76,6 +80,7 @@ export class WorldScene extends Phaser.Scene {
   private wards: Destructible[] = [];
   private trees: Tree[] = [];
   private buildings: Building[] = [];
+  private bushes: Bush[] = [];
   /** Occupied vertical slots for stacked toasts (so they don't overlap). */
   private readonly toastSlots = new Set<number>();
   // Invisible static footprint colliders for trees + buildings (one player collider).
@@ -134,6 +139,7 @@ export class WorldScene extends Phaser.Scene {
     this.wards = [];
     this.trees = [];
     this.buildings = [];
+    this.bushes = [];
     this.propColliders = [];
     this.triggers = [];
     this.encounterSpawns.clear();
@@ -259,6 +265,11 @@ export class WorldScene extends Phaser.Scene {
         const foot = this.add.rectangle(obj.x, obj.y - 1 * RS, 26 * RS, 8 * RS).setOrigin(0.5).setVisible(false);
         this.physics.add.existing(foot, true);
         this.propColliders.push(foot);
+      } else if (obj.type === 'bush') {
+        this.bushes.push(new Bush(this, obj.x, obj.y, BUSH_TEX[obj.group ?? 'green'] ?? BUSH_TEX.green));
+        const base = this.add.rectangle(obj.x, obj.y + 1 * RS, 6 * RS, 3 * RS).setOrigin(0.5).setVisible(false);
+        this.physics.add.existing(base, true);
+        this.propColliders.push(base);
       } else if (obj.type === 'blade') {
         if (woken || worldState.hasFlag('has_blade')) continue;
         const glow = this.makePickupGlint(obj.x, obj.y, [180, 210, 255]); // cool steel glint
@@ -540,6 +551,7 @@ export class WorldScene extends Phaser.Scene {
     this.checkTriggers();
     for (const tree of this.trees) tree.syncDepth(this.player.x, this.player.y);
     for (const building of this.buildings) building.syncDepth(this.player.x, this.player.y);
+    for (const bush of this.bushes) bush.syncDepth(this.player.x, this.player.y);
     for (const v of this.villagers) v.wander(now, deltaMs, false); // alive once woken
     if (this.checkAreaTransition()) return;
 

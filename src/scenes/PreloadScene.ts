@@ -56,6 +56,11 @@ export class PreloadScene extends Phaser.Scene {
     // a missing file just means those objects render nothing).
     this.load.image('tree', 'assets/tree.png');
 
+    // Bush foliage world-objects (green / dead / thorny), placed via 'bush' objects.
+    this.load.image('bush-green', 'assets/sprites/bushes/green.png');
+    this.load.image('bush-dead', 'assets/sprites/bushes/dead.png');
+    this.load.image('bush-thorny', 'assets/sprites/bushes/thorny.png');
+
     // Animated placeholder fire (roaring flames) for the hearth — a 64px strip.
     this.load.spritesheet('fire', 'assets/sprites/fire.png', { frameWidth: 64, frameHeight: 64 });
 

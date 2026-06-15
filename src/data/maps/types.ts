@@ -35,6 +35,7 @@ export type ObjectType =
   | 'handbell'
   | 'tree' // a standalone canopy tree: blocks at the trunk, occludes overhead
   | 'building' // a medieval house: blocks at its footprint, occludes overhead
+  | 'bush' // a small foliage decoration (group = green/dead/thorny)
   | 'marker' // an examinable point-of-interest (a cairn with lore)
   | 'trigger' // an invisible zone that starts a scripted encounter on entry
   | 'spawn' // a deferred enemy spawn point, raised by its encounter (not at build)

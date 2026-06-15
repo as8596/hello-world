@@ -28,6 +28,8 @@ export const gladeMap: TileMapDef = {
     b: { type: 'enemy', enemyId: 'barbhound' },
     h: { type: 'heart' },
     T: { type: 'tree' },
+    G: { type: 'bush', group: 'green' },
+    Y: { type: 'bush', group: 'thorny' },
     X: { type: 'exit', toArea: 'village', toEntry: 'from_glade' },
     A: { type: 'entry', entryId: 'from_village' },
   },
@@ -42,13 +44,13 @@ export const gladeMap: TileMapDef = {
     '##.wwwwww...####.........X.#', // 4  big mere + reed island; exit east
     '##.wwwwww...####...........#', // 5
     '##..wwww..........g.......##', // 6  a gloommoth over the water
-    '##...........b.......T....##', // 7  barbhound prowls the open ground
+    '##...........b.......T.G..##', // 7  barbhound prowls the open ground; a bush
     '###.....p..N..............##', // 8  the spring (lore); Wren the forager nearby
     '##.........wwww...........##', // 9
     '##..###...wwwwww.....g....##', // 10 reed clump + a second gloommoth
     '##..###...wwwwww..........##', // 11
     '##.........wwww.....@.....##', // 12 (fresh-start fallback spawn)
-    '##..h............T........##', // 13 heart fragment (southwest pocket) + a tree
+    '##..h............T....Y...##', // 13 heart fragment (southwest pocket); tree + bush
     '###....##.........####...###', // 14 ragged southern treeline
     '############################', // 15
   ],

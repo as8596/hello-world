@@ -28,6 +28,7 @@ export const warrenMap: TileMapDef = {
     h: { type: 'heart' },
     R: { type: 'npc', npcId: 'bram' },
     T: { type: 'tree' },
+    Y: { type: 'bush', group: 'thorny' },
     b: { type: 'marker', loreId: 'warren_bones' },
     k: { type: 'marker', loreId: 'warren_cache' },
     X: { type: 'exit', toArea: 'trail', toEntry: 'from_warren' },
@@ -41,7 +42,7 @@ export const warrenMap: TileMapDef = {
     '##....######....##........##', // 1  thorn masses; chamber roof (right)
     '##.b............##......k.##', // 2  bones (lore) / cache (lore, sealed)
     '##....##........##...h....##', // 3  heart (sealed in the cache)
-    '##.....T........##....R...##', // 4  a tree west; Bram hides in the sealed cache
+    '##.Y...T........##....R...##', // 4  thorn bush; a tree; Bram in the sealed cache
     '##......####....##........##', // 5
     '##..............#####WW#####', // 6  ward seals the cache mouth
     'A...............##........##', // 7  entry from the trail (west)
@@ -49,7 +50,7 @@ export const warrenMap: TileMapDef = {
     '##..................s.....##', // 9  gap in the wall -> the chamber
     'X...............##.s..B...##', // 10 exit to the trail; ambush spawns
     '##....######....##........##', // 11
-    '##..............##........##', // 12
+    '##.......Y......##........##', // 12 a thorn bush in the burrow
     '##.......m......##........##', // 13 a sprite guards the approach
     '##.....@........##........##', // 14 (fresh-start fallback spawn)
     '############################', // 15
