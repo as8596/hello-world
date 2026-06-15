@@ -33,6 +33,9 @@ export const TextureKeys = {
   Handbell: 'handbell',
   Cairn: 'cairn',
   Coin: 'coin',
+  HouseCottage: 'house-cottage',
+  HouseStone: 'house-stone',
+  HouseRuin: 'house-ruin',
 } as const;
 
 const FRAME = 16; // player placeholder frame size, design px
@@ -80,6 +83,96 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   generateHandbell(scene);
   generateCairn(scene);
   generateCoin(scene);
+  generateHouses(scene);
+}
+
+const HOUSE_W = 44;
+const HOUSE_H = 52;
+
+interface HousePalette {
+  wall: string;
+  wallShade: string;
+  roof: string;
+  roofShade: string;
+  ridge: string;
+  ruin?: boolean;
+}
+
+/** A small medieval house, overgrown and weathered. Origin sits near its base. */
+function generateHouse(scene: Phaser.Scene, key: string, o: HousePalette): void {
+  if (scene.textures.exists(key)) return;
+  const made = makeTexture(scene, key, HOUSE_W, HOUSE_H);
+  if (!made) return;
+  const { tex, ctx } = made;
+  const R = (x: number, y: number, w: number, h: number, c: string): void => rect(ctx, 0, x, y, w, h, c);
+
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.fillRect(8, HOUSE_H - 3, HOUSE_W - 16, 2); // ground shadow
+
+  // Walls (plaster/stone with timber framing + a stone foundation).
+  const wx = 6;
+  const ww = 32;
+  const wy = 22;
+  const wh = 28;
+  R(wx, wy, ww, wh, o.wall);
+  R(wx, wy, ww, 2, o.wallShade); // shade under the eaves
+  R(wx, wy + wh - 3, ww, 3, o.wallShade); // foundation
+  for (const bx of [wx + 4, wx + 15, wx + 26]) R(bx, wy + 2, 1, wh - 5, o.roofShade); // beams
+  R(wx, wy + 12, ww, 1, o.roofShade); // mid rail
+  // Window (cross-framed).
+  R(wx + 3, wy + 6, 6, 7, '#2b2f3a');
+  R(wx + 5, wy + 6, 1, 7, o.wall);
+  R(wx + 3, wy + 9, 6, 1, o.wall);
+  // Door.
+  R(wx + 18, wy + 15, 7, 13, '#3a281a');
+  R(wx + 18, wy + 15, 7, 1, o.roofShade);
+  R(wx + 23, wy + 22, 1, 1, '#caa23a'); // knob
+
+  // Gabled roof (peak → base), with overhang, ridge, and shingle lines.
+  const peakX = HOUSE_W / 2;
+  const peakY = 2;
+  const baseY = 24;
+  const half = 21;
+  for (let y = peakY; y <= baseY; y++) {
+    const hw = Math.round(((y - peakY) / (baseY - peakY)) * half);
+    R(peakX - hw, y, hw * 2, 1, o.roof);
+  }
+  R(peakX - 1, peakY, 2, baseY - peakY, o.ridge); // ridge beam
+  R(peakX - half, baseY, half * 2, 2, o.roofShade); // eaves
+  for (let y = peakY + 3; y < baseY; y += 3) {
+    const hw = Math.round(((y - peakY) / (baseY - peakY)) * half);
+    R(peakX - hw + 1, y, hw * 2 - 2, 1, o.roofShade);
+  }
+  R(HOUSE_W - 12, 0, 5, 14, '#7a5246'); // chimney
+  R(HOUSE_W - 12, 0, 5, 2, '#8f6356');
+
+  // Overgrown: moss on eaves + base, a vine up the wall, grass tufts.
+  for (const [x, y] of [[wx + 1, wy + wh - 6], [wx + ww - 3, wy + wh - 6], [peakX - half + 2, baseY - 2], [peakX + half - 4, baseY - 3]] as const) {
+    R(x, y, 2, 2, '#5e8e51');
+  }
+  for (let y = wy + 2; y < wy + wh - 2; y += 3) R(wx + 1, y, 1, 2, '#4a7340'); // climbing vine
+  for (const [x, y] of [[wx, wy + 8], [wx + 2, wy + 14], [wx, wy + 20]] as const) R(x, y, 2, 1, '#5e8e51');
+  for (const [x, y] of [[wx - 2, wy + wh - 2], [wx + ww, wy + wh - 3]] as const) R(x, y, 2, 2, '#5e8e51');
+
+  if (o.ruin) {
+    ctx.clearRect(peakX - 6, peakY + 5, 8, 7); // a hole knocked in the roof
+    R(peakX - 6, peakY + 5, 8, 1, o.roofShade); // charred rim
+    R(wx + 9, wy + 16, 1, 11, '#2b2f3a'); // a crack down the wall
+    for (const [x, y] of [[wx + 6, wy + 4], [wx + 20, wy + 6], [wx + ww - 6, wy + 18]] as const) R(x, y, 3, 2, '#4a7340'); // extra moss
+  }
+  tex.refresh();
+}
+
+function generateHouses(scene: Phaser.Scene): void {
+  generateHouse(scene, TextureKeys.HouseCottage, {
+    wall: '#bda687', wallShade: '#8f7a5c', roof: '#a9803f', roofShade: '#6e4a28', ridge: '#caa15f',
+  });
+  generateHouse(scene, TextureKeys.HouseStone, {
+    wall: '#9a958c', wallShade: '#6f6a61', roof: '#5a6470', roofShade: '#3e454e', ridge: '#7c8896',
+  });
+  generateHouse(scene, TextureKeys.HouseRuin, {
+    wall: '#8a8174', wallShade: '#5e564b', roof: '#6b5e44', roofShade: '#473d2c', ridge: '#857650', ruin: true,
+  });
 }
 
 /** A small round gold coin with a highlight — the enemy loot drop. */
@@ -515,7 +608,8 @@ function generateObjects(scene: Phaser.Scene): void {
  */
 export const GRASS_VARIANT_INDICES = [0, 5, 6];
 export const FLOWER_TILE_INDEX = 7;
-const TILESET_COUNT = 8;
+export const COBBLE_TILE_INDEX = 8;
+const TILESET_COUNT = 9;
 
 function generateTileset(scene: Phaser.Scene): void {
   if (scene.textures.exists(TextureKeys.Tiles)) return;
@@ -531,6 +625,7 @@ function generateTileset(scene: Phaser.Scene): void {
   drawGrass(ctx, 5 * TILE, 1);
   drawGrass(ctx, 6 * TILE, 2);
   drawFlowers(ctx, 7 * TILE);
+  drawCobble(ctx, 8 * TILE);
 
   tex.refresh();
 }
@@ -682,6 +777,24 @@ function drawPath(ctx: CanvasRenderingContext2D, ox: number): void {
   for (const [x, y] of [[2, 3], [9, 5], [5, 10], [12, 2], [8, 13], [13, 9]] as const) rect(ctx, ox, x, y, 1, 1, '#7e5f37');
   for (const [x, y] of [[4, 6], [11, 11], [6, 2], [14, 5]] as const) rect(ctx, ox, x, y, 1, 1, '#b5966a');
   for (const [x, y] of [[3, 8], [10, 7]] as const) rect(ctx, ox, x, y, 2, 1, '#6e5230'); // pebbles
+}
+
+function drawCobble(ctx: CanvasRenderingContext2D, ox: number): void {
+  rect(ctx, ox, 0, 0, TILE, TILE, '#55555d'); // dark mortar between stones
+  const stones: [number, number, number, number][] = [
+    [1, 1, 4, 3], [6, 1, 4, 3], [11, 1, 4, 3],
+    [0, 5, 3, 3], [4, 5, 4, 3], [9, 5, 4, 3], [14, 5, 2, 3],
+    [1, 9, 4, 3], [6, 9, 4, 3], [11, 9, 4, 3],
+    [0, 13, 3, 2], [4, 13, 4, 2], [9, 13, 4, 2], [14, 13, 2, 2],
+  ];
+  for (const [x, y, w, h] of stones) {
+    rect(ctx, ox, x, y, w, h, '#878790'); // worn grey stone
+    rect(ctx, ox, x, y, w, 1, '#9c9ca6'); // top highlight
+    rect(ctx, ox, x, y + h - 1, w, 1, '#6b6b74'); // bottom shade
+  }
+  // Moss creeping into the cracks — overgrown, unkempt.
+  for (const [x, y] of [[5, 4], [10, 8], [3, 12], [13, 4]] as const) rect(ctx, ox, x, y, 1, 1, '#5e8e51');
+  for (const [x, y] of [[8, 0], [0, 8], [13, 11]] as const) rect(ctx, ox, x, y, 1, 2, '#4a7340');
 }
 
 function drawWall(ctx: CanvasRenderingContext2D, ox: number): void {

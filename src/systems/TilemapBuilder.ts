@@ -85,6 +85,12 @@ function decorate(data: number[][], blocking: number[]): void {
   for (const row of data) {
     for (let i = 0; i < row.length; i++) if (row[i] === Tile.Grass) row[i] = pickGrass();
   }
+
+  // Overgrown stone: a fraction of cobbles have cracked and gone to grass/weeds,
+  // so the medieval paths read as long-neglected and unkempt.
+  for (const row of data) {
+    for (let i = 0; i < row.length; i++) if (row[i] === Tile.Cobble && Math.random() < 0.14) row[i] = pickGrass();
+  }
 }
 
 export interface BuiltMap {

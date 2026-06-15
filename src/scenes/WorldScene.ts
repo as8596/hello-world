@@ -20,6 +20,7 @@ import { Destructible } from '../entities/Destructible';
 import { EnemyBase } from '../entities/EnemyBase';
 import { FogPatch } from '../entities/FogPatch';
 import { Interactable } from '../entities/Interactable';
+import { Building } from '../entities/Building';
 import { CoinPickup } from '../entities/CoinPickup';
 import { Pickup } from '../entities/Pickup';
 import { Player } from '../entities/Player';
@@ -50,6 +51,13 @@ const GLOW_TEXTURE = 'warm-glow';
 const FIREFLY_TEXTURE = 'firefly-glow';
 const HURT_VIGNETTE_TEXTURE = 'hurt-vignette';
 
+/** Building variant (object `group`) → house texture. */
+const BUILDING_TEX: Record<string, string> = {
+  cottage: TextureKeys.HouseCottage,
+  stone: TextureKeys.HouseStone,
+  ruin: TextureKeys.HouseRuin,
+};
+
 /**
  * WorldScene — the playable overworld. Builds the Thistledown tilemap, spawns
  * the player, vines, villagers, and enemies, and runs the combat loop (sword
@@ -66,7 +74,9 @@ export class WorldScene extends Phaser.Scene {
   private vines: Destructible[] = [];
   private wards: Destructible[] = [];
   private trees: Tree[] = [];
-  private treeTrunks: Phaser.GameObjects.Rectangle[] = [];
+  private buildings: Building[] = [];
+  // Invisible static footprint colliders for trees + buildings (one player collider).
+  private propColliders: Phaser.GameObjects.Rectangle[] = [];
   private fog: FogPatch[] = [];
   private interactables: Interactable[] = [];
   // Scripted encounters: a trigger zone raises its deferred spawns; clearing the
@@ -120,7 +130,8 @@ export class WorldScene extends Phaser.Scene {
     this.fog = [];
     this.wards = [];
     this.trees = [];
-    this.treeTrunks = [];
+    this.buildings = [];
+    this.propColliders = [];
     this.triggers = [];
     this.encounterSpawns.clear();
     this.startedEncounters.clear();
@@ -237,7 +248,14 @@ export class WorldScene extends Phaser.Scene {
         // Aligned to the art's actual trunk (measured), centered on the tile.
         const trunk = this.add.rectangle(obj.x, obj.y - 1 * RS, 7 * RS, 5 * RS).setOrigin(0.5).setVisible(false);
         this.physics.add.existing(trunk, true);
-        this.treeTrunks.push(trunk);
+        this.propColliders.push(trunk);
+      } else if (obj.type === 'building') {
+        const tex = BUILDING_TEX[obj.group ?? 'cottage'] ?? TextureKeys.HouseCottage;
+        this.buildings.push(new Building(this, obj.x, obj.y, tex));
+        // A footprint collider at the base — the player rounds the house.
+        const foot = this.add.rectangle(obj.x, obj.y - 1 * RS, 26 * RS, 8 * RS).setOrigin(0.5).setVisible(false);
+        this.physics.add.existing(foot, true);
+        this.propColliders.push(foot);
       } else if (obj.type === 'blade') {
         if (woken || worldState.hasFlag('has_blade')) continue;
         const glow = this.makePickupGlint(obj.x, obj.y, [180, 210, 255]); // cool steel glint
@@ -318,7 +336,7 @@ export class WorldScene extends Phaser.Scene {
     this.physics.add.collider(this.player, map.layer);
     this.physics.add.collider(this.player, this.vines);
     this.physics.add.collider(this.player, this.wards);
-    this.physics.add.collider(this.player, this.treeTrunks);
+    this.physics.add.collider(this.player, this.propColliders);
     this.physics.add.collider(this.player, this.fog);
     this.physics.add.collider(this.player, this.bossDoors);
     this.physics.add.collider(this.enemies, map.layer);
@@ -488,6 +506,7 @@ export class WorldScene extends Phaser.Scene {
     this.maybeShowContextHints();
     this.checkTriggers();
     for (const tree of this.trees) tree.syncDepth(this.player.y);
+    for (const building of this.buildings) building.syncDepth(this.player.y);
     if (this.checkAreaTransition()) return;
 
     const target = this.nearestActionable();

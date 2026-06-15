@@ -11,6 +11,7 @@ export const Tile = {
   Wall: 2,
   Water: 3,
   Vine: 4,
+  Cobble: 8, // stone path (slots 5-7 are grass variants/flowers, see TextureFactory)
 } as const;
 export type Tile = (typeof Tile)[keyof typeof Tile];
 
@@ -31,6 +32,7 @@ export type ObjectType =
   | 'blade'
   | 'handbell'
   | 'tree' // a standalone canopy tree: blocks at the trunk, occludes overhead
+  | 'building' // a medieval house: blocks at its footprint, occludes overhead
   | 'marker' // an examinable point-of-interest (a cairn with lore)
   | 'trigger' // an invisible zone that starts a scripted encounter on entry
   | 'spawn' // a deferred enemy spawn point, raised by its encounter (not at build)
