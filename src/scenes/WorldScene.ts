@@ -12,7 +12,7 @@ import { AREAS, type AreaId, isAreaId, START_AREA } from '../data/maps/areas';
 import type { MapObjectInstance } from '../data/maps/types';
 import { LEVEL_UP_MAX_HALF_HEARTS, xpToNext } from '../data/progression';
 import { playerConfig } from '../data/playerConfig';
-import { RENDER_SCALE as RS } from '../data/render';
+import { CAMERA_ZOOM, RENDER_SCALE as RS } from '../data/render';
 import { Boss } from '../entities/Boss';
 import { BossDoor } from '../entities/BossDoor';
 import { Chime } from '../entities/Chime';
@@ -347,7 +347,7 @@ export class WorldScene extends Phaser.Scene {
     // zoom about the centre, so they still cover the screen).
     const cam = this.cameras.main;
     cam.setBounds(0, 0, map.widthPx, map.heightPx);
-    cam.setZoom(1.3);
+    cam.setZoom(CAMERA_ZOOM);
     cam.startFollow(this.player, true, 0.12, 0.12);
     cam.setDeadzone(36 * RS, 28 * RS);
     cam.fadeIn(250);

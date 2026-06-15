@@ -16,3 +16,9 @@ export const DESIGN_HEIGHT = 180;
 
 /** World tile size in pixels (16 design px x the render scale). */
 export const TILE_SIZE = 16 * RENDER_SCALE;
+
+/**
+ * Main-camera zoom (cozy, close view). The HUD (UIScene) zooms its own camera by
+ * the same factor so it scales with the world instead of looking tiny.
+ */
+export const CAMERA_ZOOM = 1.3;
