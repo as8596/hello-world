@@ -336,24 +336,47 @@ function generateGreatBell(scene: Phaser.Scene): void {
   tex.refresh();
 }
 
-/** An awake villager — upright, eyes open (used when the valley wakes). */
+/** Distinct villager palettes [shirt, legs, hair] so the folk read apart. */
+const VILLAGER_PALETTES: [string, string, string][] = [
+  ['#7c6f9c', '#4a3f5e', '#5b3a29'], // 0 plum (default)
+  ['#a35a45', '#5e342a', '#3a2a1c'], // 1 rust
+  ['#5a8c5e', '#3a5e3a', '#7a4a2a'], // 2 green
+  ['#4f7396', '#34506e', '#2a2a3a'], // 3 blue
+  ['#b39248', '#6e5a2e', '#5b3a29'], // 4 ochre
+  ['#9c6f8c', '#5e3a5a', '#3a2a3a'], // 5 mauve
+  ['#5c8c8c', '#3a5e5e', '#4a3a2a'], // 6 teal
+];
+
+/** Number of distinct awake-villager color variants. */
+export const VILLAGER_VARIANTS = VILLAGER_PALETTES.length;
+
+/** Texture key for awake-villager color variant `i` (wraps). */
+export function villagerAwakeKey(i: number): string {
+  const v = ((i % VILLAGER_VARIANTS) + VILLAGER_VARIANTS) % VILLAGER_VARIANTS;
+  return v === 0 ? TextureKeys.VillagerAwake : `villager-awake-${v}`;
+}
+
+/** An awake villager — upright, eyes open. Generates each color variant. */
 function generateVillagerAwake(scene: Phaser.Scene): void {
-  if (scene.textures.exists(TextureKeys.VillagerAwake)) return;
-  const made = makeTexture(scene, TextureKeys.VillagerAwake, TILE, TILE);
-  if (!made) return;
-  const { tex, ctx } = made;
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
-  ctx.fillRect(5, 14, 6, 1);
-  rect(ctx, 0, 6, 2, 4, 2, '#5b3a29'); // hair
-  rect(ctx, 0, 6, 3, 4, 4, '#e8c39e'); // head
-  rect(ctx, 0, 7, 5, 1, 1, '#222'); // eyes
-  rect(ctx, 0, 9, 5, 1, 1, '#222');
-  rect(ctx, 0, 5, 7, 6, 6, '#7c6f9c'); // body
-  rect(ctx, 0, 4, 8, 1, 3, '#e8c39e'); // arms
-  rect(ctx, 0, 11, 8, 1, 3, '#e8c39e');
-  rect(ctx, 0, 6, 13, 1, 2, '#4a3f5e'); // legs
-  rect(ctx, 0, 9, 13, 1, 2, '#4a3f5e');
-  tex.refresh();
+  VILLAGER_PALETTES.forEach(([shirt, legs, hair], i) => {
+    const key = villagerAwakeKey(i);
+    if (scene.textures.exists(key)) return;
+    const made = makeTexture(scene, key, TILE, TILE);
+    if (!made) return;
+    const { tex, ctx } = made;
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillRect(5, 14, 6, 1);
+    rect(ctx, 0, 6, 2, 4, 2, hair); // hair
+    rect(ctx, 0, 6, 3, 4, 4, '#e8c39e'); // head
+    rect(ctx, 0, 7, 5, 1, 1, '#222'); // eyes
+    rect(ctx, 0, 9, 5, 1, 1, '#222');
+    rect(ctx, 0, 5, 7, 6, 6, shirt); // body / shirt
+    rect(ctx, 0, 4, 8, 1, 3, '#e8c39e'); // arms
+    rect(ctx, 0, 11, 8, 1, 3, '#e8c39e');
+    rect(ctx, 0, 6, 13, 1, 2, legs); // legs
+    rect(ctx, 0, 9, 13, 1, 2, legs);
+    tex.refresh();
+  });
 }
 
 /** The boss: a 32x32 thorny bramble-beast with a reddish core (the weak point). */

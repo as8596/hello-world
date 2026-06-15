@@ -25,9 +25,10 @@ import { CoinPickup } from '../entities/CoinPickup';
 import { Pickup } from '../entities/Pickup';
 import { Player } from '../entities/Player';
 import { Tree } from '../entities/Tree';
+import { Villager } from '../entities/Villager';
 import { HintSystem } from '../systems/HintSystem';
 import { addPixelText } from '../systems/PixelFont';
-import { TextureKeys } from '../systems/TextureFactory';
+import { TextureKeys, villagerAwakeKey } from '../systems/TextureFactory';
 import { buildTilemap } from '../systems/TilemapBuilder';
 import { DialogueRunner } from '../systems/DialogueRunner';
 import { eventBus } from '../systems/EventBus';
@@ -97,7 +98,7 @@ export class WorldScene extends Phaser.Scene {
   private chimesRung = 0;
   private boss?: Boss;
   private bossSpawn?: { x: number; y: number };
-  private villagers: Interactable[] = [];
+  private villagers: Villager[] = [];
   private greatBell?: Interactable;
   private waking = false;
   private bossBarBg?: Phaser.GameObjects.Rectangle;
@@ -288,9 +289,10 @@ export class WorldScene extends Phaser.Scene {
       } else if (obj.type === 'boss') {
         this.bossSpawn = { x: obj.x, y: obj.y }; // spawned when the door opens
       } else if (obj.type === 'maple') {
-        const maple = new Interactable(this, obj.x, obj.y, { npcId: 'maple', label: 'talk' });
+        // Maple keeps the shop apron (variant 1); wakes + ambles with the peal.
+        const maple = new Villager(this, obj.x, obj.y, { npcId: 'maple', label: 'talk', awakeTexture: villagerAwakeKey(1) });
         this.interactables.push(maple);
-        this.villagers.push(maple); // wakes with the peal
+        this.villagers.push(maple);
       } else if (obj.type === 'npc') {
         // A named, already-awake NPC out in the world (e.g. Wren, Bram).
         if (obj.npcId) {
@@ -313,15 +315,16 @@ export class WorldScene extends Phaser.Scene {
         if (obj.entryId) this.entries.set(obj.entryId, { x: obj.x, y: obj.y });
       } else {
         const lines = sleepingVillagerLines[villagerIndex % sleepingVillagerLines.length];
+        // A different shirt colour each (variant 2+) so the folk read apart.
+        const villager = new Villager(this, obj.x, obj.y, { lines, awakeTexture: villagerAwakeKey(villagerIndex + 2) });
         villagerIndex++;
-        const villager = new Interactable(this, obj.x, obj.y, { lines });
         this.interactables.push(villager);
         this.villagers.push(villager);
       }
     }
 
-    // A loaded woken valley shows its people already risen.
-    if (woken) for (const v of this.villagers) v.setTexture(TextureKeys.VillagerAwake);
+    // A loaded woken valley shows its people already risen (and ambling).
+    if (woken) for (const v of this.villagers) v.wake();
 
     Player.registerAnims(this);
     // Spawn priority: (1) the entry we just transitioned to, (2) the last hearth
@@ -509,6 +512,7 @@ export class WorldScene extends Phaser.Scene {
     this.checkTriggers();
     for (const tree of this.trees) tree.syncDepth(this.player.y);
     for (const building of this.buildings) building.syncDepth(this.player.y);
+    for (const v of this.villagers) v.wander(now, deltaMs, false); // alive once woken
     if (this.checkAreaTransition()) return;
 
     const target = this.nearestActionable();
@@ -806,7 +810,7 @@ export class WorldScene extends Phaser.Scene {
     // ...and the sleepers rise, one after another.
     this.villagers.forEach((villager, i) => {
       this.time.delayedCall(700 + i * 160, () => {
-        villager.setTexture(TextureKeys.VillagerAwake);
+        villager.wake();
         this.tweens.add({ targets: villager, y: villager.y - 2, yoyo: true, duration: 180 });
       });
     });
