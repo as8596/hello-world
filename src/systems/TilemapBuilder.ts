@@ -74,12 +74,10 @@ function placeEdgeDecals(scene: Phaser.Scene, data: number[][], tileSize: number
         const [dx, dy] = EDGE_OFFSETS[dir];
         const n = at(x + dx, y + dy);
         if (n === undefined) continue;
-        // Bush border meeting grass: a soft shadow + the bushes dithered onto the
-        // grass, so the impassable foliage edge feathers in instead of a hard line.
-        if (n === Tile.Wall) {
-          scene.add.image(cx, cy, `shadow-edge-${dir}`).setDepth(DECAL_DEPTH);
-          if (scene.textures.exists(`bushedge-${dir}`)) scene.add.image(cx, cy, `bushedge-${dir}`).setDepth(DECAL_DEPTH);
-        }
+        // Bush border meeting grass: only a soft ground shadow on the walkable
+        // tile — the foliage stays entirely on the (impassable) wall tiles so the
+        // boundary between walkable and blocked reads clearly.
+        if (n === Tile.Wall) scene.add.image(cx, cy, `shadow-edge-${dir}`).setDepth(DECAL_DEPTH);
         // Grass fringe bleeding onto sand/water/stone from a grass neighbour.
         else if (receivesGrass && isGrass(n)) scene.add.image(cx, cy, `grass-edge-${dir}`).setDepth(DECAL_DEPTH);
         // Grass-to-grass: the variant grass feathers onto plain grass it borders.

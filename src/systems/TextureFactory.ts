@@ -996,12 +996,10 @@ export function generateEdgeDecals(scene: Phaser.Scene): void {
   const SIZE = TILE * RENDER_SCALE; // 64
   const grass = tiles.getContext().getImageData(0, 0, SIZE, SIZE); // grass slot 0
   const grassVar = tiles.getContext().getImageData(GRASS_VARIANT_INDICES[1] * SIZE, 0, SIZE, SIZE); // grass slot 5
-  const border = tiles.getContext().getImageData(2 * SIZE, 0, SIZE, SIZE); // wall/bush slot 2
 
   const D_FULL = 6; // fully opaque within this many px of the edge
   const GRASS_FADE = 26; // grass fringe reaches this far in
   const GRASSVAR_FADE = 22; // a thinner blend between the grass variants
-  const BUSH_FADE = 30; // bushes spill this far onto the bordering grass
   const SHADOW_FADE = 30;
   const SHADOW_RGB = [18, 30, 20];
   const SHADOW_A = 90;
@@ -1045,8 +1043,6 @@ export function generateEdgeDecals(scene: Phaser.Scene): void {
     // The variant grass dithered, to feather between grass tiles themselves.
     bake(`grassvar-edge-${dir}`, dir, GRASSVAR_FADE, (i) => [grassVar.data[i], grassVar.data[i + 1], grassVar.data[i + 2], grassVar.data[i + 3]]);
     bake(`shadow-edge-${dir}`, dir, SHADOW_FADE, () => [SHADOW_RGB[0], SHADOW_RGB[1], SHADOW_RGB[2], SHADOW_A]);
-    // The bush border dithered onto the grass it abuts, so the edge isn't a hard line.
-    bake(`bushedge-${dir}`, dir, BUSH_FADE, (i) => [border.data[i], border.data[i + 1], border.data[i + 2], border.data[i + 3]]);
   }
 }
 
