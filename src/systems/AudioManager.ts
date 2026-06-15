@@ -176,16 +176,21 @@ const SFX: Record<SfxName, (ctx: AudioContext, dest: AudioNode) => void> = {
 
 // --- the manager -----------------------------------------------------------
 
+const SETTINGS_KEY = 'brackenvale_audio';
+
 class AudioManager {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private music: MusicEngine | null = null;
   private muted = false;
   private volume = 0.5;
+  private musicEnabled = true;
+  private settingsLoaded = false;
 
   /** Create the (suspended) context + master bus. Safe to call repeatedly. */
   init(): void {
     if (this.ctx) return;
+    this.loadSettings(); // apply saved volume/music before the bus is built
     const Ctx: typeof AudioContext | undefined =
       window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctx) return;
@@ -224,11 +229,31 @@ class AudioManager {
     return this.muted;
   }
 
+  isMuted(): boolean {
+    return this.muted;
+  }
+
   setVolume(v: number): void {
     this.volume = Math.max(0, Math.min(1, v));
     if (this.master && this.ctx && !this.muted) {
       this.master.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.02);
     }
+    this.persist();
+  }
+
+  getVolume(): number {
+    return this.volume;
+  }
+
+  /** Toggle the adaptive score independently of the SFX (persisted). */
+  setMusicEnabled(on: boolean): void {
+    this.musicEnabled = on;
+    this.music?.setEnabled(on);
+    this.persist();
+  }
+
+  isMusicEnabled(): boolean {
+    return this.musicEnabled;
   }
 
   /**
@@ -241,6 +266,7 @@ class AudioManager {
     this.init();
     if (!this.ctx || !this.master) return;
     if (!this.music) this.music = new MusicEngine(this.ctx, this.master);
+    this.music.setEnabled(this.musicEnabled);
     this.music.start();
   }
 
@@ -251,6 +277,29 @@ class AudioManager {
   /** Drive the calm↔danger crossfade (0 = exploring, 1 = in danger). */
   setMusicIntensity(v: number): void {
     this.music?.setIntensity(v);
+  }
+
+  /** Persist volume + music settings to localStorage (best-effort). */
+  private persist(): void {
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ volume: this.volume, musicEnabled: this.musicEnabled }));
+    } catch {
+      // private mode / no storage — settings just won't survive the session
+    }
+  }
+
+  private loadSettings(): void {
+    if (this.settingsLoaded) return;
+    this.settingsLoaded = true;
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (!raw) return;
+      const d = JSON.parse(raw) as { volume?: number; musicEnabled?: boolean };
+      if (typeof d.volume === 'number') this.volume = Math.max(0, Math.min(1, d.volume));
+      if (typeof d.musicEnabled === 'boolean') this.musicEnabled = d.musicEnabled;
+    } catch {
+      // corrupt settings — fall back to defaults
+    }
   }
 }
 

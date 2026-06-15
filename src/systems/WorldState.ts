@@ -72,11 +72,6 @@ export class WorldState {
     for (const [key, value] of Object.entries(snapshot.flags)) this.flags.set(key, value);
     for (const [key, value] of Object.entries(snapshot.counters)) this.counters.set(key, value);
   }
-
-  reset(): void {
-    this.flags.clear();
-    this.counters.clear();
-  }
 }
 
 /** Shared singleton — one world, one state. */

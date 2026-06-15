@@ -11,6 +11,7 @@
  */
 
 const STEPS = 16; // an eighth-note loop
+const BUS_GAIN = 0.6; // the whole score sits under the SFX
 const BPM = 72;
 const STEP_DUR = 60 / BPM / 2; // eighth note in seconds
 
@@ -36,7 +37,7 @@ export class MusicEngine {
   constructor(ctx: AudioContext, destination: AudioNode) {
     this.ctx = ctx;
     this.bus = ctx.createGain();
-    this.bus.gain.value = 0.6; // sit the whole score under the SFX
+    this.bus.gain.value = BUS_GAIN;
     this.bus.connect(destination);
 
     this.padGain = ctx.createGain();
@@ -66,6 +67,11 @@ export class MusicEngine {
   /** Set the target danger level (0..1). The engine eases toward it smoothly. */
   setIntensity(v: number): void {
     this.target = Math.max(0, Math.min(1, v));
+  }
+
+  /** Mute/unmute the score by riding the bus gain (scheduler keeps running). */
+  setEnabled(on: boolean): void {
+    this.bus.gain.setTargetAtTime(on ? BUS_GAIN : 0, this.ctx.currentTime, 0.05);
   }
 
   // --- the pad bed ---------------------------------------------------------

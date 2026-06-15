@@ -4,26 +4,40 @@ import { addPixelText } from '../systems/PixelFont';
 import { audio } from '../systems/AudioManager';
 import { SceneKeys } from './SceneKeys';
 
+type Page = 'main' | 'options';
+
 interface MenuItem {
-  label: string;
-  /** Run when the item is confirmed. Return a string to flash as feedback. */
-  action: () => string | void;
+  /** Dynamic so toggles/sliders re-render their current value on refresh. */
+  label: () => string;
+  /** Run on confirm (Enter/Space/E/click). Return a string to flash as feedback. */
+  action?: () => string | void;
+  /** Adjust on Left/Right (sliders, toggles). dir is -1 or +1. */
+  adjust?: (dir: number) => void;
 }
+
+const LINE_H = 14 * RS;
+const MAX_ROWS = 4; // the main page has the most rows; size the panel for it
 
 /**
  * MenuScene — the Escape pause menu. Launched on top of a *paused* WorldScene
- * (see WorldScene's `keydown-ESC`), it dims the world, shows a small panel of
- * options, and drives them by keyboard. Resume tears the menu back down and
- * hands control back to the world; the rest are placeholders for now save for
- * Exit, which asks the browser to close the tab.
+ * (see WorldScene's `keydown-ESC`), it dims the world and drives a small list by
+ * keyboard. It has two pages: the main menu (Resume / Save-Load / Options / Exit)
+ * and an Options page with live audio controls backed by AudioManager.
  */
 export class MenuScene extends Phaser.Scene {
   private items: MenuItem[] = [];
   private labels: Phaser.GameObjects.BitmapText[] = [];
   private cursor = 0;
+  private page: Page = 'main';
   /** Timestamp the menu opened; the keypress that opened it must not close it. */
   private openedAt = 0;
-  private feedback?: Phaser.GameObjects.BitmapText;
+
+  private title!: Phaser.GameObjects.BitmapText;
+  private help!: Phaser.GameObjects.BitmapText;
+  private feedback!: Phaser.GameObjects.BitmapText;
+  private cx = 0;
+  private cy = 0;
+  private panelH = 0;
 
   constructor() {
     super(SceneKeys.Menu);
@@ -31,112 +45,160 @@ export class MenuScene extends Phaser.Scene {
 
   create(): void {
     this.openedAt = this.time.now;
-    this.cursor = 0;
 
     const W = this.scale.width;
     const H = this.scale.height;
+    this.cx = Math.round(W / 2);
+    this.cy = Math.round(H / 2);
+    this.panelH = (MAX_ROWS + 3) * LINE_H;
 
     // Dim the world behind us so the menu reads as a modal overlay.
     this.add.rectangle(0, 0, W, H, 0x10101a, 0.72).setOrigin(0, 0).setScrollFactor(0);
-
-    this.items = [
-      { label: 'Resume', action: () => this.resumeGame() },
-      { label: 'Save / Load', action: () => 'Not yet available' },
-      { label: 'Options', action: () => 'Not yet available' },
-      { label: 'Exit', action: () => this.exitGame() },
-    ];
-
-    // Panel sized to the options, centered.
-    const lineH = 14 * RS;
-    const panelW = 120 * RS;
-    const panelH = (this.items.length + 3) * lineH;
-    const cx = Math.round(W / 2);
-    const cy = Math.round(H / 2);
     this.add
-      .rectangle(cx, cy, panelW, panelH, 0x1a1a2a, 0.95)
+      .rectangle(this.cx, this.cy, 132 * RS, this.panelH, 0x1a1a2a, 0.95)
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setStrokeStyle(RS, 0x6fb3ff, 0.9);
 
-    const title = addPixelText(this, 0, 0, 'PAUSED', { color: 0x6fb3ff }).setScale(1.4).setScrollFactor(0);
-    title.setPosition(Math.round(cx - (title.width * 1.4) / 2), Math.round(cy - panelH / 2 + lineH * 0.6));
+    this.title = addPixelText(this, 0, 0, '', { color: 0x6fb3ff }).setScale(1.4).setScrollFactor(0);
+    this.help = addPixelText(this, 0, 0, '', { color: 0x6b6b80 }).setScrollFactor(0);
+    this.feedback = addPixelText(this, 0, 0, '', { color: 0xffcf6f }).setScrollFactor(0).setAlpha(0);
 
-    const firstY = cy - ((this.items.length - 1) * lineH) / 2 + lineH * 0.3;
+    this.bindKeys();
+    this.showPage('main');
+  }
+
+  // --- pages ---------------------------------------------------------------
+
+  private showPage(page: Page): void {
+    this.page = page;
+    this.cursor = 0;
+    this.labels.forEach((l) => l.destroy());
+    this.labels = [];
+
+    this.items = page === 'main' ? this.mainItems() : this.optionsItems();
+
+    const firstY = this.cy - ((this.items.length - 1) * LINE_H) / 2 + LINE_H * 0.2;
     this.labels = this.items.map((item, i) => {
-      const t = addPixelText(this, 0, 0, item.label, { color: 0xe8e6d8 }).setScrollFactor(0);
-      t.setPosition(Math.round(cx - t.width / 2), Math.round(firstY + i * lineH - t.height / 2));
+      const t = addPixelText(this, 0, 0, item.label(), { color: 0xe8e6d8 }).setScrollFactor(0);
+      t.setY(Math.round(firstY + i * LINE_H - t.height / 2));
+      t.setInteractive({ useHandCursor: true });
+      t.on('pointerover', () => {
+        this.cursor = i;
+        this.refresh();
+      });
+      t.on('pointerdown', () => {
+        this.cursor = i;
+        this.refresh();
+        this.confirm();
+      });
       return t;
     });
 
-    this.feedback = addPixelText(this, 0, 0, '', { color: 0xffcf6f }).setScrollFactor(0);
+    this.title.setText(page === 'main' ? 'PAUSED' : 'OPTIONS');
+    this.title.setX(Math.round(this.cx - (this.title.width * 1.4) / 2));
+    this.title.setY(Math.round(this.cy - this.panelH / 2 + LINE_H * 0.6));
 
-    this.refreshSelection();
+    this.help.setText(page === 'main' ? 'W/S Move   Enter Select   Esc Resume' : 'W/S Move   A/D Adjust   Esc Back');
+    this.help.setX(Math.round(this.cx - this.help.width / 2));
+    this.help.setY(Math.round(this.cy + this.panelH / 2 - LINE_H * 1.1));
 
+    this.refresh();
+  }
+
+  private mainItems(): MenuItem[] {
+    return [
+      { label: () => 'Resume', action: () => this.resumeGame() },
+      { label: () => 'Save / Load', action: () => 'Not yet available' },
+      { label: () => 'Options', action: () => this.showPage('options') },
+      { label: () => 'Exit', action: () => this.exitGame() },
+    ];
+  }
+
+  private optionsItems(): MenuItem[] {
+    return [
+      {
+        label: () => `Volume  ${Math.round(audio.getVolume() * 10)} / 10`,
+        adjust: (dir) => audio.setVolume(Math.round(audio.getVolume() * 10 + dir) / 10),
+        action: () => audio.setVolume(Math.round(audio.getVolume() * 10 + 1) / 10),
+      },
+      {
+        label: () => `Music   ${audio.isMusicEnabled() ? 'On' : 'Off'}`,
+        adjust: () => audio.setMusicEnabled(!audio.isMusicEnabled()),
+        action: () => audio.setMusicEnabled(!audio.isMusicEnabled()),
+      },
+      { label: () => 'Back', action: () => this.showPage('main') },
+    ];
+  }
+
+  // --- input ---------------------------------------------------------------
+
+  private bindKeys(): void {
     const kb = this.input.keyboard!;
     kb.on('keydown-UP', () => this.moveCursor(-1));
     kb.on('keydown-W', () => this.moveCursor(-1));
     kb.on('keydown-DOWN', () => this.moveCursor(1));
     kb.on('keydown-S', () => this.moveCursor(1));
+    kb.on('keydown-LEFT', () => this.adjust(-1));
+    kb.on('keydown-A', () => this.adjust(-1));
+    kb.on('keydown-RIGHT', () => this.adjust(1));
+    kb.on('keydown-D', () => this.adjust(1));
     kb.on('keydown-ENTER', () => this.confirm());
     kb.on('keydown-SPACE', () => this.confirm());
     kb.on('keydown-E', () => this.confirm());
-    kb.on('keydown-ESC', () => this.closeIfReady());
-
-    // Clicking an option selects + confirms it.
-    this.labels.forEach((label, i) => {
-      label.setInteractive({ useHandCursor: true });
-      label.on('pointerover', () => {
-        this.cursor = i;
-        this.refreshSelection();
-      });
-      label.on('pointerdown', () => {
-        this.cursor = i;
-        this.refreshSelection();
-        this.confirm();
-      });
-    });
+    kb.on('keydown-ESC', () => this.back());
   }
 
   private moveCursor(dir: number): void {
     const n = this.items.length;
     this.cursor = (this.cursor + dir + n) % n;
     audio.playSfx('clink');
-    this.refreshSelection();
+    this.refresh();
   }
 
-  /** Re-render the pointer (`> label`) and highlight the active row. */
-  private refreshSelection(): void {
-    this.labels.forEach((label, i) => {
-      const active = i === this.cursor;
-      label.setText(active ? `> ${this.items[i].label}` : `  ${this.items[i].label}`);
-      label.setTint(active ? 0xffffff : 0x9a9ab0);
-      const cx = Math.round(this.scale.width / 2);
-      label.setX(Math.round(cx - label.width / 2));
-    });
+  private adjust(dir: number): void {
+    const item = this.items[this.cursor];
+    if (!item.adjust) return;
+    item.adjust(dir);
+    audio.playSfx('clink');
+    this.refresh();
   }
 
   private confirm(): void {
-    const result = this.items[this.cursor].action();
+    const result = this.items[this.cursor].action?.();
     if (typeof result === 'string') this.flash(result);
   }
 
-  /** Briefly show feedback under the menu (for placeholder options). */
+  /** ESC steps back: from Options to main, from main it resumes the game. */
+  private back(): void {
+    if (this.time.now - this.openedAt < 200) return; // ignore the opening keypress
+    if (this.page === 'options') this.showPage('main');
+    else this.resumeGame();
+  }
+
+  // --- rendering -----------------------------------------------------------
+
+  /** Re-render labels (pointer + live values) and highlight the active row. */
+  private refresh(): void {
+    this.labels.forEach((label, i) => {
+      const active = i === this.cursor;
+      label.setText((active ? '> ' : '  ') + this.items[i].label());
+      label.setTint(active ? 0xffffff : 0x9a9ab0);
+      label.setX(Math.round(this.cx - label.width / 2));
+    });
+  }
+
+  /** Briefly show feedback under the menu (placeholder options, blocked exit). */
   private flash(text: string): void {
-    if (!this.feedback) return;
     audio.playSfx('chime');
     this.feedback.setText(text).setAlpha(1);
-    const cx = Math.round(this.scale.width / 2);
-    const y = Math.round(this.scale.height / 2 + (this.items.length + 1) * 7 * RS);
-    this.feedback.setPosition(Math.round(cx - this.feedback.width / 2), y);
+    this.feedback.setX(Math.round(this.cx - this.feedback.width / 2));
+    this.feedback.setY(Math.round(this.cy + this.panelH / 2 + LINE_H * 0.4));
     this.tweens.killTweensOf(this.feedback);
     this.tweens.add({ targets: this.feedback, alpha: 0, delay: 1200, duration: 600 });
   }
 
-  /** ESC closes the menu, but only after the opening keypress has cleared. */
-  private closeIfReady(): void {
-    if (this.time.now - this.openedAt < 200) return;
-    this.resumeGame();
-  }
+  // --- actions -------------------------------------------------------------
 
   private resumeGame(): void {
     audio.playSfx('clink');
