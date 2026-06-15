@@ -44,6 +44,8 @@ export class PreloadScene extends Phaser.Scene {
     for (const dir of SPRITE_DIRS) {
       this.load.image(`maple-${dir}`, `assets/sprites/maple/rotations/${dir}.png`);
     }
+    // Maple's 8-direction walk animation (sheets generated from GIFs).
+    this.loadDirAnimSet('maple-walk', 'assets/sprites/maple/walk');
 
     // Optional real terrain tileset — composited over the walkable placeholder
     // tiles once loaded (tree-walls + vines stay procedural).
@@ -95,6 +97,37 @@ export class PreloadScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Load an 8-direction animation set from a folder with a manifest (e.g. Maple's
+   * walk): queues `<animKey>-<dir>` spritesheets. Registered as anims in create().
+   */
+  private loadDirAnimSet(animKey: string, basePath: string): void {
+    const key = `${animKey}-manifest`;
+    this.load.json(key, `${basePath}/manifest.json`);
+    this.load.once(`filecomplete-json-${key}`, (_k: string, _t: string, data: unknown) => {
+      const m = data as { frameWidth: number; frameHeight: number; dirs?: string[] } | undefined;
+      if (!m || !Array.isArray(m.dirs)) return;
+      for (const dir of m.dirs) {
+        this.load.spritesheet(`${animKey}-${dir}`, `${basePath}/${dir}.png`, {
+          frameWidth: m.frameWidth,
+          frameHeight: m.frameHeight,
+        });
+      }
+    });
+  }
+
+  /** Register a looping anim per direction for an animation set, if loaded. */
+  private registerDirAnims(animKey: string): void {
+    const m = this.cache.json.get(`${animKey}-manifest`) as { dirs?: string[] } | undefined;
+    if (!m || !Array.isArray(m.dirs)) return;
+    for (const dir of m.dirs) {
+      const tk = `${animKey}-${dir}`;
+      if (this.textures.exists(tk) && !this.anims.exists(tk)) {
+        this.anims.create({ key: tk, frames: this.anims.generateFrameNumbers(tk, {}), frameRate: 10, repeat: -1 });
+      }
+    }
+  }
+
   create(): void {
     // All loads are done now, so fold the real terrain + stone art into the
     // tileset, then bake the dithered edge decals from the (now real) grass.
@@ -105,6 +138,7 @@ export class PreloadScene extends Phaser.Scene {
     if (this.textures.exists('fire') && !this.anims.exists('fire')) {
       this.anims.create({ key: 'fire', frames: this.anims.generateFrameNumbers('fire', {}), frameRate: 10, repeat: -1 });
     }
+    this.registerDirAnims('maple-walk');
     this.scene.start(SceneKeys.World);
   }
 

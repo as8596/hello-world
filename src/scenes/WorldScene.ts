@@ -327,6 +327,7 @@ export class WorldScene extends Phaser.Scene {
           label: 'talk',
           awakeTexture: villagerAwakeKey(1),
           dirPrefix: 'maple',
+          walkPrefix: 'maple-walk',
           dirScale: 1,
           dirOriginY: 0.74,
         });

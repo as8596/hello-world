@@ -1,0 +1,15 @@
+{
+  "frameWidth": 124,
+  "frameHeight": 124,
+  "frames": 6,
+  "dirs": [
+    "south",
+    "north",
+    "east",
+    "west",
+    "north-east",
+    "north-west",
+    "south-east",
+    "south-west"
+  ]
+}
