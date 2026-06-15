@@ -123,7 +123,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       const srcH = this.height;
       this.setOrigin(0.5, cfg.originY);
       body.setSize(cfg.bodyWidth, cfg.bodyHeight);
-      body.setOffset(srcW * 0.5 - cfg.bodyWidth / 2, srcH * cfg.originY - cfg.bodyHeight / 2);
+      // X: centred on the sprite (left/right collide cleanly). Y: the box BOTTOM
+      // sits at the feet/contact line (origin) and rises over the legs — the art
+      // has empty padding below the feet, so a centred box would float above south
+      // walls and bury into north ones. Anchoring the bottom fixes top/bottom.
+      body.setOffset(srcW * 0.5 - cfg.bodyWidth / 2, srcH * cfg.originY - cfg.bodyHeight);
     } else {
       const { width, height, offsetX, offsetY } = playerConfig.body;
       body.setSize(width, height);

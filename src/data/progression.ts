@@ -4,9 +4,10 @@
  * Levels grant a small permanent boost (see WorldScene.applyLevelUp).
  */
 
-/** XP required to advance from `level` to `level + 1`. Gently rising. */
+/** XP required to advance from `level` to `level + 1`. Rising; tuned so combat
+ *  levels you steadily but not too fast (~1 level per 10-15 kills early on). */
 export function xpToNext(level: number): number {
-  return 10 + (level - 1) * 6; // L1→2: 10, L2→3: 16, L3→4: 22, …
+  return 24 + (level - 1) * 16; // L1→2: 24, L2→3: 40, L3→4: 56, …
 }
 
 /** Half-hearts of max-HP granted per level gained. */

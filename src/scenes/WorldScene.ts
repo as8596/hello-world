@@ -75,6 +75,8 @@ export class WorldScene extends Phaser.Scene {
   private wards: Destructible[] = [];
   private trees: Tree[] = [];
   private buildings: Building[] = [];
+  /** Occupied vertical slots for stacked toasts (so they don't overlap). */
+  private readonly toastSlots = new Set<number>();
   // Invisible static footprint colliders for trees + buildings (one player collider).
   private propColliders: Phaser.GameObjects.Rectangle[] = [];
   private fog: FogPatch[] = [];
@@ -244,9 +246,9 @@ export class WorldScene extends Phaser.Scene {
         }
       } else if (obj.type === 'tree') {
         this.trees.push(new Tree(this, obj.x, obj.y));
-        // A small invisible static trunk at the base so the player rounds it.
-        // Aligned to the art's actual trunk (measured), centered on the tile.
-        const trunk = this.add.rectangle(obj.x, obj.y - 1 * RS, 7 * RS, 5 * RS).setOrigin(0.5).setVisible(false);
+        // An invisible static trunk at the base so the player rounds it. Scaled
+        // to the big tree's trunk, but kept ~1 tile so it never walls off a lane.
+        const trunk = this.add.rectangle(obj.x, obj.y - 1 * RS, 16 * RS, 10 * RS).setOrigin(0.5).setVisible(false);
         this.physics.add.existing(trunk, true);
         this.propColliders.push(trunk);
       } else if (obj.type === 'building') {
@@ -1395,7 +1397,12 @@ export class WorldScene extends Phaser.Scene {
 
   private showToast(text: string): void {
     const cx = Math.round(this.scale.width / 2);
-    const cy = 24 * RS;
+    // Stack into the lowest free slot so simultaneous toasts don't overlap.
+    let slot = 0;
+    while (this.toastSlots.has(slot)) slot++;
+    this.toastSlots.add(slot);
+    const cy = 24 * RS + slot * 11 * RS;
+
     const toast = addPixelText(this, 0, 0, text, { color: 0xe8e6d8 }).setScrollFactor(0).setDepth(2101);
     const w = toast.width;
     const h = toast.height;
@@ -1411,6 +1418,7 @@ export class WorldScene extends Phaser.Scene {
       delay: 1600,
       duration: 800,
       onComplete: () => {
+        this.toastSlots.delete(slot);
         toast.destroy();
         bg.destroy();
       },

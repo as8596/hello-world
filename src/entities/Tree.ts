@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 
-/** Display scale for the 128px tree art → ~2.5 tiles tall (a large canopy). */
-const TREE_SCALE = 1.28;
+/** Display scale for the 128px tree art → a big, imposing canopy (~6 tiles). */
+const TREE_SCALE = 3.2;
 /** Depth when the player is behind (north of) / in front of (south of) the trunk. */
 const OVER_PLAYER = 12;
 const BEHIND_PLAYER = 9;
